@@ -1,0 +1,20 @@
+{
+  "name": "opentomato",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OpenTomato — macOS 桌面小说写作工具：pi agent 内核 + 可视 diff 审批 + 多角色子 agent",
+  "license": "MIT",
+  "packageManager": "bun@1.4.0",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "bun run --filter @opentomato/core build && concurrently -k -n core,desktop \"bun run --filter @opentomato/core watch\" \"bun run --filter @opentomato/desktop dev\"",
+    "build": "bun run --filter @opentomato/core build && bun run --filter @opentomato/desktop build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter @opentomato/core test",
+    "dist": "bun run build && bun run --filter @opentomato/desktop dist"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.4",
+    "typescript": "5.9.3"
+  }
+}

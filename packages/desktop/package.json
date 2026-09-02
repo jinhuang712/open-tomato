@@ -1,0 +1,33 @@
+{
+  "name": "@opentomato/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "productName": "OpenTomato",
+  "description": "OpenTomato macOS 桌面端",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "dist": "electron-builder --mac --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@opentomato/core": "workspace:*",
+    "electron-window-state": "5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.13.3",
+    "diff": "8.0.4",
+    "@types/diff": "8.0.0",
+    "electron": "44.1.1",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "marked": "18.0.11",
+    "solid-js": "1.9.15",
+    "tailwindcss": "4.3.3",
+    "vite": "7.3.6",
+    "vite-plugin-solid": "2.11.14"
+  }
+}
