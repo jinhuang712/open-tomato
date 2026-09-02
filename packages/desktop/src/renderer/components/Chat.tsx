@@ -1,4 +1,4 @@
-import { createEffect, For, on, Show } from "solid-js";
+import { createEffect, For, Match, on, Show, Switch } from "solid-js";
 import { actions, state } from "../state";
 import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
@@ -58,9 +58,11 @@ export function Chat(props: { agentId: string }) {
         </Show>
       </div>
       <Show when={isLead()}>
-        <For each={state.questions.slice(0, 1)}>{(q) => <QuestionDock request={q} />}</For>
-        <For each={state.approvals.slice(0, 1)}>{(a) => <ApprovalDock request={a} />}</For>
-        <Composer />
+        {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事 */}
+        <Switch fallback={<Composer />}>
+          <Match when={state.questions[0]}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
+          <Match when={state.approvals[0]}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
+        </Switch>
       </Show>
     </div>
   );
