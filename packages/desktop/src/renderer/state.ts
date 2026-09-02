@@ -50,6 +50,8 @@ export interface State {
   searchOpen: boolean;
   /** 快捷按钮往输入框里预填的文字；Composer 消费后清空 */
   composerDraft: string | null;
+  /** 正在弹窗审阅的 approvalId */
+  reviewOpen: string | null;
 }
 
 const initial: State = {
@@ -75,6 +77,7 @@ const initial: State = {
   capabilityDialog: null,
   searchOpen: false,
   composerDraft: null,
+  reviewOpen: null,
 };
 
 export const [state, setState] = createStore<State>(initial);
@@ -156,9 +159,12 @@ export function applyEvent(ev: KernelEvent) {
       return;
     case "approval.requested":
       setState("approvals", (a) => [...a, ev.request]);
+      // 没在审别的就直接弹出来
+      if (!state.reviewOpen) setState("reviewOpen", ev.request.approvalId);
       return;
     case "approval.resolved":
       setState("approvals", (a) => a.filter((x) => x.approvalId !== ev.approvalId));
+      if (state.reviewOpen === ev.approvalId) setState("reviewOpen", null);
       return;
     case "question.requested":
       setState("questions", (q) => [...q, ev.request]);

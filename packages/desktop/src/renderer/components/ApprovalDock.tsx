@@ -1,70 +1,45 @@
 import type { ApprovalRequest } from "@opentomato/core/protocol";
-import { createSignal, Show } from "solid-js";
-import { actions, state } from "../state";
-import { DiffView } from "./DiffView";
+import { createMemo, Show } from "solid-js";
+import { actions, setState, state } from "../state";
 import { DocLink } from "./DocLink";
 
+/** 输入框位置的紧凑条：一句话说明 + 打开审阅弹窗；弹窗关掉后还能从这里再进 */
 export function ApprovalDock(props: { request: ApprovalRequest }) {
-  const [reason, setReason] = createSignal("");
-  const [rejecting, setRejecting] = createSignal(false);
   const agent = () => state.agents[props.request.agentId];
+  const stats = createMemo(() => {
+    let add = 0;
+    let del = 0;
+    for (const line of props.request.patch.split("\n")) {
+      if (line.startsWith("+") && !line.startsWith("+++")) add++;
+      else if (line.startsWith("-") && !line.startsWith("---")) del++;
+    }
+    return { add, del };
+  });
 
   return (
     <div class="mx-5 mb-2 rounded-xl border border-accent/40 bg-paper shadow-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-4 py-2 bg-accent-soft/60 border-b border-line">
-        <span class="w-2 h-2 rounded-full bg-accent" />
-        <span class="font-medium">{agent()?.label ?? "agent"} 请求写入</span>
+      <div class="flex items-center gap-3 px-4 py-3">
+        <span class="w-2 h-2 rounded-full bg-accent shrink-0" />
+        <span class="font-medium shrink-0">{agent()?.label ?? "agent"} 请求写入</span>
         <DocLink kind={props.request.kind} id={props.request.docId} class="text-[12px]" />
         <Show when={props.request.isNew}>
           <span class="text-[11px] px-1.5 rounded bg-ok-soft text-ok">新建</span>
         </Show>
+        <span class="text-[12px] text-ink-3 shrink-0">
+          <span class="text-ok">+{stats().add}</span> <span class="text-danger">−{stats().del}</span>
+        </span>
         <span class="flex-1" />
-        <span class="text-ink-2 truncate max-w-[40%]">{props.request.title}</span>
-      </div>
-      <div class="p-3">
-        <DiffView patch={props.request.patch} maxHeight="40vh" />
-      </div>
-      <div class="flex items-center gap-2 px-4 pb-3">
-        <Show
-          when={rejecting()}
-          fallback={
-            <>
-              <button
-                class="px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
-                onClick={() => void actions.approve(props.request.approvalId)}
-              >
-                批准写入
-              </button>
-              <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-2" onClick={() => setRejecting(true)}>
-                拒绝…
-              </button>
-            </>
-          }
+        <button
+          class="px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
+          onClick={() => setState("reviewOpen", props.request.approvalId)}
         >
-          <input
-            class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent"
-            placeholder="拒绝原因（会回给 agent，让它照着改）"
-            value={reason()}
-            onInput={(e) => setReason(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void actions.reject(props.request.approvalId, reason());
-              if (e.key === "Escape") setRejecting(false);
-            }}
-            autofocus
-          />
-          <button
-            class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110"
-            onClick={() => void actions.reject(props.request.approvalId, reason())}
-          >
-            确认拒绝
-          </button>
-          <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={() => setRejecting(false)}>
-            取消
-          </button>
-        </Show>
-        <span class="flex-1" />
+          审阅
+        </button>
+        <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-2" onClick={() => void actions.approve(props.request.approvalId)} title="不看了，直接写">
+          直接批准
+        </button>
         <Show when={state.approvals.length > 1}>
-          <span class="text-ink-3 text-[12px]">还有 {state.approvals.length - 1} 条待审</span>
+          <span class="text-ink-3 text-[12px]">还有 {state.approvals.length - 1} 条</span>
         </Show>
       </div>
     </div>

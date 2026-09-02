@@ -5,6 +5,7 @@ import { CapabilityDialog } from "./components/CapabilityDialog";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
+import { ReviewModal } from "./components/ReviewModal";
 import { SearchPalette } from "./components/SearchPalette";
 import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
@@ -150,6 +151,7 @@ export function App() {
       <Show when={state.searchOpen && state.project}>
         <SearchPalette />
       </Show>
+      <Show when={state.approvals.find((a) => a.approvalId === state.reviewOpen)}>{(r) => <ReviewModal request={r()} />}</Show>
       <Toasts />
     </div>
   );

@@ -150,6 +150,40 @@ mark {
   padding: 0 1px;
 }
 
+/* 审阅视图：Word 式修订痕迹 */
+.tc-ins {
+  background: var(--color-add-strong);
+  color: var(--color-ink);
+  text-decoration: none;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.tc-del {
+  background: var(--color-del);
+  color: var(--color-danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.tc-fold {
+  display: inline-block;
+  margin: 0 0.4em;
+  padding: 0 0.6em;
+  border-radius: 999px;
+  border: 1px dashed var(--color-line);
+  color: var(--color-ink-3);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.8;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.tc-fold:hover {
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
 /* 文档引用：胶囊，和正文明显区分 */
 .doc-link {
   display: inline-flex;
