@@ -329,9 +329,6 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async abort(agentId?: string) {
-    await bridge.request("chat.abort", agentId ? { agentId } : {}).catch((e) => toast(errText(e), "error"));
-  },
   async newChat() {
     try {
       await bridge.request("chat.new", {});

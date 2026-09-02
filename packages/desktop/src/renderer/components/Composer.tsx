@@ -70,13 +70,6 @@ export function Composer(props: { agentId?: string }) {
             >
               暂停
             </button>
-            <button
-              class="px-2 py-1 rounded-lg text-[11px] text-ink-3 hover:text-danger"
-              onClick={() => void actions.abort(isLead() ? undefined : agentId())}
-              title={isLead() ? "立刻掐断主编和所有子 agent，正在做的事作废" : `立刻掐断${agent()?.label}`}
-            >
-              强制停止
-            </button>
           </Show>
           <button
             class="px-3 py-1 rounded-lg bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-40"
