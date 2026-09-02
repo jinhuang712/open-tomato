@@ -33,7 +33,24 @@ const DIR_ALTERNATION = Object.keys(ALIASES)
   .map((k) => k.replace(/\//g, "\\/"))
   .join("|");
 
-const REF = new RegExp(`(?<![\\w/.\\-\\p{Script=Han}])(${DIR_ALTERNATION})\\/([\\p{L}\\p{N}_\\-]+?)(\\.md)?(?![\\w/.\\-])`, "gu");
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+let cacheKey = "";
+let cachedRef: RegExp | null = null;
+
+/**
+ * 只认项目里真实存在的文档 id（最长优先），中文 id 后面紧跟正文也不会多吃或少吃。
+ * 没有项目时退回宽松匹配。
+ */
+function refPattern(): RegExp {
+  const ids = [...new Set(state.docs.map((d) => d.id))].sort((a, b) => b.length - a.length);
+  const key = ids.join("\u0000");
+  if (cachedRef && key === cacheKey) return cachedRef;
+  cacheKey = key;
+  const idAlt = ids.length > 0 ? ids.map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
+  cachedRef = new RegExp(`(?<![\\w/.\\-\\p{Script=Han}])(${DIR_ALTERNATION})\\/(${idAlt})(\\.md)?(?![\\w/.\\-])`, "gu");
+  return cachedRef;
+}
 
 /** 给人看的路径：中文目录/id */
 export function displayPath(kind: DocKindId | string, id: string): string {
@@ -42,7 +59,7 @@ export function displayPath(kind: DocKindId | string, id: string): string {
 }
 
 export function parseDocRef(text: string): DocRef | null {
-  const m = new RegExp(REF.source, "u").exec(text.trim());
+  const m = new RegExp(refPattern().source, "u").exec(text.trim());
   if (!m || m[0] !== text.trim()) return null;
   const kind = ALIASES[m[1]!];
   return kind ? { kind, id: m[2]! } : null;
@@ -54,10 +71,10 @@ export function linkifyDocRefs(html: string): string {
     .split(/(<[^>]+>)/g)
     .map((chunk) => {
       if (chunk.startsWith("<")) return chunk;
-      return chunk.replace(REF, (whole, dir: string, id: string) => {
+      return chunk.replace(refPattern(), (whole, dir: string, id: string) => {
         const kind = ALIASES[dir];
         if (!kind) return whole;
-        return `<a class="doc-link" data-doc="${kind}/${id}" title="打开 ${displayPath(kind, id)}">${whole}</a>`;
+        return `<a class="doc-link" data-doc="${kind}/${id}" title="打开 ${displayPath(kind, id)}">${displayPath(kind, id)}</a>`;
       });
     })
     .join("");
