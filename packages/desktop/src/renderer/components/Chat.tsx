@@ -20,21 +20,29 @@ export function Chat(props: { agentId: string }) {
   const dockQuestion = () => question() ?? (isLead() ? state.questions[0] : undefined);
   const dockApproval = () => approval() ?? (isLead() ? state.approvals[0] : undefined);
 
-  const [awayFromBottom, setAwayFromBottom] = createSignal(false);
+  // following = 用户贴着底部，新内容来了就跟着滚；一旦用户往上滚就停止跟随，直到回到底部
+  const [following, setFollowing] = createSignal(true);
   const distance = () => (scroller ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight : 0);
   const scrollToBottom = () => {
     if (!scroller) return;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    scroller.scrollTop = scroller.scrollHeight;
+    setFollowing(true);
   };
+  const onScroll = () => setFollowing(distance() < 24);
+  const onWheel = (e: WheelEvent) => {
+    if (e.deltaY < 0) setFollowing(false);
+  };
+
+  // 切换 agent 时重新贴底
+  createEffect(on(() => props.agentId, () => queueMicrotask(scrollToBottom)));
 
   createEffect(
     on(
-      () => [props.agentId, messages().length, messages().at(-1)?.parts.length, JSON.stringify(messages().at(-1)?.parts.at(-1))],
+      () => [messages().length, messages().at(-1)?.parts.length, JSON.stringify(messages().at(-1)?.parts.at(-1))],
       () => {
-        if (!scroller) return;
-        if (distance() < 160) scroller.scrollTop = scroller.scrollHeight;
-        else setAwayFromBottom(true);
+        if (scroller && following()) scroller.scrollTop = scroller.scrollHeight;
       },
+      { defer: true },
     ),
   );
 
@@ -55,8 +63,8 @@ export function Chat(props: { agentId: string }) {
           </span>
         </div>
       </Show>
-      <div ref={scroller} class="flex-1 overflow-y-auto py-3" onScroll={() => setAwayFromBottom(distance() > 240)}>
-        <div class="max-w-[880px] mx-auto w-full h-full">
+      <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
+        <div class="max-w-[880px] mx-auto w-full min-h-full">
         <Show when={messages().length === 0}>
           <div class="h-full flex items-center justify-center text-ink-3 text-center px-10">
             <Show when={isLead()} fallback={<div>子 agent 还没有输出</div>}>
@@ -85,7 +93,7 @@ export function Chat(props: { agentId: string }) {
       </div>
       {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
       <div class="relative max-w-[880px] mx-auto w-full">
-        <Show when={awayFromBottom()}>
+        <Show when={!following()}>
           <button
             class="absolute -top-11 right-6 z-10 w-9 h-9 rounded-full bg-paper border border-line shadow-lg text-ink-2 hover:text-ink hover:border-accent flex items-center justify-center"
             title="回到底部"
