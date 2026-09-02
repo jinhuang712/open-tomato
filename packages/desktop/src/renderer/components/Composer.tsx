@@ -1,4 +1,5 @@
 import { createEffect, createSignal, Show } from "solid-js";
+import { autoGrow } from "../autogrow";
 import { actions, setState, state } from "../state";
 
 export function Composer(props: { agentId?: string }) {
@@ -14,7 +15,13 @@ export function Composer(props: { agentId?: string }) {
     queueMicrotask(() => {
       box?.focus();
       box?.setSelectionRange(draft.length, draft.length);
+      if (box) autoGrow(box);
     });
+  });
+  // 发送后清空要把高度收回去
+  createEffect(() => {
+    text();
+    if (box) autoGrow(box);
   });
   const agentId = () => props.agentId ?? "lead";
   const isLead = () => agentId() === "lead";
@@ -44,11 +51,14 @@ export function Composer(props: { agentId?: string }) {
         <textarea
           ref={box}
           class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-[13.5px] leading-relaxed"
-          rows={3}
+          rows={2}
           placeholder={placeholder()}
           value={text()}
           disabled={disabled()}
-          onInput={(e) => setText(e.currentTarget.value)}
+          onInput={(e) => {
+            setText(e.currentTarget.value);
+            autoGrow(e.currentTarget);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();

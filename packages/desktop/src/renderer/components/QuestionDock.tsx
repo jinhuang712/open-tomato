@@ -1,5 +1,6 @@
 import type { QuestionRequest } from "@opentomato/core/protocol";
 import { createSignal, For, Show } from "solid-js";
+import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
 
@@ -56,7 +57,10 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             rows={2}
             placeholder={props.request.options.length ? "或者直接输入…（⌘↩ 发送）" : "输入回答…（⌘↩ 发送）"}
             value={text()}
-            onInput={(e) => setText(e.currentTarget.value)}
+            onInput={(e) => {
+              setText(e.currentTarget.value);
+              autoGrow(e.currentTarget);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
