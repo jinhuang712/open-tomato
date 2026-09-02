@@ -1,17 +1,28 @@
 import { createSignal, Show } from "solid-js";
 import { actions, state } from "../state";
 
-export function Composer() {
+export function Composer(props: { agentId?: string }) {
   const [text, setText] = createSignal("");
-  const lead = () => state.agents.lead;
-  const busy = () => lead()?.status === "running";
+  const agentId = () => props.agentId ?? "lead";
+  const isLead = () => agentId() === "lead";
+  const agent = () => state.agents[agentId()];
+  const busy = () => agent()?.status === "running";
+  const gone = () => !isLead() && (agent()?.status === "done" || agent()?.status === "error");
   const noModel = () => !state.models?.current;
+  const disabled = () => noModel() || gone();
+
+  const placeholder = () => {
+    if (noModel()) return "先在右上角选一个模型并填 API key";
+    if (gone()) return `${agent()?.label ?? "子 agent"} 已经收工，这段对话只能看`;
+    if (!isLead()) return `给${agent()?.label ?? "子 agent"}插话…（⌘↩ 发送，它会在当前步骤后处理）`;
+    return "和主编说话…（⌘↩ 发送，运行中发送会插话）";
+  };
 
   const send = () => {
     const t = text();
     if (!t.trim()) return;
     setText("");
-    void actions.send(t);
+    void actions.send(t, agentId());
   };
 
   return (
@@ -20,9 +31,9 @@ export function Composer() {
         <textarea
           class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-[13.5px] leading-relaxed"
           rows={3}
-          placeholder={noModel() ? "先在右上角选一个模型并填 API key" : "和主编说话…（⌘↩ 发送，运行中发送会插话）"}
+          placeholder={placeholder()}
           value={text()}
-          disabled={noModel()}
+          disabled={disabled()}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -38,13 +49,17 @@ export function Composer() {
           </span>
           <span class="flex-1" />
           <Show when={busy()}>
-            <button class="px-3 py-1 rounded-lg border border-line text-ink-2 hover:text-danger hover:border-danger" onClick={() => void actions.abort()}>
+            <button
+              class="px-3 py-1 rounded-lg border border-line text-ink-2 hover:text-danger hover:border-danger"
+              onClick={() => void actions.abort(isLead() ? undefined : agentId())}
+              title={isLead() ? "停下主编和所有子 agent" : `只停下${agent()?.label}`}
+            >
               停止
             </button>
           </Show>
           <button
             class="px-3 py-1 rounded-lg bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-40"
-            disabled={!text().trim() || noModel()}
+            disabled={!text().trim() || disabled()}
             onClick={send}
           >
             {busy() ? "插话" : "发送"}

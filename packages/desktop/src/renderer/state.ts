@@ -277,17 +277,17 @@ export const actions = {
   async closeProject() {
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
-  async send(text: string) {
+  async send(text: string, agentId?: string) {
     const t = text.trim();
     if (!t) return;
     try {
-      await bridge.request("chat.send", { text: t });
+      await bridge.request("chat.send", agentId && agentId !== "lead" ? { text: t, agentId } : { text: t });
     } catch (e) {
       toast(errText(e), "error");
     }
   },
-  async abort() {
-    await bridge.request("chat.abort", {}).catch((e) => toast(errText(e), "error"));
+  async abort(agentId?: string) {
+    await bridge.request("chat.abort", agentId ? { agentId } : {}).catch((e) => toast(errText(e), "error"));
   },
   async newChat() {
     try {

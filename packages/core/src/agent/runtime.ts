@@ -141,12 +141,13 @@ export class Kernel {
         this.emit({ type: "models.state", state });
         return state;
       },
-      "chat.send": async ({ text }) => {
-        this.sendToLead(text);
+      "chat.send": async ({ text, agentId }) => {
+        this.sendTo(agentId ?? LEAD_ID, text);
         return null;
       },
-      "chat.abort": async () => {
-        for (const a of this.agents.values()) await a.session.abort().catch(() => {});
+      "chat.abort": async ({ agentId }) => {
+        const targets = agentId ? [this.agents.get(agentId)].filter((a): a is LiveAgent => !!a) : [...this.agents.values()];
+        for (const a of targets) await a.session.abort().catch(() => {});
         return null;
       },
       "chat.new": async () => {
@@ -162,7 +163,7 @@ export class Kernel {
         for (const param of cap.params) {
           if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
         }
-        this.sendToLead(cap.render(capParams));
+        this.sendTo(LEAD_ID, cap.render(capParams));
         return null;
       },
       "roles.list": async () => roleInfos(),
@@ -314,14 +315,14 @@ export class Kernel {
     this.setStatus(live, "idle");
   }
 
-  private sendToLead(text: string) {
-    const lead = this.agents.get(LEAD_ID);
-    if (!lead) throw new Error("主编会话不存在，先打开项目");
-    const run = lead.session.isStreaming
-      ? lead.session.prompt(text, { streamingBehavior: "steer" })
-      : lead.session.prompt(text);
+  private sendTo(agentId: string, text: string) {
+    const live = this.agents.get(agentId);
+    if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 已经完成并退场，没法再对话");
+    const run = live.session.isStreaming
+      ? live.session.prompt(text, { streamingBehavior: "steer" })
+      : live.session.prompt(text);
     run.catch((e: unknown) => {
-      this.setStatus(lead, "error", e instanceof Error ? e.message : String(e));
+      this.setStatus(live, "error", e instanceof Error ? e.message : String(e));
     });
   }
 

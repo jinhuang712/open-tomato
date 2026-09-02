@@ -1,6 +1,5 @@
 import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
-import { AgentsPanel } from "./components/AgentsPanel";
 import { CapabilityDialog } from "./components/CapabilityDialog";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
@@ -110,9 +109,6 @@ export function App() {
               <Match when={state.view.type === "doc" && state.view}>{(v) => <DocViewer kind={v().kind} id={v().id} />}</Match>
             </Switch>
           </main>
-          <aside class="w-[280px] shrink-0 border-l border-line bg-paper-2/60 overflow-hidden">
-            <AgentsPanel />
-          </aside>
         </div>
       </Show>
       <Show when={state.modelPickerOpen}>
