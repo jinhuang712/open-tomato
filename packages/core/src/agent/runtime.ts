@@ -66,10 +66,12 @@ export class Kernel {
     private readonly emit: (event: KernelEvent) => void,
   ) {
     this.sessionsDir = path.join(home, "sessions");
-    this.gate = new Gate(
-      (request) => this.emit({ type: "approval.requested", request }),
-      (request) => this.emit({ type: "question.requested", request }),
-    );
+    this.gate = new Gate({
+      approvalRequested: (request) => this.emit({ type: "approval.requested", request }),
+      approvalClosed: (approvalId, decision) => this.emit({ type: "approval.resolved", approvalId, decision }),
+      questionRequested: (request) => this.emit({ type: "question.requested", request }),
+      questionClosed: (questionId) => this.emit({ type: "question.resolved", questionId }),
+    });
     this.ready = new Promise<void>((resolve, reject) => {
       this.markReady = resolve;
       this.failReady = reject;
@@ -173,13 +175,14 @@ export class Kernel {
       },
       "roles.list": async () => roleInfos(),
       "approval.reply": async ({ approvalId, decision, reason }) => {
-        if (!this.gate.resolveApproval(approvalId, { decision, reason: reason ?? "" })) throw new Error("这条审批已经不存在");
-        this.emit({ type: "approval.resolved", approvalId, decision });
+        if (!this.gate.resolveApproval(approvalId, { decision, reason: reason ?? "" })) {
+          // 已经不在了（被中止 / 重复点），也让 UI 撤掉
+          this.emit({ type: "approval.resolved", approvalId, decision });
+        }
         return null;
       },
       "question.reply": async ({ questionId, answer }) => {
-        if (!this.gate.resolveQuestion(questionId, answer)) throw new Error("这条提问已经不存在");
-        this.emit({ type: "question.resolved", questionId });
+        if (!this.gate.resolveQuestion(questionId, answer)) this.emit({ type: "question.resolved", questionId });
         return null;
       },
       "check.run": async () => {
@@ -505,6 +508,19 @@ export function takeStatusLine(text: string): { text: string; rest: string } | n
   return { text: m[1]!.trim(), rest: text.slice(m[0].length).replace(/^\r?\n/, "") };
 }
 
+/** 工具参数可能是对象，也可能是还没解析的 JSON 字符串（部分 provider / 截断的流） */
+function parseArgs(v: unknown): unknown {
+  if (v && typeof v === "object") return v;
+  if (typeof v === "string" && v.trim()) {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return { _raw: v };
+    }
+  }
+  return {};
+}
+
 function contentText(result: unknown): string {
   const content = (result as { content?: unknown } | undefined)?.content;
   if (typeof content === "string") return content;
@@ -538,7 +554,7 @@ function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
             type: "tool",
             toolCallId: String(c.id ?? ""),
             name: String(c.name ?? ""),
-            args: c.arguments ?? {},
+            args: parseArgs(c.arguments),
             status: "running",
             output: "",
             details: null,

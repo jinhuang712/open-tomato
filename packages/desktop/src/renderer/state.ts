@@ -132,7 +132,12 @@ export function applyEvent(ev: KernelEvent) {
           if (a) {
             a.status = ev.status;
             a.error = ev.error;
-            if (ev.status !== "running") a.statusText = "";
+            if (ev.status !== "running") {
+              a.statusText = "";
+              // agent 停了，它挂着的待答 / 待审不可能再有人接，一并撤掉
+              s.questions = s.questions.filter((q) => q.agentId !== ev.agentId);
+              s.approvals = s.approvals.filter((x) => x.agentId !== ev.agentId);
+            }
           }
         }),
       );
@@ -238,6 +243,8 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
               p.status = prev.status;
               p.output = prev.output;
               p.details = prev.details;
+              // tool_start 带来的参数比消息体里的可靠（消息体可能是截断的流）
+              if (prev.args && typeof prev.args === "object" && Object.keys(prev.args as object).length > 0) p.args = prev.args;
             }
           }
           list[idx] = merged;
