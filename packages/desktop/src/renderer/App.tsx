@@ -45,6 +45,9 @@ function Titlebar() {
           {state.models?.current ? state.models.current.id : "选择模型"}
         </button>
         <Show when={state.project}>
+          <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => void actions.exportChat()} title="导出当前会话为 Markdown（⌘E）">
+            导出会话
+          </button>
           <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => void actions.newChat()} title="⌘⇧N">
             新会话
           </button>
@@ -96,6 +99,9 @@ export function App() {
           break;
         case "check.run":
           if (state.project) void actions.runCheck();
+          break;
+        case "chat.export":
+          if (state.project) void actions.exportChat();
           break;
       }
     });

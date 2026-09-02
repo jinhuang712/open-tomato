@@ -28,6 +28,8 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         { label: "新会话", accelerator: "CmdOrCtrl+Shift+N", click: send("chat.new") },
         { label: "一致性机检", accelerator: "CmdOrCtrl+Shift+K", click: send("check.run") },
         { type: "separator" },
+        { label: "导出当前会话…", accelerator: "CmdOrCtrl+E", click: send("chat.export") },
+        { type: "separator" },
         { role: "close", label: "关闭窗口" },
       ],
     },

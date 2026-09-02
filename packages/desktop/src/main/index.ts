@@ -75,6 +75,18 @@ ipcMain.handle("dialog:pickFolder", async (_e, { title, create }: { title: strin
 
 ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
 
+ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { defaultName: string; content: string }) => {
+  if (!mainWindow) return null;
+  const r = await dialog.showSaveDialog(mainWindow, {
+    title: "导出",
+    defaultPath: join(app.getPath("documents"), defaultName),
+    filters: [{ name: "Markdown", extensions: ["md"] }],
+  });
+  if (r.canceled || !r.filePath) return null;
+  await writeFile(r.filePath, content, "utf8");
+  return r.filePath;
+});
+
 app.setName("OpenTomato");
 
 void app.whenReady().then(() => {
