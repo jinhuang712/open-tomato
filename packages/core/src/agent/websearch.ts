@@ -74,9 +74,49 @@ export function compactResults(raw: string): string {
   return cleaned.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/** 匿名调 Exa 并发一高就 429：同进程内串行排队，两次之间留一点间隔 */
+let queue: Promise<unknown> = Promise.resolve();
+const MIN_GAP_MS = 400;
+let lastDone = 0;
+
+function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = queue.then(async () => {
+    const wait = lastDone + MIN_GAP_MS - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    try {
+      return await job();
+    } finally {
+      lastDone = Date.now();
+    }
+  });
+  queue = run.catch(() => {});
+  return run;
+}
+
+const RETRY_DELAYS_MS = [1500, 4000];
+
 export async function searchWeb(query: string, opts: WebSearchOptions = {}, signal?: AbortSignal): Promise<string> {
   const q = query.trim();
   if (!q) throw new Error("query 不能为空");
+  return enqueue(async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await searchOnce(q, opts, signal);
+      } catch (e) {
+        const retryable = e instanceof RateLimited && attempt < RETRY_DELAYS_MS.length && !signal?.aborted;
+        if (!retryable) {
+          if (e instanceof RateLimited) throw new Error("搜索服务限流（HTTP 429），已重试仍失败。稍等几秒再搜，或把几个问题合成一次查询。");
+          throw e;
+        }
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  });
+}
+
+class RateLimited extends Error {}
+
+async function searchOnce(q: string, opts: WebSearchOptions, signal?: AbortSignal): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(new Error("搜索超时")), opts.timeoutMs ?? 25_000);
   const onOuterAbort = () => ctrl.abort(signal?.reason);
@@ -102,6 +142,7 @@ export async function searchWeb(query: string, opts: WebSearchOptions = {}, sign
       }),
       signal: ctrl.signal,
     });
+    if (res.status === 429) throw new RateLimited("429");
     if (!res.ok) throw new Error(`搜索服务 HTTP ${res.status}`);
     const body = await res.text();
     const found = parseMcpText(body);
