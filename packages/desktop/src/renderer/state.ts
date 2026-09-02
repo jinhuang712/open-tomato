@@ -86,6 +86,7 @@ export function applyEvent(ev: KernelEvent) {
       console.info(`[ui] kernel ready v${ev.version} home=${ev.home}`);
       setState({ ready: true, home: ev.home, kernelError: null });
       void refreshAfterReady();
+      if (bridge.initialProject && !state.project) void actions.openProject(bridge.initialProject);
       return;
     case "kernel.error":
       setState("kernelError", ev.message);

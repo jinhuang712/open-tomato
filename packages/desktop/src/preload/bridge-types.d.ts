@@ -9,6 +9,8 @@ export interface Bridge {
   pickFolder(options: { title: string; create: boolean }): Promise<string | null>;
   openPath(path: string): Promise<void>;
   platform: string;
+  /** 开发钩子：OPENTOMATO_OPEN_PROJECT 指定启动即打开的项目 */
+  initialProject: string | null;
 }
 
 declare global {

@@ -16,6 +16,7 @@ const bridge: Bridge = {
   pickFolder: (options) => ipcRenderer.invoke("dialog:pickFolder", options),
   openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
   platform: process.platform,
+  initialProject: process.env.OPENTOMATO_OPEN_PROJECT ?? null,
 };
 
 contextBridge.exposeInMainWorld("bridge", bridge);
