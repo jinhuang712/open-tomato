@@ -1,0 +1,533 @@
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import type { Api, Model } from "@earendil-works/pi-ai";
+import {
+  createAgentSession,
+  createExtensionRuntime,
+  type ResourceLoader,
+  SessionManager,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+import type {
+  AgentInfo,
+  AgentStatus,
+  AgentStreamEvent,
+  CheckIssue,
+  KernelEvent,
+  RequestMap,
+  RequestMethod,
+  RoleId,
+  UiMessage,
+  UiPart,
+} from "../protocol.js";
+import { runCheck } from "../project/check.js";
+import { kindInfos } from "../project/kinds.js";
+import { ProjectStore } from "../project/store.js";
+import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
+import { Gate } from "./gate.js";
+import { ModelsFacade } from "./models.js";
+import { ROLES, roleInfos } from "./roles.js";
+import { createTools, type SpawnTask, type ToolContext, toolNames } from "./tools.js";
+
+type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
+type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
+
+const LEAD_ID = "lead";
+
+interface LiveAgent {
+  info: AgentInfo;
+  session: AgentSession;
+  unsubscribe: () => void;
+  /** 正在流式输出的 assistant 消息 id */
+  streamingMessageId: string | null;
+}
+
+/**
+ * 内核：一个项目 + 一个主编会话 + 若干子 agent。
+ * 对外只有 handle(method, params) 和事件流。
+ */
+export class Kernel {
+  private store: ProjectStore | null = null;
+  private models!: ModelsFacade;
+  private readonly gate: Gate;
+  private readonly agents = new Map<string, LiveAgent>();
+  private readonly sessionsDir: string;
+
+  constructor(
+    private readonly home: string,
+    private readonly emit: (event: KernelEvent) => void,
+  ) {
+    this.sessionsDir = path.join(home, "sessions");
+    this.gate = new Gate(
+      (request) => this.emit({ type: "approval.requested", request }),
+      (request) => this.emit({ type: "question.requested", request }),
+    );
+  }
+
+  async init(version: string) {
+    this.models = await ModelsFacade.create(this.home);
+    this.emit({ type: "kernel.ready", version, home: this.home });
+    this.emit({ type: "models.state", state: this.models.state() });
+  }
+
+  async dispose() {
+    await this.closeProject();
+  }
+
+  // ───────────────────────── 请求分发 ─────────────────────────
+
+  async handle<M extends RequestMethod>(method: M, params: RequestMap[M]["params"]): Promise<RequestMap[M]["result"]> {
+    const p = params as never;
+    const handlers: { [K in RequestMethod]: (params: RequestMap[K]["params"]) => Promise<RequestMap[K]["result"]> } = {
+      "project.create": async ({ root, name }) => {
+        await this.closeProject();
+        this.store = await ProjectStore.create(root, name);
+        await this.afterOpen("new");
+        return this.store.info;
+      },
+      "project.open": async ({ root }) => {
+        await this.closeProject();
+        this.store = await ProjectStore.open(root);
+        await this.afterOpen("continue");
+        return this.store.info;
+      },
+      "project.close": async () => {
+        await this.closeProject();
+        return null;
+      },
+      "project.recent": async () => this.models.recentProjects,
+      "doc.read": async ({ kind, id }) => this.requireStore().read(kind, id),
+      "doc.write": async ({ kind, id, raw }) => {
+        const header = await this.requireStore().write(kind, id, raw);
+        await this.emitDocsChanged();
+        return header;
+      },
+      "doc.template": async ({ kind }) => this.requireStore().template(kind),
+      "models.list": async () => this.models.state(),
+      "models.select": async ({ provider, id, thinkingLevel }) => {
+        const model = await this.models.select(provider, id, thinkingLevel);
+        const lead = this.agents.get(LEAD_ID);
+        if (lead) {
+          await lead.session.setModel(model);
+          lead.session.setThinkingLevel(this.models.thinkingLevel);
+        }
+        const state = this.models.state();
+        this.emit({ type: "models.state", state });
+        return state;
+      },
+      "models.setApiKey": async ({ provider, apiKey }) => {
+        await this.models.setApiKey(provider, apiKey);
+        const state = this.models.state();
+        this.emit({ type: "models.state", state });
+        return state;
+      },
+      "models.refresh": async () => {
+        await this.models.refresh();
+        const state = this.models.state();
+        this.emit({ type: "models.state", state });
+        return state;
+      },
+      "chat.send": async ({ text }) => {
+        this.sendToLead(text);
+        return null;
+      },
+      "chat.abort": async () => {
+        for (const a of this.agents.values()) await a.session.abort().catch(() => {});
+        return null;
+      },
+      "chat.new": async () => {
+        this.requireStore();
+        await this.disposeAgents();
+        await this.createLead("new");
+        return null;
+      },
+      "capabilities.list": async () => capabilityInfos(),
+      "capability.run": async ({ id, params: capParams }) => {
+        if (!isCapabilityId(id)) throw new Error(`未知能力：${String(id)}`);
+        const cap = CAPABILITIES[id];
+        for (const param of cap.params) {
+          if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
+        }
+        this.sendToLead(cap.render(capParams));
+        return null;
+      },
+      "roles.list": async () => roleInfos(),
+      "approval.reply": async ({ approvalId, decision, reason }) => {
+        if (!this.gate.resolveApproval(approvalId, { decision, reason: reason ?? "" })) throw new Error("这条审批已经不存在");
+        this.emit({ type: "approval.resolved", approvalId, decision });
+        return null;
+      },
+      "question.reply": async ({ questionId, answer }) => {
+        if (!this.gate.resolveQuestion(questionId, answer)) throw new Error("这条提问已经不存在");
+        this.emit({ type: "question.resolved", questionId });
+        return null;
+      },
+      "check.run": async () => {
+        const issues = await runCheck(this.requireStore());
+        this.emit({ type: "check.result", issues });
+        return issues;
+      },
+    };
+    const handler = handlers[method];
+    if (!handler) throw new Error(`未知方法：${String(method)}`);
+    return handler(p);
+  }
+
+  // ───────────────────────── 项目生命周期 ─────────────────────────
+
+  private requireStore(): ProjectStore {
+    if (!this.store) throw new Error("还没有打开项目");
+    return this.store;
+  }
+
+  private async afterOpen(mode: "new" | "continue") {
+    const store = this.requireStore();
+    await this.models.rememberProject(store.info.root);
+    this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
+    await this.createLead(mode);
+  }
+
+  private async closeProject() {
+    if (!this.store) return;
+    await this.disposeAgents();
+    this.store = null;
+    this.emit({ type: "project.closed" });
+  }
+
+  private async disposeAgents() {
+    this.gate.rejectAll("会话已重建");
+    for (const a of this.agents.values()) {
+      await a.session.abort().catch(() => {});
+      a.unsubscribe();
+      a.session.dispose();
+    }
+    this.agents.clear();
+  }
+
+  private async emitDocsChanged() {
+    if (!this.store) return;
+    this.emit({ type: "docs.changed", docs: await this.store.listAll() });
+  }
+
+  // ───────────────────────── 会话构建 ─────────────────────────
+
+  private requireModel(): Model<Api> {
+    const m = this.models.currentModel();
+    if (!m) throw new Error("没有可用模型：先在模型选择器里给某个提供方填 API key");
+    return m;
+  }
+
+  private loaderFor(systemPrompt: string): ResourceLoader {
+    return {
+      getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
+      getSkills: () => ({ skills: [], diagnostics: [] }),
+      getPrompts: () => ({ prompts: [], diagnostics: [] }),
+      getThemes: () => ({ themes: [], diagnostics: [] }),
+      getAgentsFiles: () => ({ agentsFiles: [] }),
+      getSystemPrompt: () => systemPrompt,
+      getSystemPromptSource: () => undefined,
+      getAppendSystemPrompt: () => [],
+      getAppendSystemPromptSources: () => [],
+      extendResources: () => {},
+      reload: async () => {},
+    };
+  }
+
+  private toolContext(agentId: string, withSpawn: boolean): ToolContext {
+    const store = this.requireStore();
+    const ctx: ToolContext = {
+      store,
+      gate: this.gate,
+      agentId,
+      runCheck: async () => {
+        const issues = await runCheck(store);
+        this.emit({ type: "check.result", issues });
+        return issues;
+      },
+      onDocsChanged: () => void this.emitDocsChanged(),
+    };
+    if (withSpawn) ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
+    return ctx;
+  }
+
+  private async buildSession(role: RoleId, agentId: string, sessionManager: SessionManager): Promise<AgentSession> {
+    const store = this.requireStore();
+    const def = ROLES[role];
+    const tools = createTools(this.toolContext(agentId, def.canSpawn), {
+      canWrite: def.canWrite,
+      canSpawn: def.canSpawn,
+      canAsk: def.canAsk,
+    });
+    const { session } = await createAgentSession({
+      cwd: store.info.root,
+      agentDir: this.home,
+      model: this.requireModel(),
+      thinkingLevel: this.models.thinkingLevel,
+      modelRuntime: this.models.runtime,
+      resourceLoader: this.loaderFor(def.systemPrompt),
+      tools: toolNames(tools),
+      customTools: tools,
+      sessionManager,
+      settingsManager: SettingsManager.inMemory({}),
+    });
+    return session;
+  }
+
+  private register(info: AgentInfo, session: AgentSession): LiveAgent {
+    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null };
+    live.unsubscribe = session.subscribe((event) => this.forward(live, event));
+    this.agents.set(info.agentId, live);
+    this.emit({ type: "agent.spawned", agent: info });
+    return live;
+  }
+
+  private async createLead(mode: "new" | "continue") {
+    const store = this.requireStore();
+    const sessionManager =
+      mode === "continue"
+        ? SessionManager.continueRecent(store.info.root, this.sessionsDir)
+        : SessionManager.create(store.info.root, this.sessionsDir);
+    const session = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
+    const live = this.register(
+      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null },
+      session,
+    );
+    this.emit({
+      type: "agent.event",
+      agentId: LEAD_ID,
+      event: { type: "history", messages: normalizeHistory(session.messages as unknown[]) },
+    });
+    this.setStatus(live, "idle");
+  }
+
+  private sendToLead(text: string) {
+    const lead = this.agents.get(LEAD_ID);
+    if (!lead) throw new Error("主编会话不存在，先打开项目");
+    const run = lead.session.isStreaming
+      ? lead.session.prompt(text, { streamingBehavior: "steer" })
+      : lead.session.prompt(text);
+    run.catch((e: unknown) => {
+      this.setStatus(lead, "error", e instanceof Error ? e.message : String(e));
+    });
+  }
+
+  // ───────────────────────── 子 agent ─────────────────────────
+
+  private async spawn(
+    parentId: string,
+    tasks: SpawnTask[],
+    onProgress: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const results = await Promise.all(tasks.map((t) => this.runChild(parentId, t, onProgress, signal)));
+    return results.join("\n\n");
+  }
+
+  private async runChild(
+    parentId: string,
+    task: SpawnTask,
+    onProgress: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const store = this.requireStore();
+    const def = ROLES[task.role];
+    const agentId = randomUUID();
+    const session = await this.buildSession(task.role, agentId, SessionManager.inMemory(store.info.root));
+    const live = this.register(
+      { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null },
+      session,
+    );
+    const onAbort = () => void session.abort().catch(() => {});
+    signal?.addEventListener("abort", onAbort, { once: true });
+    onProgress(`${def.label} 开始`);
+    try {
+      await session.prompt(task.task);
+      if (signal?.aborted) throw new Error("已中止");
+      const answer = lastAssistantText(session.messages as unknown[]);
+      this.setStatus(live, "done");
+      onProgress(`${def.label} 完成`);
+      return `## ${def.label}（${task.role}）\n\n${answer || "（没有文字结论）"}`;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.setStatus(live, "error", msg);
+      onProgress(`${def.label} 失败：${msg}`);
+      return `## ${def.label}（${task.role}）\n\n执行失败：${msg}`;
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+      live.unsubscribe();
+      session.dispose();
+      this.agents.delete(agentId);
+    }
+  }
+
+  // ───────────────────────── 事件转发 ─────────────────────────
+
+  private setStatus(live: LiveAgent, status: AgentStatus, error: string | null = null) {
+    live.info.status = status;
+    live.info.error = error;
+    this.emit({ type: "agent.status", agentId: live.info.agentId, status, error });
+  }
+
+  private send(live: LiveAgent, event: AgentStreamEvent) {
+    this.emit({ type: "agent.event", agentId: live.info.agentId, event });
+  }
+
+  private forward(live: LiveAgent, event: SessionEvent) {
+    const ev = event as { type: string } & Record<string, unknown>;
+    switch (ev.type) {
+      case "agent_start":
+        this.setStatus(live, "running");
+        return;
+      case "agent_end":
+        if (live.info.agentId === LEAD_ID) this.setStatus(live, "idle");
+        return;
+      case "message_start": {
+        const msg = normalizeMessage(ev.message);
+        if (!msg) return;
+        if (msg.role === "assistant") live.streamingMessageId = msg.id;
+        this.send(live, { type: "message_start", message: msg });
+        return;
+      }
+      case "message_update": {
+        const inner = ev.assistantMessageEvent as { type: string; delta?: string } | undefined;
+        const messageId = live.streamingMessageId;
+        if (!inner || !messageId) return;
+        if (inner.type === "text_delta" && inner.delta) this.send(live, { type: "text_delta", messageId, delta: inner.delta });
+        if (inner.type === "thinking_delta" && inner.delta) this.send(live, { type: "thinking_delta", messageId, delta: inner.delta });
+        return;
+      }
+      case "message_end": {
+        const msg = normalizeMessage(ev.message, live.streamingMessageId ?? undefined);
+        if (!msg) return;
+        if (msg.role === "assistant") live.streamingMessageId = null;
+        this.send(live, { type: "message_end", message: msg });
+        return;
+      }
+      case "tool_execution_start":
+        this.send(live, {
+          type: "tool_start",
+          messageId: live.streamingMessageId ?? "",
+          toolCallId: String(ev.toolCallId),
+          name: String(ev.toolName),
+          args: ev.args,
+        });
+        return;
+      case "tool_execution_update":
+        this.send(live, {
+          type: "tool_update",
+          toolCallId: String(ev.toolCallId),
+          output: contentText(ev.partialResult),
+          details: (ev.partialResult as { details?: unknown } | undefined)?.details ?? null,
+        });
+        return;
+      case "tool_execution_end":
+        this.send(live, {
+          type: "tool_end",
+          toolCallId: String(ev.toolCallId),
+          output: contentText(ev.result),
+          details: (ev.result as { details?: unknown } | undefined)?.details ?? null,
+          isError: Boolean(ev.isError),
+        });
+        return;
+      default:
+        return;
+    }
+  }
+}
+
+// ───────────────────────── pi 消息 → UI 消息 ─────────────────────────
+
+interface RawMessage {
+  role?: string;
+  content?: unknown;
+  toolCallId?: string;
+  toolName?: string;
+  isError?: boolean;
+  timestamp?: number;
+}
+
+function contentText(result: unknown): string {
+  const content = (result as { content?: unknown } | undefined)?.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((c: { type?: string; text?: string }) => (c.type === "text" ? c.text ?? "" : c.type === "image" ? "[图片]" : ""))
+    .join("");
+}
+
+function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
+  const m = raw as RawMessage | undefined;
+  if (!m || (m.role !== "user" && m.role !== "assistant")) return null;
+  const parts: UiPart[] = [];
+  if (typeof m.content === "string") {
+    if (m.content) parts.push({ type: "text", text: m.content });
+  } else if (Array.isArray(m.content)) {
+    for (const c of m.content as Array<Record<string, unknown>>) {
+      switch (c.type) {
+        case "text":
+          if (typeof c.text === "string" && c.text) parts.push({ type: "text", text: c.text });
+          break;
+        case "thinking":
+          parts.push({ type: "thinking", text: String(c.thinking ?? c.text ?? "") });
+          break;
+        case "toolCall":
+          parts.push({
+            type: "tool",
+            toolCallId: String(c.id ?? ""),
+            name: String(c.name ?? ""),
+            args: c.arguments ?? {},
+            status: "running",
+            output: "",
+            details: null,
+          });
+          break;
+        case "image":
+          parts.push({ type: "text", text: "[图片]" });
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  return { id: id ?? randomUUID(), role: m.role, parts, createdAt: m.timestamp ?? Date.now() };
+}
+
+/** 历史回放：把 toolResult 消息折进对应 assistant 消息的 tool part */
+export function normalizeHistory(raws: unknown[]): UiMessage[] {
+  const out: UiMessage[] = [];
+  const toolParts = new Map<string, Extract<UiPart, { type: "tool" }>>();
+  for (const raw of raws) {
+    const m = raw as RawMessage;
+    if (m.role === "toolResult" && m.toolCallId) {
+      const part = toolParts.get(m.toolCallId);
+      if (part) {
+        part.status = m.isError ? "error" : "done";
+        part.output = contentText(m);
+        part.details = (m as { details?: unknown }).details ?? null;
+      }
+      continue;
+    }
+    const msg = normalizeMessage(raw);
+    if (!msg) continue;
+    for (const p of msg.parts) if (p.type === "tool") toolParts.set(p.toolCallId, p);
+    out.push(msg);
+  }
+  return out;
+}
+
+function lastAssistantText(raws: unknown[]): string {
+  for (let i = raws.length - 1; i >= 0; i--) {
+    const m = raws[i] as RawMessage;
+    if (m.role !== "assistant") continue;
+    const msg = normalizeMessage(m);
+    const txt = msg?.parts
+      .filter((p): p is Extract<UiPart, { type: "text" }> => p.type === "text")
+      .map((p) => p.text)
+      .join("\n")
+      .trim();
+    if (txt) return txt;
+  }
+  return "";
+}
+
+export type { CheckIssue };

@@ -1,0 +1,198 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { createTwoFilesPatch } from "diff";
+import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
+import { asString, asStringArray, parseFrontmatter, pickSection, splitSections } from "./frontmatter.js";
+import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId } from "./kinds.js";
+
+const MARKER_DIR = ".opentomato";
+const MARKER_FILE = "project.json";
+const PROJECT_FORMAT = 1;
+
+export interface WritePreview {
+  kind: DocKindId;
+  id: string;
+  path: string;
+  title: string;
+  isNew: boolean;
+  before: string;
+  after: string;
+  patch: string;
+}
+
+export class ProjectStore {
+  private constructor(public readonly info: ProjectInfo) {}
+
+  static markerPath(root: string): string {
+    return path.join(root, MARKER_DIR, MARKER_FILE);
+  }
+
+  static async exists(root: string): Promise<boolean> {
+    try {
+      await fs.access(ProjectStore.markerPath(root));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async create(root: string, name: string): Promise<ProjectStore> {
+    if (await ProjectStore.exists(root)) throw new Error(`已经是一个项目：${root}`);
+    const info: ProjectInfo = { root, name: name.trim() || path.basename(root), createdAt: new Date().toISOString() };
+    await fs.mkdir(path.join(root, MARKER_DIR), { recursive: true });
+    for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
+    await fs.writeFile(
+      ProjectStore.markerPath(root),
+      `${JSON.stringify({ format: PROJECT_FORMAT, ...info }, null, 2)}\n`,
+      "utf8",
+    );
+    for (const [id, raw] of Object.entries(GUIDE_SEEDS)) {
+      await fs.writeFile(path.join(root, DOC_KINDS.guide.dir, `${id}.md`), raw, "utf8");
+    }
+    return new ProjectStore(info);
+  }
+
+  static async open(root: string): Promise<ProjectStore> {
+    const raw = await fs.readFile(ProjectStore.markerPath(root), "utf8").catch(() => {
+      throw new Error(`不是 OpenTomato 项目（缺 ${MARKER_DIR}/${MARKER_FILE}）：${root}`);
+    });
+    const parsed = JSON.parse(raw) as Partial<ProjectInfo> & { format?: number };
+    if (parsed.format !== PROJECT_FORMAT) throw new Error(`项目格式版本不匹配：${String(parsed.format)}`);
+    for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
+    return new ProjectStore({
+      root,
+      name: asString(parsed.name, path.basename(root)),
+      createdAt: asString(parsed.createdAt, new Date(0).toISOString()),
+    });
+  }
+
+  // ───────────── 路径 ─────────────
+
+  relPath(kind: DocKindId, id: string): string {
+    return path.posix.join(DOC_KINDS[kind].dir, `${DOC_KINDS[kind].normalizeId(id)}.md`);
+  }
+
+  absPath(kind: DocKindId, id: string): string {
+    return path.join(this.info.root, this.relPath(kind, id));
+  }
+
+  normalizeId(kind: DocKindId, id: string): string {
+    const n = DOC_KINDS[kind].normalizeId(id);
+    if (n === "") throw new Error(`非法 id：${JSON.stringify(id)}`);
+    return n;
+  }
+
+  // ───────────── 读 ─────────────
+
+  async list(kind: DocKindId): Promise<DocHeader[]> {
+    const dir = path.join(this.info.root, DOC_KINDS[kind].dir);
+    let names: string[] = [];
+    try {
+      names = (await fs.readdir(dir)).filter((n) => n.endsWith(".md") && !n.startsWith("."));
+    } catch {
+      return [];
+    }
+    names.sort();
+    const out: DocHeader[] = [];
+    for (const n of names) {
+      const id = n.slice(0, -3);
+      const raw = await fs.readFile(path.join(dir, n), "utf8").catch(() => null);
+      if (raw === null) continue;
+      out.push(this.toHeader(kind, id, raw));
+    }
+    return out;
+  }
+
+  async listAll(): Promise<DocHeader[]> {
+    const all: DocHeader[] = [];
+    for (const k of DOC_KIND_IDS) all.push(...(await this.list(k)));
+    return all;
+  }
+
+  async read(kind: DocKindId, id: string): Promise<DocContent | null> {
+    const nid = this.normalizeId(kind, id);
+    const raw = await fs.readFile(this.absPath(kind, nid), "utf8").catch(() => null);
+    if (raw === null) return null;
+    const header = this.toHeader(kind, nid, raw);
+    const { body } = parseFrontmatter(raw);
+    return { ...header, raw, body, sections: splitSections(body).map((s) => s.heading).filter(Boolean) };
+  }
+
+  async readSection(kind: DocKindId, id: string, heading: string): Promise<string | null> {
+    const doc = await this.read(kind, id);
+    if (!doc) return null;
+    return pickSection(doc.body, heading) ?? null;
+  }
+
+  async search(query: string, limit = 30): Promise<DocHeader[]> {
+    const q = query.trim().toLowerCase();
+    if (q === "") return [];
+    const hits: Array<{ score: number; h: DocHeader }> = [];
+    for (const k of DOC_KIND_IDS) {
+      const dir = path.join(this.info.root, DOC_KINDS[k].dir);
+      let names: string[] = [];
+      try {
+        names = (await fs.readdir(dir)).filter((n) => n.endsWith(".md"));
+      } catch {
+        continue;
+      }
+      for (const n of names) {
+        const raw = await fs.readFile(path.join(dir, n), "utf8").catch(() => null);
+        if (raw === null) continue;
+        const h = this.toHeader(k, n.slice(0, -3), raw);
+        let score = 0;
+        if (h.id.toLowerCase().includes(q) || h.title.toLowerCase().includes(q)) score += 10;
+        if (h.keywords.some((kw) => kw.toLowerCase().includes(q))) score += 6;
+        if (h.summary.toLowerCase().includes(q)) score += 3;
+        if (raw.toLowerCase().includes(q)) score += 1;
+        if (score > 0) hits.push({ score, h });
+      }
+    }
+    hits.sort((a, b) => b.score - a.score);
+    return hits.slice(0, limit).map((x) => x.h);
+  }
+
+  template(kind: DocKindId): string {
+    return DOC_KINDS[kind].template;
+  }
+
+  // ───────────── 写 ─────────────
+
+  async previewWrite(kind: DocKindId, id: string, after: string): Promise<WritePreview> {
+    const nid = this.normalizeId(kind, id);
+    const rel = this.relPath(kind, nid);
+    const before = (await fs.readFile(this.absPath(kind, nid), "utf8").catch(() => null)) ?? "";
+    const normalized = after.endsWith("\n") ? after : `${after}\n`;
+    const patch = createTwoFilesPatch(rel, rel, before, normalized, "", "", { context: 3 });
+    const title = this.toHeader(kind, nid, normalized).title;
+    return { kind, id: nid, path: rel, title, isNew: before === "", before, after: normalized, patch };
+  }
+
+  async write(kind: DocKindId, id: string, raw: string): Promise<DocHeader> {
+    const nid = this.normalizeId(kind, id);
+    const abs = this.absPath(kind, nid);
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    const normalized = raw.endsWith("\n") ? raw : `${raw}\n`;
+    await fs.writeFile(abs, normalized, "utf8");
+    return this.toHeader(kind, nid, normalized);
+  }
+
+  // ───────────── 内部 ─────────────
+
+  private toHeader(kind: DocKindId, id: string, raw: string): DocHeader {
+    const { frontmatter } = parseFrontmatter(raw);
+    const { title, summary, keywords, status, ...extra } = frontmatter;
+    return {
+      kind,
+      id,
+      path: this.relPath(kind, id),
+      title: asString(title, id),
+      summary: asString(summary),
+      keywords: asStringArray(keywords),
+      status: asString(status, "draft"),
+      extra,
+    };
+  }
+}
+
+export { isDocKindId };
