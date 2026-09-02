@@ -29,7 +29,7 @@ import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
 import { ROLES, STATUS_LINE_PATTERN, STATUS_LINE_RULE, roleInfos } from "./roles.js";
-import { createTools, type SpawnTask, type ToolContext, toolNames } from "./tools.js";
+import { createTools, type SpawnMode, type SpawnTask, type ToolContext, toolNames } from "./tools.js";
 
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
@@ -53,6 +53,8 @@ interface LiveAgent {
   streamingMessageId: string | null;
   /** 消息开头暂存的文本，用来截状态行；null 表示状态行已处理完 */
   headBuffer: string | null;
+  /** propose 时落盘工具被挡住；主编续派时可以切到 commit */
+  mode: SpawnMode;
 }
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
@@ -308,8 +310,13 @@ export class Kernel {
     };
     if (withSpawn) {
       ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
-      ctx.continueAgent = (childId, message, onProgress, signal) => this.continueChild(childId, message, onProgress, signal);
+      ctx.continueAgent = (childId, message, mode, onProgress, signal) => this.continueChild(childId, message, mode, onProgress, signal);
     }
+    ctx.writeBlocked = () => {
+      const live = this.agents.get(agentId);
+      if (!live || live.mode === "commit") return null;
+      return "这一轮是候选阶段（propose），不能落盘。把候选写在回复里交给主编，作者拍板后主编会让你接着落盘。";
+    };
     return ctx;
   }
 
@@ -337,7 +344,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession): LiveAgent {
-    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null };
+    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit" };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -401,19 +408,23 @@ export class Kernel {
       { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
       session,
     );
+    live.mode = task.mode ?? "commit";
     return this.promptChild(live, task.task, onProgress, signal);
   }
 
   private async continueChild(
     childId: string,
     message: string,
+    mode: SpawnMode | undefined,
     onProgress: (text: string) => void,
     signal?: AbortSignal,
   ): Promise<string> {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
-    return this.promptChild(live, message, onProgress, signal);
+    if (mode) live.mode = mode;
+    const prefix = mode === "commit" && live.mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : "";
+    return this.promptChild(live, prefix + message, onProgress, signal);
   }
 
   /** 给子 agent 发一轮消息，等它跑完，把最后一段文字结论交回主编。会话跑完不退场，留给续接。 */

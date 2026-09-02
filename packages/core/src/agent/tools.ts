@@ -7,9 +7,13 @@ import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
 import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
 
+export type SpawnMode = "propose" | "commit";
+
 export interface SpawnTask {
   role: RoleId;
   task: string;
+  /** propose：只出候选，落盘工具被挡住；commit：可以落盘。默认 commit */
+  mode?: SpawnMode;
 }
 
 export interface ToolContext {
@@ -21,8 +25,10 @@ export interface ToolContext {
   search: (query: string, limit?: number) => Promise<SearchHit[]>;
   /** 只有能派单的角色才有 */
   spawn?: (tasks: SpawnTask[], onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
-  /** 续接一个还活着的子 agent，把新消息发给它并等它这一轮的结论 */
-  continueAgent?: (agentId: string, message: string, onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
+  /** 续接一个还活着的子 agent，把新消息发给它并等它这一轮的结论；mode 给了就切换它的落盘权限 */
+  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
+  /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
+  writeBlocked?: () => string | null;
 }
 
 export interface ToolPermissions {
@@ -173,6 +179,8 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
   if (perms.canWrite) {
     /** 预览 → 审批门 → 落盘，write_doc 和 edit_doc 共用 */
     const approveAndWrite = async (toolCallId: string, kind: DocKindId, id: string, after: string, signal?: AbortSignal) => {
+      const blocked = ctx.writeBlocked?.();
+      if (blocked) throw new Error(blocked);
       const preview = await store.previewWrite(kind, id, after);
       if (preview.before === preview.after) return text(`${preview.path} 内容没有变化，跳过。`);
       const outcome = await ctx.gate.requestApproval(
@@ -284,20 +292,22 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       defineTool({
         name: "spawn_agents",
         label: "派子 agent",
-        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。`,
+        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。`,
         parameters: Type.Object({
           tasks: Type.Array(
             Type.Object({
               role: Type.Union(ROLE_IDS.filter((r) => r !== "lead").map((r) => Type.Literal(r))),
               task: Type.String({ description: "任务书" }),
+              mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "propose=只出候选不落盘；commit=可以落盘。默认 commit" })),
             }),
             { minItems: 1, maxItems: 6 },
           ),
         }),
         execute: async (_id, params, signal, onUpdate) => {
           const tasks: SpawnTask[] = params.tasks.map((t) => {
-            if (!isRoleId(t.role) || t.role === "lead") throw new Error(`不能派这个角色：${String(t.role)}`);
-            return { role: t.role, task: t.task };
+            const role: unknown = t.role;
+            if (!isRoleId(role) || role === "lead") throw new Error(`不能派这个角色：${String(role)}`);
+            return { role, task: t.task, ...(t.mode ? { mode: t.mode } : {}) };
           });
           const result = await spawn(tasks, (progress) => onUpdate?.(text(progress)), signal);
           return text(result);
@@ -317,9 +327,10 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         parameters: Type.Object({
           agentId: Type.String({ description: "spawn_agents 结果标题里的 id" }),
           message: Type.String({ description: "发给它的消息：作者拍板了什么、接下来做什么" }),
+          mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "要切换它的落盘权限时给：拍板后让它落盘就传 commit；不传保持原样" })),
         }),
         execute: async (_id, params, signal, onUpdate) => {
-          const result = await continueAgent(params.agentId, params.message, (progress) => onUpdate?.(text(progress)), signal);
+          const result = await continueAgent(params.agentId, params.message, params.mode, (progress) => onUpdate?.(text(progress)), signal);
           return text(result);
         },
       }),
