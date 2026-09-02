@@ -398,7 +398,8 @@ export class Kernel {
       case "message_start": {
         const msg = normalizeMessage(ev.message);
         if (!msg) return;
-        if (msg.role === "assistant") live.streamingMessageId = msg.id;
+        // user / assistant 都是一对 start / end，用同一个 id 才能在 UI 里合并成一条
+        live.streamingMessageId = msg.id;
         this.send(live, { type: "message_start", message: msg });
         return;
       }
@@ -413,7 +414,7 @@ export class Kernel {
       case "message_end": {
         const msg = normalizeMessage(ev.message, live.streamingMessageId ?? undefined);
         if (!msg) return;
-        if (msg.role === "assistant") live.streamingMessageId = null;
+        live.streamingMessageId = null;
         this.send(live, { type: "message_end", message: msg });
         const raw = ev.message as RawMessage;
         if (raw.role === "assistant" && raw.stopReason === "error") {
