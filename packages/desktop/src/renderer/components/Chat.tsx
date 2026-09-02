@@ -80,7 +80,20 @@ export function Chat(props: { agentId: string }) {
             </Show>
           </div>
         </Show>
-        <For each={messages()}>{(m) => <Message message={m} />}</For>
+        <For each={messages()}>
+          {(m) => (
+            <>
+              <Message message={m} />
+              <Show when={state.interruptedAfter[props.agentId] === m.id}>
+                <div class="flex items-center gap-3 px-5 py-3 text-[11px] text-warn select-none">
+                  <span class="flex-1 border-t border-dashed border-warn/50" />
+                  <span>上次被打断了</span>
+                  <span class="flex-1 border-t border-dashed border-warn/50" />
+                </div>
+              </Show>
+            </>
+          )}
+        </For>
         <Show when={agent()?.status === "running"}>
           <div class="px-5 py-2 flex items-center gap-2 text-[12px]">
             <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />

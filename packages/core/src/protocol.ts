@@ -177,7 +177,8 @@ export type AgentStreamEvent =
   | { type: "tool_end"; toolCallId: string; output: string; details: unknown; isError: boolean }
   | { type: "message_end"; message: UiMessage }
   | { type: "status_text"; text: string }
-  | { type: "history"; messages: UiMessage[] };
+  /** interrupted：上次会话没有正常收尾（发了话没回 / 工具跑一半 / 被中止），UI 在末尾画一条分隔线 */
+  | { type: "history"; messages: UiMessage[]; interrupted: boolean };
 
 // ───────────────────────── 审批 / 提问 ─────────────────────────
 

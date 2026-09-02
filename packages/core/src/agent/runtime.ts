@@ -332,10 +332,11 @@ export class Kernel {
       { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null, statusText: "" },
       session,
     );
+    const raws = session.messages as unknown[];
     this.emit({
       type: "agent.event",
       agentId: LEAD_ID,
-      event: { type: "history", messages: normalizeHistory(session.messages as unknown[]) },
+      event: { type: "history", messages: normalizeHistory(raws), interrupted: wasInterrupted(raws) },
     });
     this.setStatus(live, "idle");
   }
@@ -609,6 +610,19 @@ export function normalizeHistory(raws: unknown[]): UiMessage[] {
     out.push(msg);
   }
   return out;
+}
+
+/**
+ * 上次会话是否没收尾：最后一条是用户的话（没回）、是工具结果（循环跑一半）、
+ * 或是带工具调用 / 被中止 / 出错的 assistant 消息。
+ */
+export function wasInterrupted(raws: unknown[]): boolean {
+  const last = raws.at(-1) as RawMessage | undefined;
+  if (!last) return false;
+  if (last.role === "user" || last.role === "toolResult") return true;
+  if (last.role !== "assistant") return false;
+  if (last.stopReason === "aborted" || last.stopReason === "error") return true;
+  return Array.isArray(last.content) && (last.content as Array<{ type?: string }>).some((c) => c.type === "toolCall");
 }
 
 function lastAssistantText(raws: unknown[]): string {

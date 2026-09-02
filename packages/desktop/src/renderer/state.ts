@@ -36,6 +36,8 @@ export interface State {
   agents: Record<string, AgentInfo>;
   agentOrder: string[];
   transcripts: Record<string, UiMessage[]>;
+  /** agentId → 上次被打断时的最后一条消息 id，UI 在它后面画分隔线 */
+  interruptedAfter: Record<string, string>;
   approvals: ApprovalRequest[];
   questions: QuestionRequest[];
   issues: CheckIssue[] | null;
@@ -61,6 +63,7 @@ const initial: State = {
   agents: {},
   agentOrder: [],
   transcripts: {},
+  interruptedAfter: {},
   approvals: [],
   questions: [],
   issues: null,
@@ -105,6 +108,7 @@ export function applyEvent(ev: KernelEvent) {
         agents: {},
         agentOrder: [],
         transcripts: {},
+        interruptedAfter: {},
         approvals: [],
         questions: [],
         issues: null,
@@ -184,9 +188,13 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
       const lastAssistant = () => [...list].reverse().find((m) => m.role === "assistant");
 
       switch (ev.type) {
-        case "history":
+        case "history": {
           s.transcripts[agentId] = ev.messages;
+          const last = ev.messages.at(-1);
+          if (ev.interrupted && last) s.interruptedAfter[agentId] = last.id;
+          else delete s.interruptedAfter[agentId];
           return;
+        }
         case "status_text": {
           const a = s.agents[agentId];
           if (a) a.statusText = ev.text;
