@@ -160,6 +160,12 @@ export function applyEvent(ev: KernelEvent) {
   }
 }
 
+const textOf = (m: UiMessage) => m.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+
+function isDuplicateUser(prev: UiMessage | undefined, next: UiMessage): boolean {
+  return !!prev && prev.role === "user" && textOf(prev) === textOf(next) && Math.abs(next.createdAt - prev.createdAt) < 5000;
+}
+
 function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
   setState(
     produce((s) => {
@@ -177,7 +183,10 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
           return;
         }
         case "message_start":
-          if (!findMsg(ev.message.id)) list.push(ev.message);
+          if (findMsg(ev.message.id)) return;
+          // 同一条用户消息可能被上游按不同 id 报两次，按内容 + 时间兜底去重
+          if (ev.message.role === "user" && isDuplicateUser(list.at(-1), ev.message)) return;
+          list.push(ev.message);
           return;
         case "text_delta":
         case "thinking_delta": {
@@ -217,7 +226,7 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
         case "message_end": {
           const idx = list.findIndex((m) => m.id === ev.message.id);
           if (idx < 0) {
-            list.push(ev.message);
+            if (!(ev.message.role === "user" && isDuplicateUser(list.at(-1), ev.message))) list.push(ev.message);
             return;
           }
           const old = list[idx]!;
