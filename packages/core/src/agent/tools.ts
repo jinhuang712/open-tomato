@@ -1,7 +1,7 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { CheckIssue, DocKindId, RoleId, SearchHit } from "../protocol.js";
-import { DOC_KIND_IDS, DOC_KINDS, isDocKindId } from "../project/kinds.js";
+import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../project/kinds.js";
 import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
 import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
@@ -28,16 +28,19 @@ export interface ToolPermissions {
   canAsk: boolean;
 }
 
-const KIND_SCHEMA = Type.Union(
-  DOC_KIND_IDS.map((k) => Type.Literal(k)),
-  { description: `文档类型：${DOC_KIND_IDS.map((k) => `${k}（${DOC_KINDS[k].label}）`).join("、")}` },
-);
+const KIND_SCHEMA = Type.String({
+  description: `文档类型，写英文 kind 或中文目录名都行：${DOC_KIND_IDS.map((k) => `${k}=${DOC_KINDS[k].dir}`).join("、")}`,
+});
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
 
+/** 给作者 / 模型看的路径一律中文目录 */
+const zhPath = (kind: DocKindId, id: string) => `${DOC_KINDS[kind].dir}/${id}`;
+
 function assertKind(kind: unknown): DocKindId {
-  if (!isDocKindId(kind)) throw new Error(`未知的 kind：${String(kind)}，可选 ${DOC_KIND_IDS.join(" / ")}`);
-  return kind;
+  const k = resolveKind(kind);
+  if (!k) throw new Error(`未知的 kind：${String(kind)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ")}`);
+  return k;
 }
 
 export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefinition[] {
@@ -57,7 +60,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         for (const k of DOC_KIND_IDS) {
           const docs = all.filter((d) => d.kind === k);
           if (docs.length === 0) continue;
-          lines.push("", `## ${k}（${DOC_KINDS[k].label}）${docs.length} 篇`);
+          lines.push("", `## ${DOC_KINDS[k].dir}/（kind=${k}）${docs.length} 篇`);
           for (const d of docs) lines.push(`- ${d.id} | ${d.title} | ${d.status} | ${d.summary}`);
         }
         return text(lines.join("\n"));
@@ -74,7 +77,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       execute: async (_id, params) => {
         const kind = assertKind(params.kind);
         const docs = await store.list(kind);
-        if (docs.length === 0) return text(`${kind} 下没有文档。`);
+        if (docs.length === 0) return text(`${DOC_KINDS[kind].dir}/ 下没有文档。`);
         return text(
           docs
             .map((d) => {
@@ -102,7 +105,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       execute: async (_id, params) => {
         const kind = assertKind(params.kind);
         const doc = await store.read(kind, params.id);
-        if (!doc) throw new Error(`${kind}/${store.normalizeId(kind, params.id)} 不存在`);
+        if (!doc) throw new Error(`${zhPath(kind, store.normalizeId(kind, params.id))} 不存在`);
         if (params.section) {
           const s = await store.readSection(kind, params.id, params.section);
           if (s === null) throw new Error(`${doc.path} 没有「${params.section}」段，现有段：${doc.sections.join(" / ")}`);
@@ -124,7 +127,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         if (hits.length === 0) return text("没有命中。");
         return text(
           hits
-            .map((h) => `- ${h.kind}/${h.id} | ${h.title}${h.section ? ` | §${h.section}` : ""} | ${h.snippet}`)
+            .map((h) => `- ${zhPath(h.kind, h.id)} | ${h.title}${h.section ? ` | §${h.section}` : ""} | ${h.snippet}`)
             .join("\n"),
         );
       },
@@ -173,7 +176,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           "写入一篇文档的完整文件文本（含 frontmatter，用 doc_template 拿模板）。会先在界面上给用户看 diff，用户批准后才真正写入；被拒时返回原因。",
         parameters: Type.Object({
           kind: KIND_SCHEMA,
-          id: Type.String({ description: "文档 id；章号 / 卷号给数字即可" }),
+          id: Type.String({ description: "文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字" }),
           content: Type.String({ description: "完整文件文本，必须以 --- 开头的 frontmatter 起始" }),
         }),
         execute: async (toolCallId, params, signal) => {

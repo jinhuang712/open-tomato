@@ -11,10 +11,10 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
   interview: {
     id: "interview",
     label: "立项访谈",
-    description: "补齐书名、一句话故事、题材平台、读者画像等立项答案，落进 guide/brief。",
+    description: "补齐书名、一句话故事、题材平台、读者画像等立项答案，落进 守则/立项。",
     params: [],
     render: () =>
-      `请做立项访谈。先读 guide/brief 看哪些还是「待填」，按顺序用 ask_user 逐个问我：书名 → 一句话故事 → 题材与平台 → 读者画像 → 主角优势 → 总规模 → 人称与视角。每问一个就把答案写进 guide/brief 对应段落（走审批）。我在回答里提到“绝不 / 不能”的记进 guide/rules，提到“尽量 / 喜欢”的记进 guide/preferences。全部问完给我一份立项简报摘要。`,
+      `请做立项访谈。先读 守则/立项 看哪些还是「待填」，按顺序用 ask_user 逐个问我：书名 → 一句话故事 → 题材与平台 → 读者画像 → 主角优势 → 总规模 → 人称与视角。每问一个就把答案写进 守则/立项 对应段落（走审批）。我在回答里提到“绝不 / 不能”的记进 守则/铁律，提到“尽量 / 喜欢”的记进 守则/偏好。全部问完给我一份立项简报摘要。`,
   },
   design: {
     id: "design",
@@ -38,7 +38,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派结构师编排：${p(params, "scope")}。
 
-要求：结构师动笔前读 guide/brief、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时先给我候选结构让我选；编排章纲直接落盘走审批。结束后 run_check，把 error 修掉再向我汇报。`,
+要求：结构师动笔前读 守则/立项、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时先给我候选结构让我选；编排章纲直接落盘走审批。结束后 run_check，把 error 修掉再向我汇报。`,
   },
   draft: {
     id: "draft",
@@ -48,7 +48,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请写第 ${p(params, "chapter")} 章正文。
 
-步骤：先确认章纲 chapters/${p(params, "chapter")} 存在且没有「待填」，不存在就先告诉我；然后派执笔写，执笔只读本章章纲、前一章末尾、在场人物语音签名、guide/style、guide/rules。执笔落盘走审批后，向我汇报字数和执行时对章纲的偏离（如有）。`,
+步骤：先确认章纲 章纲/${p(params, "chapter")} 存在且没有「待填」，不存在就先告诉我；然后派执笔写，执笔只读本章章纲、前一章末尾、在场人物语音签名、守则/文风、守则/铁律。执笔落盘走审批后，向我汇报字数和执行时对章纲的偏离（如有）。`,
   },
   review: {
     id: "review",
@@ -56,7 +56,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "四路只读评审并行看一章，冲突时裁决。",
     params: [{ name: "chapter", label: "章号", placeholder: "例如：12", required: true }],
     render: (params) =>
-      `请审第 ${p(params, "chapter")} 章正文（manuscript/${p(params, "chapter")}）。
+      `请审第 ${p(params, "chapter")} 章正文（正文/${p(params, "chapter")}）。
 
 用一次 spawn_agents 同时派 critic_market、critic_reader、critic_voice、continuity 四个角色，任务书都指向这一章。四路都回来后：
 1. 合并成一份问题清单，按「必须改 / 建议看」分级，去重

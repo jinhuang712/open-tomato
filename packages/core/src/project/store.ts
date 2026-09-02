@@ -3,7 +3,7 @@ import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
 import { asString, asStringArray, parseFrontmatter, pickSection, splitSections } from "./frontmatter.js";
-import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId } from "./kinds.js";
+import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
 
 const MARKER_DIR = ".opentomato";
 const MARKER_FILE = "project.json";
@@ -58,6 +58,7 @@ export class ProjectStore {
     });
     const parsed = JSON.parse(raw) as Partial<ProjectInfo> & { format?: number };
     if (parsed.format !== PROJECT_FORMAT) throw new Error(`项目格式版本不匹配：${String(parsed.format)}`);
+    await migrateLegacyLayout(root);
     for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
     return new ProjectStore({
       root,
@@ -192,6 +193,32 @@ export class ProjectStore {
       status: asString(status, "draft"),
       extra,
     };
+  }
+}
+
+/** 英文目录 → 中文目录、英文守则文件名 → 中文；只在老目录存在且新目录为空时搬 */
+async function migrateLegacyLayout(root: string) {
+  const exists = (p: string) => fs.access(p).then(() => true, () => false);
+  for (const k of DOC_KIND_IDS) {
+    const from = path.join(root, LEGACY_DIRS[k]);
+    const to = path.join(root, DOC_KINDS[k].dir);
+    if (from === to || !(await exists(from))) continue;
+    await fs.mkdir(path.dirname(to), { recursive: true });
+    if (!(await exists(to))) {
+      await fs.rename(from, to);
+    } else {
+      for (const n of await fs.readdir(from)) {
+        if (!(await exists(path.join(to, n)))) await fs.rename(path.join(from, n), path.join(to, n));
+      }
+      await fs.rmdir(from).catch(() => {});
+    }
+  }
+  await fs.rmdir(path.join(root, "outline")).catch(() => {});
+  const guideDir = path.join(root, DOC_KINDS.guide.dir);
+  for (const [en, zh] of Object.entries(LEGACY_GUIDE_IDS)) {
+    const from = path.join(guideDir, `${en}.md`);
+    const to = path.join(guideDir, `${zh}.md`);
+    if ((await exists(from)) && !(await exists(to))) await fs.rename(from, to);
   }
 }
 

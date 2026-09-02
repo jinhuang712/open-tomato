@@ -21,12 +21,26 @@ describe("ProjectStore", () => {
   test("create 建目录和守则", async () => {
     expect(await ProjectStore.exists(root)).toBe(true);
     const guides = await store.list("guide");
-    expect(guides.map((g) => g.id).sort()).toEqual(["brief", "preferences", "rules", "style"]);
+    expect(guides.map((g) => g.id).sort()).toEqual(["偏好", "文风", "立项", "铁律"].sort());
   });
 
   test("open 读回项目名", async () => {
     const again = await ProjectStore.open(root);
     expect(again.info.name).toBe("测试书");
+  });
+
+  test("open 迁移旧英文目录布局", async () => {
+    const legacy = await fs.mkdtemp(path.join(os.tmpdir(), "ot-legacy-"));
+    await fs.mkdir(path.join(legacy, ".opentomato"), { recursive: true });
+    await fs.writeFile(path.join(legacy, ".opentomato/project.json"), JSON.stringify({ format: 1, root: legacy, name: "旧书", createdAt: "2026-01-01T00:00:00.000Z" }));
+    await fs.mkdir(path.join(legacy, "outline/chapters"), { recursive: true });
+    await fs.mkdir(path.join(legacy, "guide"), { recursive: true });
+    await fs.writeFile(path.join(legacy, "outline/chapters/0001.md"), "---\ntitle: 开局\nsummary: s\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\n---\n\nx\n");
+    await fs.writeFile(path.join(legacy, "guide/brief.md"), "---\ntitle: 立项简报\nsummary: s\nkeywords: []\nstatus: draft\n---\n\nx\n");
+    const s = await ProjectStore.open(legacy);
+    expect((await s.list("chapters")).map((h) => h.path)).toEqual(["章纲/0001.md"]);
+    expect((await s.list("guide")).map((h) => h.id)).toEqual(["立项"]);
+    await fs.rm(legacy, { recursive: true, force: true });
   });
 
   test("open 非项目目录报错", async () => {
@@ -40,12 +54,13 @@ describe("ProjectStore", () => {
     expect(store.normalizeId("manuscript", "第3章")).toBe("0003");
     expect(store.normalizeId("volumes", "1")).toBe("01");
     expect(store.normalizeId("characters", "Lin Yao")).toBe("lin-yao");
+    expect(store.normalizeId("characters", "林尧")).toBe("林尧");
   });
 
   test("write / read / section", async () => {
     const raw = `---\ntitle: 林尧\nsummary: 主角\nkeywords: [主角]\nstatus: draft\ntier: 主角\n---\n\n## 语音签名\n\n短句。\n\n## 关系\n\n待定\n`;
     const h = await store.write("characters", "lin-yao", raw);
-    expect(h.path).toBe("characters/lin-yao.md");
+    expect(h.path).toBe("人物/lin-yao.md");
     expect(h.extra.tier).toBe("主角");
     const doc = await store.read("characters", "lin-yao");
     expect(doc?.sections).toEqual(["语音签名", "关系"]);

@@ -35,7 +35,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   world: {
     id: "world",
     label: "世界设定",
-    dir: "world",
+    dir: "世界",
     description: "世界观、规则体系、势力、地点。一张卡讲一个设定对象。",
     normalizeId: slug,
     requiredFields: [],
@@ -60,7 +60,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   characters: {
     id: "characters",
     label: "人物",
-    dir: "characters",
+    dir: "人物",
     description: "人物卡。语音签名是对白一致性的依据，写对白只取这一段。",
     normalizeId: slug,
     requiredFields: ["tier"],
@@ -93,7 +93,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   threads: {
     id: "threads",
     label: "线索",
-    dir: "threads",
+    dir: "线索",
     description: "主线 / 支线 / 主题线。记起点、终点、推进阶段和挂在上面的钩子。",
     normalizeId: slug,
     requiredFields: ["type"],
@@ -118,7 +118,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   milestones: {
     id: "milestones",
     label: "里程碑",
-    dir: "milestones",
+    dir: "里程碑",
     description: "全书关键帧。只记坐标不复述事件，按 order 排序。",
     normalizeId: slug,
     requiredFields: ["order"],
@@ -139,7 +139,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   volumes: {
     id: "volumes",
     label: "卷纲",
-    dir: "outline/volumes",
+    dir: "卷纲",
     description: "一卷的装配图：覆盖哪些里程碑、人物落点、章数预算。",
     normalizeId: padded(2),
     requiredFields: ["chapters"],
@@ -164,7 +164,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   chapters: {
     id: "chapters",
     label: "章纲",
-    dir: "outline/chapters",
+    dir: "章纲",
     description: "一章的施工单。执笔照着写不该再翻库。",
     normalizeId: padded(4),
     requiredFields: ["volume", "characters"],
@@ -189,7 +189,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   manuscript: {
     id: "manuscript",
     label: "正文",
-    dir: "manuscript",
+    dir: "正文",
     description: "章节正文。frontmatter 只记元信息，正文不分段标题。",
     normalizeId: padded(4),
     requiredFields: [],
@@ -200,8 +200,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   guide: {
     id: "guide",
     label: "写作守则",
-    dir: "guide",
-    description: "brief（立项答案）/ style（文风）/ rules（铁律，用户说绝不）/ preferences（偏好，用户说尽量）。只追加、整份读。",
+    dir: "守则",
+    description: "立项（立项答案）/ 文风 / 铁律（用户说绝不）/ 偏好（用户说尽量）。只追加、整份读。",
     normalizeId: slug,
     requiredFields: [],
     template: `${common("")}
@@ -218,6 +218,31 @@ export function isDocKindId(v: unknown): v is DocKindId {
   return typeof v === "string" && v in DOC_KINDS;
 }
 
+/** kind id、中文目录名、中文标签都能解析成 kind；给工具参数和路径识别用 */
+export function resolveKind(v: unknown): DocKindId | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().replace(/\/$/, "");
+  if (isDocKindId(s)) return s;
+  for (const k of DOC_KIND_IDS) {
+    const d = DOC_KINDS[k];
+    if (d.dir === s || d.label === s) return k;
+  }
+  return null;
+}
+
+/** 老布局（英文目录 / 英文守则文件名）→ 现布局，给 ProjectStore.open 做迁移用 */
+export const LEGACY_DIRS: Record<DocKindId, string> = {
+  world: "world",
+  characters: "characters",
+  threads: "threads",
+  milestones: "milestones",
+  volumes: "outline/volumes",
+  chapters: "outline/chapters",
+  manuscript: "manuscript",
+  guide: "guide",
+};
+export const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
+
 export function kindInfos(): DocKindInfo[] {
   return DOC_KIND_IDS.map((k) => {
     const { id, label, dir, description } = DOC_KINDS[k];
@@ -227,7 +252,7 @@ export function kindInfos(): DocKindInfo[] {
 
 /** 立项时预置的守则文件 */
 export const GUIDE_SEEDS: Record<string, string> = {
-  brief: `---
+  立项: `---
 title: 立项简报
 summary: 书名、一句话故事、题材、平台、读者画像等立项答案
 keywords: [立项]
@@ -262,7 +287,7 @@ status: draft
 
 待填
 `,
-  style: `---
+  文风: `---
 title: 文风
 summary: 句式、节奏、叙述距离、禁用表达
 keywords: [文风]
@@ -273,7 +298,7 @@ status: draft
 
 待定
 `,
-  rules: `---
+  铁律: `---
 title: 铁律
 summary: 用户明确说过“绝不 / 不能 / 禁止”的事，逐条追加
 keywords: [铁律]
@@ -284,7 +309,7 @@ status: draft
 
 待定
 `,
-  preferences: `---
+  偏好: `---
 title: 偏好
 summary: 用户说过“尽量 / 可以 / 更喜欢”的事，逐条追加
 keywords: [偏好]

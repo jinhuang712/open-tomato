@@ -1,45 +1,63 @@
 import type { DocKindId } from "@opentomato/core/protocol";
-import { actions } from "./state";
+import { actions, state } from "./state";
 
 export interface DocRef {
   kind: DocKindId;
   id: string;
 }
 
-/** 目录 → kind；同时接受 kind 名本身 */
-const DIR_TO_KIND: Record<string, DocKindId> = {
+/** 英文 kind、中文目录、旧英文目录都认，都解析成 kind */
+const ALIASES: Record<string, DocKindId> = {
   world: "world",
+  世界: "world",
   characters: "characters",
+  人物: "characters",
   threads: "threads",
+  线索: "threads",
   milestones: "milestones",
+  里程碑: "milestones",
   volumes: "volumes",
   "outline/volumes": "volumes",
+  卷纲: "volumes",
   chapters: "chapters",
   "outline/chapters": "chapters",
+  章纲: "chapters",
   manuscript: "manuscript",
+  正文: "manuscript",
   guide: "guide",
+  守则: "guide",
 };
 
-const REF = /(?<![\w/.-])(outline\/volumes|outline\/chapters|world|characters|threads|milestones|volumes|chapters|manuscript|guide)\/([\p{L}\p{N}_-]+?)(\.md)?(?![\w/.-])/gu;
+const DIR_ALTERNATION = Object.keys(ALIASES)
+  .sort((a, b) => b.length - a.length)
+  .map((k) => k.replace(/\//g, "\\/"))
+  .join("|");
+
+const REF = new RegExp(`(?<![\\w/.\\-\\p{Script=Han}])(${DIR_ALTERNATION})\\/([\\p{L}\\p{N}_\\-]+?)(\\.md)?(?![\\w/.\\-])`, "gu");
+
+/** 给人看的路径：中文目录/id */
+export function displayPath(kind: DocKindId | string, id: string): string {
+  const dir = state.kinds.find((k) => k.id === kind)?.dir ?? kind;
+  return `${dir}/${id}`;
+}
 
 export function parseDocRef(text: string): DocRef | null {
   const m = new RegExp(REF.source, "u").exec(text.trim());
   if (!m || m[0] !== text.trim()) return null;
-  const kind = DIR_TO_KIND[m[1]!];
+  const kind = ALIASES[m[1]!];
   return kind ? { kind, id: m[2]! } : null;
 }
 
-/** 把 HTML 里出现的 kind/id 引用包成可点的链接（只碰文本，不碰标签属性） */
+/** 把 HTML 里出现的 目录/id 引用包成可点的链接（只碰文本，不碰标签属性） */
 export function linkifyDocRefs(html: string): string {
-  // 按标签切开，只在文本片段里替换，避免改到 href 之类的属性
   return html
     .split(/(<[^>]+>)/g)
     .map((chunk) => {
       if (chunk.startsWith("<")) return chunk;
       return chunk.replace(REF, (whole, dir: string, id: string) => {
-        const kind = DIR_TO_KIND[dir];
+        const kind = ALIASES[dir];
         if (!kind) return whole;
-        return `<a class="doc-link" data-doc="${kind}/${id}" title="打开 ${kind}/${id}">${whole}</a>`;
+        return `<a class="doc-link" data-doc="${kind}/${id}" title="打开 ${displayPath(kind, id)}">${whole}</a>`;
       });
     })
     .join("");
