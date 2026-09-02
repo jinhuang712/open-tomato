@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Match, on, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { actions, state } from "../state";
 import { AgentBubbles } from "./AgentBubbles";
 import { ApprovalDock } from "./ApprovalDock";
@@ -37,6 +37,25 @@ export function Chat(props: { agentId: string }) {
 
   // 切换 agent 时重新贴底
   createEffect(on(() => props.agentId, () => queueMicrotask(scrollToBottom)));
+
+  // 新的提问 / 审批出现时，底部 dock 会把可视区顶小；这时候必须能看到最后几句上下文，强制贴底
+  createEffect(
+    on(
+      () => [state.questions.length, state.approvals.length],
+      () => requestAnimationFrame(scrollToBottom),
+      { defer: true },
+    ),
+  );
+
+  // 滚动区自身尺寸变化（dock 出现 / 输入框长高 / 窗口缩放）时，跟随中就保持贴底
+  onMount(() => {
+    if (!scroller) return;
+    const ro = new ResizeObserver(() => {
+      if (following() && scroller) scroller.scrollTop = scroller.scrollHeight;
+    });
+    ro.observe(scroller);
+    onCleanup(() => ro.disconnect());
+  });
 
   createEffect(
     on(
