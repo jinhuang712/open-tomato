@@ -3,6 +3,7 @@ import { actions, state } from "../state";
 import { AgentBubbles } from "./AgentBubbles";
 import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
+import { EmptyStart } from "./EmptyStart";
 import { Message } from "./Message";
 import { QuestionDock } from "./QuestionDock";
 import { QuickActions } from "./QuickActions";
@@ -67,18 +68,9 @@ export function Chat(props: { agentId: string }) {
       <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
         <div class="max-w-[880px] mx-auto w-full min-h-full">
         <Show when={messages().length === 0}>
-          <div class="h-full flex items-center justify-center text-ink-3 text-center px-10">
-            <Show when={isLead()} fallback={<div>子 agent 还没有输出</div>}>
-              <div>
-                <div class="text-lg font-serif text-ink-2 mb-2">和主编开始</div>
-                <div class="text-[12px] leading-relaxed">
-                  左侧「能力」里有立项访谈、卡片设计、大纲编排、章节写作、多路审稿、一致性机检。
-                  <br />
-                  也可以直接说话：“我想写一本……”
-                </div>
-              </div>
-            </Show>
-          </div>
+          <Show when={isLead()} fallback={<div class="h-full flex items-center justify-center text-ink-3">子 agent 还没有输出</div>}>
+            <EmptyStart />
+          </Show>
         </Show>
         <For each={messages()}>
           {(m) => (
