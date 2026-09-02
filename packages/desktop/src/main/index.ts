@@ -80,7 +80,7 @@ ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { default
   const r = await dialog.showSaveDialog(mainWindow, {
     title: "导出",
     defaultPath: join(app.getPath("documents"), defaultName),
-    filters: [{ name: "Markdown", extensions: ["md"] }],
+    filters: [{ name: "JSON Lines", extensions: ["jsonl"] }],
   });
   if (r.canceled || !r.filePath) return null;
   await writeFile(r.filePath, content, "utf8");
