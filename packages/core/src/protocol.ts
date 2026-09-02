@@ -47,6 +47,18 @@ export interface ProjectInfo {
   createdAt: string;
 }
 
+export interface SearchHit {
+  kind: DocKindId;
+  id: string;
+  title: string;
+  summary: string;
+  score: number;
+  /** 命中所在的段名，空串表示在开头 / 只命中头信息 */
+  section: string;
+  /** 命中处前后各 40 字 */
+  snippet: string;
+}
+
 export type IssueLevel = "error" | "warning";
 
 export interface CheckIssue {
@@ -222,6 +234,7 @@ export interface RequestMap {
   "doc.read": { params: { kind: DocKindId; id: string }; result: DocContent | null };
   "doc.write": { params: { kind: DocKindId; id: string; raw: string }; result: DocHeader };
   "doc.template": { params: { kind: DocKindId }; result: string };
+  "search.query": { params: { query: string; limit?: number }; result: SearchHit[] };
   "models.list": { params: Record<string, never>; result: ModelsState };
   "models.select": {
     params: { provider: string; id: string; thinkingLevel?: ThinkingLevel };

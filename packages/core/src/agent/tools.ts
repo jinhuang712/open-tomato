@@ -1,6 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import type { CheckIssue, DocKindId, RoleId } from "../protocol.js";
+import type { CheckIssue, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { DOC_KIND_IDS, DOC_KINDS, isDocKindId } from "../project/kinds.js";
 import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
@@ -17,6 +17,7 @@ export interface ToolContext {
   agentId: string;
   runCheck: () => Promise<CheckIssue[]>;
   onDocsChanged: () => void;
+  search: (query: string, limit?: number) => Promise<SearchHit[]>;
   /** 只有能派单的角色才有 */
   spawn?: (tasks: SpawnTask[], onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
 }
@@ -116,12 +117,16 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     defineTool({
       name: "search_docs",
       label: "搜文档",
-      description: "按关键词搜所有文档的 id / title / keywords / summary / 正文，返回命中文档的头信息。",
-      parameters: Type.Object({ query: Type.String() }),
+      description: "全文检索（BM25，中英文都行）所有文档的标题 / 关键词 / 摘要 / 正文，按相关度返回命中文档和命中片段。",
+      parameters: Type.Object({ query: Type.String(), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })) }),
       execute: async (_id, params) => {
-        const hits = await store.search(params.query);
+        const hits = await ctx.search(params.query, params.limit ?? 20);
         if (hits.length === 0) return text("没有命中。");
-        return text(hits.map((d) => `- ${d.kind}/${d.id} | ${d.title} | ${d.summary}`).join("\n"));
+        return text(
+          hits
+            .map((h) => `- ${h.kind}/${h.id} | ${h.title}${h.section ? ` | §${h.section}` : ""} | ${h.snippet}`)
+            .join("\n"),
+        );
       },
     }),
   );

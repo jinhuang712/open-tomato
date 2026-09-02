@@ -45,6 +45,7 @@ export interface State {
   toasts: Toast[];
   modelPickerOpen: boolean;
   capabilityDialog: CapabilityInfo | null;
+  searchOpen: boolean;
 }
 
 const initial: State = {
@@ -67,6 +68,7 @@ const initial: State = {
   toasts: [],
   modelPickerOpen: false,
   capabilityDialog: null,
+  searchOpen: false,
 };
 
 export const [state, setState] = createStore<State>(initial);

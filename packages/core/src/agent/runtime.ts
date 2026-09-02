@@ -22,6 +22,7 @@ import type {
 } from "../protocol.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
+import { SearchIndex } from "../project/search.js";
 import { ProjectStore } from "../project/store.js";
 import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
 import { Gate } from "./gate.js";
@@ -53,6 +54,8 @@ const HEAD_BUFFER_LIMIT = 48;
  */
 export class Kernel {
   private store: ProjectStore | null = null;
+  /** 全文索引，文档一变就置空，下次查询懒重建 */
+  private index: SearchIndex | null = null;
   private models!: ModelsFacade;
   private readonly gate: Gate;
   private readonly agents = new Map<string, LiveAgent>();
@@ -124,6 +127,7 @@ export class Kernel {
         return header;
       },
       "doc.template": async ({ kind }) => this.requireStore().template(kind),
+      "search.query": async ({ query, limit }) => (await this.searchIndex()).query(query, limit),
       "models.list": async () => this.models.state(),
       "models.select": async ({ provider, id, thinkingLevel }) => {
         const model = await this.models.select(provider, id, thinkingLevel);
@@ -214,6 +218,7 @@ export class Kernel {
     if (!this.store) return;
     await this.disposeAgents();
     this.store = null;
+    this.index = null;
     this.emit({ type: "project.closed" });
   }
 
@@ -229,7 +234,14 @@ export class Kernel {
 
   private async emitDocsChanged() {
     if (!this.store) return;
+    this.index = null;
     this.emit({ type: "docs.changed", docs: await this.store.listAll() });
+  }
+
+  private async searchIndex(): Promise<SearchIndex> {
+    const store = this.requireStore();
+    if (!this.index) this.index = await SearchIndex.build(store);
+    return this.index;
   }
 
   // ───────────────────────── 会话构建 ─────────────────────────
@@ -268,6 +280,7 @@ export class Kernel {
         return issues;
       },
       onDocsChanged: () => void this.emitDocsChanged(),
+      search: async (query, limit) => (await this.searchIndex()).query(query, limit),
     };
     if (withSpawn) ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
     return ctx;

@@ -5,6 +5,7 @@ import { CapabilityDialog } from "./components/CapabilityDialog";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
+import { SearchPalette } from "./components/SearchPalette";
 import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
 import { actions, applyEvent, setState, state } from "./state";
@@ -19,6 +20,18 @@ function Titlebar() {
             <span class="ml-2 text-ink-3 text-[11px] font-mono truncate max-w-[40%]">{p().root}</span>
           </>
         )}
+      </Show>
+      <span class="flex-1" />
+      {/* 标题栏正中的搜索入口，⌘P 同效 */}
+      <Show when={state.project}>
+        <button
+          class="no-drag w-[360px] h-7 px-3 rounded-lg border border-line bg-paper/60 hover:bg-paper-3 text-ink-3 text-[12px] flex items-center gap-2"
+          onClick={() => setState("searchOpen", true)}
+        >
+          <span>⌕</span>
+          <span class="flex-1 text-left">搜人物、设定、章节、正文…</span>
+          <kbd class="text-[10px] border border-line rounded px-1">⌘P</kbd>
+        </button>
       </Show>
       <span class="flex-1" />
       <div class="no-drag flex items-center gap-1.5 text-[12px]">
@@ -61,6 +74,14 @@ function Toasts() {
 export function App() {
   onMount(() => {
     const offDocLinks = installDocLinkHandler();
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "p" || e.key === "k") && state.project) {
+        e.preventDefault();
+        setState("searchOpen", true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
     const offEvent = bridge.onEvent(applyEvent);
     const offMenu = bridge.onMenu((cmd) => {
       switch (cmd) {
@@ -118,6 +139,9 @@ export function App() {
         <ModelPicker />
       </Show>
       <Show when={state.capabilityDialog}>{(c) => <CapabilityDialog capability={c()} />}</Show>
+      <Show when={state.searchOpen && state.project}>
+        <SearchPalette />
+      </Show>
       <Toasts />
     </div>
   );
