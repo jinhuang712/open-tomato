@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -14,7 +15,8 @@ const DEFAULT_PERSISTED: Persisted = { model: null, thinkingLevel: "off", recent
 
 /**
  * 模型选择器底座：包一层 pi 的 ModelRuntime。
- * 凭据落在 <home>/auth.json，用户偏好落在 <home>/state.json。
+ * 凭据、自定义 provider、模型目录缓存全部沿用 pi 自己的 ~/.pi/agent；
+ * 本应用只在 <home>/state.json 记模型选择和最近项目。
  */
 export class ModelsFacade {
   private persisted: Persisted = { ...DEFAULT_PERSISTED };
@@ -25,13 +27,14 @@ export class ModelsFacade {
     private readonly statePath: string,
   ) {}
 
+  /** pi 自己的配置目录：凭据与自定义 provider 直接用 pi 的 */
+  static piAgentDir(): string {
+    return path.join(os.homedir(), ".pi", "agent");
+  }
+
   static async create(home: string): Promise<ModelsFacade> {
     await fs.mkdir(home, { recursive: true });
-    const runtime = await ModelRuntime.create({
-      authPath: path.join(home, "auth.json"),
-      modelsPath: path.join(home, "models.json"),
-      modelsStorePath: path.join(home, "models-store.json"),
-    });
+    const runtime = await ModelRuntime.create();
     const facade = new ModelsFacade(runtime, path.join(home, "state.json"));
     await facade.load();
     await facade.refreshAvailability();

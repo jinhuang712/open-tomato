@@ -1,0 +1,29 @@
+appId: com.jinhuang.opentomato
+productName: OpenTomato
+copyright: MIT
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: ../core/dist
+    to: core/dist
+  - from: ../core/package.json
+    to: core/package.json
+asar: true
+npmRebuild: false
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dir
+      arch: [arm64]
+    - target: dmg
+      arch: [arm64]
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: null
+  darkModeSupport: true
+dmg:
+  title: OpenTomato

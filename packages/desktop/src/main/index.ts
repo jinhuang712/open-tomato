@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
@@ -40,6 +41,18 @@ function createWindow() {
 
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void win.loadFile(join(__dirname, "../renderer/index.html"));
+
+  // 开发钩子：OPENTOMATO_SCREENSHOT=/path.png 时，载入后延时截一张图再退出，给无头验证 UI 用
+  const shot = process.env.OPENTOMATO_SCREENSHOT;
+  if (shot) {
+    win.webContents.once("did-finish-load", () => {
+      setTimeout(async () => {
+        const image = await win.webContents.capturePage();
+        await writeFile(shot, image.toPNG());
+        app.quit();
+      }, Number(process.env.OPENTOMATO_SCREENSHOT_DELAY ?? 2500));
+    });
+  }
 
   mainWindow = win;
   kernel.attach(win);

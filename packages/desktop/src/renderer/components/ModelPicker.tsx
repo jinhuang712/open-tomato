@@ -33,7 +33,7 @@ export function ModelPicker() {
       <div class="w-[820px] max-h-[80vh] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">
           <span class="font-medium">模型</span>
-          <span class="text-ink-3 text-[12px]">凭据存在 {state.home}/auth.json</span>
+          <span class="text-ink-3 text-[12px]">凭据与自定义 provider 沿用 pi：~/.pi/agent/auth.json · models.json</span>
           <span class="flex-1" />
           <button class="text-[12px] text-ink-2 hover:text-ink" onClick={() => void actions.refreshModels()}>
             刷新目录

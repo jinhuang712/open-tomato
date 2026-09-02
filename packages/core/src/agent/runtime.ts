@@ -393,7 +393,7 @@ export class Kernel {
         this.setStatus(live, "running");
         return;
       case "agent_end":
-        if (live.info.agentId === LEAD_ID) this.setStatus(live, "idle");
+        if (live.info.agentId === LEAD_ID && live.info.status !== "error") this.setStatus(live, "idle");
         return;
       case "message_start": {
         const msg = normalizeMessage(ev.message);
@@ -415,6 +415,10 @@ export class Kernel {
         if (!msg) return;
         if (msg.role === "assistant") live.streamingMessageId = null;
         this.send(live, { type: "message_end", message: msg });
+        const raw = ev.message as RawMessage;
+        if (raw.role === "assistant" && raw.stopReason === "error") {
+          this.setStatus(live, "error", raw.errorMessage ?? "模型调用失败（没有错误详情）");
+        }
         return;
       }
       case "tool_execution_start":
@@ -458,6 +462,8 @@ interface RawMessage {
   toolName?: string;
   isError?: boolean;
   timestamp?: number;
+  stopReason?: string;
+  errorMessage?: string;
 }
 
 function contentText(result: unknown): string {
