@@ -89,7 +89,7 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
         <div class="text-ink-3 text-center py-6">内容没有变化</div>
       </Show>
 
-      <div class="font-serif text-[15px] leading-8 whitespace-pre-wrap break-words">
+      <div class="font-serif text-[15px] leading-[1.9] whitespace-pre-wrap break-words">
         <For each={segments()}>
           {(seg, i) => {
             if (seg.kind === "add") return <ins class="tc-ins">{seg.text}</ins>;

@@ -150,21 +150,21 @@ mark {
   padding: 0 1px;
 }
 
-/* 审阅视图：Word 式修订痕迹 */
+/* 审阅视图：Word 式修订痕迹——只用颜色和线，不铺底色 */
 .tc-ins {
-  background: var(--color-add-strong);
-  color: var(--color-ink);
-  text-decoration: none;
-  border-radius: 2px;
-  padding: 0 1px;
+  color: var(--color-ok);
+  background: none;
+  text-decoration: underline;
+  text-decoration-color: var(--color-ok);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
 }
 .tc-del {
-  background: var(--color-del);
   color: var(--color-danger);
+  background: none;
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-  border-radius: 2px;
-  padding: 0 1px;
+  opacity: 0.85;
 }
 .tc-fold {
   display: inline-block;
