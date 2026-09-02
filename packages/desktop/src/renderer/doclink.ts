@@ -63,6 +63,12 @@ export function linkifyDocRefs(html: string): string {
     .join("");
 }
 
+/** 老会话里还会出现英文守则 id，点开时映射到中文 */
+const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
+export function resolveLegacyId(kind: DocKindId, id: string): string {
+  return kind === "guide" ? (LEGACY_GUIDE_IDS[id] ?? id) : id;
+}
+
 /** 全局委托：点到 a[data-doc] 就打开文档 */
 export function installDocLinkHandler(): () => void {
   const handler = (e: MouseEvent) => {
@@ -73,7 +79,8 @@ export function installDocLinkHandler(): () => void {
     if (slash < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    actions.openDoc(ref.slice(0, slash) as DocKindId, ref.slice(slash + 1));
+    const kind = ref.slice(0, slash) as DocKindId;
+    actions.openDoc(kind, resolveLegacyId(kind, ref.slice(slash + 1)));
   };
   document.addEventListener("click", handler);
   return () => document.removeEventListener("click", handler);
