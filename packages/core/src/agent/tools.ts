@@ -9,6 +9,9 @@ import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
 
 export type SpawnMode = "propose" | "commit";
 
+/** propose 时从会话里剥掉的工具 */
+export const WRITE_TOOL_NAMES = ["write_doc", "edit_doc"] as const;
+
 export interface SpawnTask {
   role: RoleId;
   task: string;

@@ -29,7 +29,7 @@ import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
 import { ROLES, STATUS_LINE_PATTERN, STATUS_LINE_RULE, roleInfos } from "./roles.js";
-import { createTools, type SpawnMode, type SpawnTask, type ToolContext, toolNames } from "./tools.js";
+import { createTools, type SpawnMode, type SpawnTask, type ToolContext, toolNames, WRITE_TOOL_NAMES } from "./tools.js";
 
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
@@ -55,6 +55,8 @@ interface LiveAgent {
   headBuffer: string | null;
   /** propose 时落盘工具被挡住；主编续派时可以切到 commit */
   mode: SpawnMode;
+  /** 这个角色的全部工具名；propose 时用它算出剥掉写工具后的列表，commit 时恢复 */
+  tools: string[];
 }
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
@@ -321,7 +323,7 @@ export class Kernel {
     return ctx;
   }
 
-  private async buildSession(role: RoleId, agentId: string, sessionManager: SessionManager): Promise<AgentSession> {
+  private async buildSession(role: RoleId, agentId: string, sessionManager: SessionManager): Promise<{ session: AgentSession; tools: string[] }> {
     const store = this.requireStore();
     const def = ROLES[role];
     const tools = createTools(this.toolContext(agentId, def.canSpawn), {
@@ -341,11 +343,11 @@ export class Kernel {
       sessionManager,
       settingsManager: SettingsManager.inMemory({}),
     });
-    return session;
+    return { session, tools: toolNames(tools) };
   }
 
-  private register(info: AgentInfo, session: AgentSession): LiveAgent {
-    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit" };
+  private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit" };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -359,10 +361,11 @@ export class Kernel {
       mode === "continue"
         ? SessionManager.continueRecent(store.info.root, store.leadSessionsDir)
         : SessionManager.create(store.info.root, store.leadSessionsDir);
-    const session = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
+    const { session, tools } = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
       { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null, statusText: "" },
       session,
+      tools,
     );
     const raws = session.messages as unknown[];
     this.emit({
@@ -405,12 +408,13 @@ export class Kernel {
     const store = this.requireStore();
     const def = ROLES[task.role];
     const agentId = randomUUID();
-    const session = await this.buildSession(task.role, agentId, SessionManager.inMemory(store.info.root));
+    const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.inMemory(store.info.root));
     const live = this.register(
       { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
       session,
+      tools,
     );
-    live.mode = task.mode ?? "commit";
+    this.setMode(live, task.mode ?? "commit");
     return this.promptChild(live, task.task, onProgress, signal);
   }
 
@@ -424,9 +428,19 @@ export class Kernel {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
-    if (mode) live.mode = mode;
+    if (mode) this.setMode(live, mode);
     const prefix = mode === "commit" && live.mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : "";
     return this.promptChild(live, prefix + message, onProgress, signal);
+  }
+
+  /**
+   * 两道闸门：propose 时把写工具从会话里拿掉，模型根本看不到；
+   * live.mode 再让 writeBlocked 兜底（万一模型凭记忆调用）。commit 时都放开。
+   */
+  private setMode(live: LiveAgent, mode: SpawnMode) {
+    live.mode = mode;
+    const blocked = new Set<string>(WRITE_TOOL_NAMES);
+    live.session.setActiveToolsByName(mode === "propose" ? live.tools.filter((t) => !blocked.has(t)) : live.tools);
   }
 
   /** 给子 agent 发一轮消息，等它跑完，把最后一段文字结论交回主编。会话跑完不退场，留给续接。 */
