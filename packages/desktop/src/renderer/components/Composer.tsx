@@ -27,13 +27,15 @@ export function Composer(props: { agentId?: string }) {
   const isLead = () => agentId() === "lead";
   const agent = () => state.agents[agentId()];
   const busy = () => agent()?.status === "running";
-  const gone = () => !isLead() && (agent()?.status === "done" || agent()?.status === "error");
+  const gone = () => !isLead() && agent()?.status === "error";
+  const resting = () => !isLead() && agent()?.status === "done";
   const noModel = () => !state.models?.current;
   const disabled = () => noModel() || gone();
 
   const placeholder = () => {
     if (noModel()) return "先在右上角选一个模型并填 API key";
-    if (gone()) return `${agent()?.label ?? "子 agent"} 已经收工，这段对话只能看`;
+    if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
+    if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊…（⌘↩ 发送，比如挑一个候选让它往下孵化）`;
     if (!isLead()) return `给${agent()?.label ?? "子 agent"}插话…（⌘↩ 发送，它会在当前步骤后处理）`;
     return "和主编说话…（⌘↩ 发送，运行中发送会插话）";
   };
