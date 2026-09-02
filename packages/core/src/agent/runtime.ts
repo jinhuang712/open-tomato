@@ -363,7 +363,7 @@ export class Kernel {
 
   private sendTo(agentId: string, text: string) {
     const live = this.agents.get(agentId);
-    if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 已经完成并退场，没法再对话");
+    if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
     const run = live.session.isStreaming
       ? live.session.prompt(text, { streamingBehavior: "steer" })
       : live.session.prompt(text);
@@ -414,10 +414,8 @@ export class Kernel {
       onProgress(`${def.label} 失败：${msg}`);
       return `## ${def.label}（${task.role}）\n\n执行失败：${msg}`;
     } finally {
+      // 跑完不退场：会话留着，主编或作者还能接着对它说话；项目关闭时统一回收
       signal?.removeEventListener("abort", onAbort);
-      live.unsubscribe();
-      session.dispose();
-      this.agents.delete(agentId);
     }
   }
 
@@ -457,7 +455,7 @@ export class Kernel {
         this.setStatus(live, "running");
         return;
       case "agent_end":
-        if (live.info.agentId === LEAD_ID && live.info.status !== "error") this.setStatus(live, "idle");
+        if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         return;
       case "message_start": {
         const msg = normalizeMessage(ev.message);
