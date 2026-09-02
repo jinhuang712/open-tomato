@@ -247,8 +247,10 @@ export interface RequestMap {
   "models.refresh": { params: Record<string, never>; result: ModelsState };
   /** agentId 省略 = 主编；给子 agent 发话是插话（steer），它完成目标前不会停 */
   "chat.send": { params: { text: string; agentId?: string }; result: null };
-  /** agentId 省略 = 全部停下 */
+  /** 强制中止。agentId 省略 = 全部停下 */
   "chat.abort": { params: { agentId?: string }; result: null };
+  /** 优雅暂停：让 agent 不再开新工具，收尾总结；主编会接着用 ask_user 问作者想怎么调整 */
+  "chat.pause": { params: { agentId?: string }; result: null };
   "chat.new": { params: Record<string, never>; result: null };
   "capabilities.list": { params: Record<string, never>; result: CapabilityInfo[] };
   "capability.run": {

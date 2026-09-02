@@ -321,6 +321,14 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
+  async pause(agentId?: string) {
+    try {
+      await bridge.request("chat.pause", agentId && agentId !== "lead" ? { agentId } : {});
+      toast("已请求暂停，agent 会收尾后停下来问你");
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   async abort(agentId?: string) {
     await bridge.request("chat.abort", agentId ? { agentId } : {}).catch((e) => toast(errText(e), "error"));
   },

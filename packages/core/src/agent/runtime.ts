@@ -35,6 +35,15 @@ type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
 
 const LEAD_ID = "lead";
 
+const PAUSE_PROMPT_LEAD = `【作者按了「暂停」】
+请立刻收尾，不要再开新的工具调用，也不要再派子 agent：
+1. 用三五句话说清到目前为止做了什么、停在哪一步、还差什么
+2. 然后用 ask_user 问作者想怎么调整，选项固定给这三个并允许自由输入：「我有新的想法」「对之前的内容不满意」「换个方向」
+3. 拿到回答后按回答处理；作者说继续就接着做`;
+
+const PAUSE_PROMPT_CHILD = `【作者按了「暂停」】
+请立刻收尾：不要再开新的工具调用。把到目前为止做了什么、停在哪一步、还差什么，用三五句话作为你的最终回复交回主编，然后结束。已经落盘的不用撤。`;
+
 interface LiveAgent {
   info: AgentInfo;
   session: AgentSession;
@@ -158,6 +167,16 @@ export class Kernel {
       },
       "chat.send": async ({ text, agentId }) => {
         this.sendTo(agentId ?? LEAD_ID, text);
+        return null;
+      },
+      "chat.pause": async ({ agentId }) => {
+        const id = agentId ?? LEAD_ID;
+        const live = this.agents.get(id);
+        if (!live) throw new Error("这个 agent 已经不在了");
+        if (live.info.status !== "running") return null;
+        const text = live.info.role === "lead" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD;
+        // steer 会插在当前这步工具结束之后，正在写的东西不会被掐断
+        live.session.prompt(text, { streamingBehavior: "steer" }).catch(() => {});
         return null;
       },
       "chat.abort": async ({ agentId }) => {

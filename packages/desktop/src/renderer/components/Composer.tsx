@@ -64,11 +64,18 @@ export function Composer(props: { agentId?: string }) {
           <span class="flex-1" />
           <Show when={busy()}>
             <button
-              class="px-3 py-1 rounded-lg border border-line text-ink-2 hover:text-danger hover:border-danger"
-              onClick={() => void actions.abort(isLead() ? undefined : agentId())}
-              title={isLead() ? "停下主编和所有子 agent" : `只停下${agent()?.label}`}
+              class="px-3 py-1 rounded-lg border border-line text-ink-2 hover:text-ink hover:border-accent"
+              onClick={() => void actions.pause(agentId())}
+              title="收尾当前这步，总结进度，然后停下来问你想怎么调整"
             >
-              停止
+              暂停
+            </button>
+            <button
+              class="px-2 py-1 rounded-lg text-[11px] text-ink-3 hover:text-danger"
+              onClick={() => void actions.abort(isLead() ? undefined : agentId())}
+              title={isLead() ? "立刻掐断主编和所有子 agent，正在做的事作废" : `立刻掐断${agent()?.label}`}
+            >
+              强制停止
             </button>
           </Show>
           <button
