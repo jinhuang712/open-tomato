@@ -28,6 +28,8 @@ const ALIASES: Record<string, DocKindId> = {
   守则: "guide",
 };
 
+const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
+
 const DIR_ALTERNATION = Object.keys(ALIASES)
   .sort((a, b) => b.length - a.length)
   .map((k) => k.replace(/\//g, "\\/"))
@@ -42,8 +44,15 @@ let cachedRef: RegExp | null = null;
  * 只认项目里真实存在的文档 id（最长优先），中文 id 后面紧跟正文也不会多吃或少吃。
  * 没有项目时退回宽松匹配。
  */
+/** 引用表的版本号，markdown 缓存靠它失效 */
+export function docRefVersion(): string {
+  refPattern();
+  return cacheKey;
+}
+
 function refPattern(): RegExp {
-  const ids = [...new Set(state.docs.map((d) => d.id))].sort((a, b) => b.length - a.length);
+  // 老会话里的英文守则 id 也认，点开时再映射
+  const ids = [...new Set([...state.docs.map((d) => d.id), ...Object.keys(LEGACY_GUIDE_IDS)])].sort((a, b) => b.length - a.length);
   const key = ids.join("\u0000");
   if (cachedRef && key === cacheKey) return cachedRef;
   cacheKey = key;
@@ -81,7 +90,6 @@ export function linkifyDocRefs(html: string): string {
 }
 
 /** 老会话里还会出现英文守则 id，点开时映射到中文 */
-const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
 export function resolveLegacyId(kind: DocKindId, id: string): string {
   return kind === "guide" ? (LEGACY_GUIDE_IDS[id] ?? id) : id;
 }
