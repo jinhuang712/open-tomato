@@ -217,10 +217,11 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       defineTool({
         name: "ask_user",
         label: "问作者",
-        description: "向作者提一个问题，等作者在界面上回答。给 options 时作者可以点选；allowFreeText 为 true 时也可以自由输入。",
+        description:
+          "向作者提一个问题，等作者在界面上回答。**每次都要给 options**：封闭问题给明确选项；开放问题（书名、故事、人名这类）给 2–4 个你替作者想好的具体候选，作者点一下就能选，也能自由输入。界面会自动补上「我还没想好」「先跳过」两个逃生选项，你不用重复给。",
         parameters: Type.Object({
           question: Type.String(),
-          options: Type.Optional(Type.Array(Type.String(), { description: "可选项，2–6 个" })),
+          options: Type.Optional(Type.Array(Type.String(), { description: "可选项 2–6 个。开放问题也要给具体候选，例如书名就直接给 3 个备选书名" })),
           allowFreeText: Type.Optional(Type.Boolean({ description: "默认 true" })),
         }),
         execute: async (_id, params, signal) => {
