@@ -8,6 +8,11 @@ import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId, LEGACY_DIRS, LEGACY_
 const MARKER_DIR = ".opentomato";
 const MARKER_FILE = "project.json";
 const PROJECT_FORMAT = 1;
+/** 项目内会话目录（相对 .opentomato/），主编会话 jsonl 落这里；子目录按角色分 */
+const SESSIONS_DIR = "sessions";
+const LEAD_SESSIONS_DIR = path.join(SESSIONS_DIR, "lead");
+/** .opentomato/.gitignore：会话记录大且噪音多，不进 git；project.json 等保留 */
+const MARKER_GITIGNORE = `${SESSIONS_DIR}/\n`;
 
 export interface WritePreview {
   kind: DocKindId;
@@ -25,6 +30,15 @@ export class ProjectStore {
 
   static markerPath(root: string): string {
     return path.join(root, MARKER_DIR, MARKER_FILE);
+  }
+
+  /** 主编会话 jsonl 的目录：<root>/.opentomato/sessions/lead */
+  static leadSessionsDir(root: string): string {
+    return path.join(root, MARKER_DIR, LEAD_SESSIONS_DIR);
+  }
+
+  get leadSessionsDir(): string {
+    return ProjectStore.leadSessionsDir(this.info.root);
   }
 
   static async exists(root: string): Promise<boolean> {
@@ -49,6 +63,7 @@ export class ProjectStore {
     for (const [id, raw] of Object.entries(GUIDE_SEEDS)) {
       await fs.writeFile(path.join(root, DOC_KINDS.guide.dir, `${id}.md`), raw, "utf8");
     }
+    await ensureMarkerDir(root);
     return new ProjectStore(info);
   }
 
@@ -60,6 +75,7 @@ export class ProjectStore {
     if (parsed.format !== PROJECT_FORMAT) throw new Error(`项目格式版本不匹配：${String(parsed.format)}`);
     await migrateLegacyLayout(root);
     for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
+    await ensureMarkerDir(root);
     return new ProjectStore({
       root,
       name: asString(parsed.name, path.basename(root)),
@@ -219,6 +235,62 @@ async function migrateLegacyLayout(root: string) {
     const from = path.join(guideDir, `${en}.md`);
     const to = path.join(guideDir, `${zh}.md`);
     if ((await exists(from)) && !(await exists(to))) await fs.rename(from, to);
+  }
+}
+
+/** 建 .opentomato/sessions/lead 与 .gitignore（已有的不覆盖） */
+async function ensureMarkerDir(root: string) {
+  await fs.mkdir(ProjectStore.leadSessionsDir(root), { recursive: true });
+  const ignore = path.join(root, MARKER_DIR, ".gitignore");
+  await fs.writeFile(ignore, MARKER_GITIGNORE, { encoding: "utf8", flag: "wx" }).catch(() => {});
+}
+
+/**
+ * 把早期落在全局目录里的主编会话搬进项目：按 jsonl 首行 header 的 cwd 匹配项目根。
+ * 只搬项目内不存在同名文件的；搬完返回搬了几个。
+ */
+export async function migrateLegacySessions(legacyDir: string, root: string): Promise<number> {
+  const target = ProjectStore.leadSessionsDir(root);
+  let names: string[];
+  try {
+    names = (await fs.readdir(legacyDir)).filter((n) => n.endsWith(".jsonl"));
+  } catch {
+    return 0;
+  }
+  const wanted = path.resolve(root);
+  let moved = 0;
+  for (const n of names) {
+    const from = path.join(legacyDir, n);
+    const cwd = await readSessionCwd(from);
+    if (!cwd || path.resolve(cwd) !== wanted) continue;
+    const to = path.join(target, n);
+    if (await fs.access(to).then(() => true, () => false)) continue;
+    await fs.mkdir(target, { recursive: true });
+    try {
+      await fs.rename(from, to);
+    } catch {
+      await fs.copyFile(from, to);
+      await fs.unlink(from);
+    }
+    moved++;
+  }
+  return moved;
+}
+
+/** 读 pi session jsonl 首行 header 里的 cwd；不是 session 文件返回 null */
+async function readSessionCwd(file: string): Promise<string | null> {
+  const fh = await fs.open(file, "r").catch(() => null);
+  if (!fh) return null;
+  try {
+    const buf = Buffer.alloc(4096);
+    const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
+    const line = buf.subarray(0, bytesRead).toString("utf8").split("\n")[0] ?? "";
+    const header = JSON.parse(line) as { type?: string; cwd?: string };
+    return header.type === "session" && typeof header.cwd === "string" ? header.cwd : null;
+  } catch {
+    return null;
+  } finally {
+    await fh.close();
   }
 }
 

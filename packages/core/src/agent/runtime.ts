@@ -24,7 +24,7 @@ import { STUB_PATTERN, stubPrompt } from "../protocol.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
-import { ProjectStore } from "../project/store.js";
+import { migrateLegacySessions, ProjectStore } from "../project/store.js";
 import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
@@ -71,7 +71,8 @@ export class Kernel {
   private models!: ModelsFacade;
   private readonly gate: Gate;
   private readonly agents = new Map<string, LiveAgent>();
-  private readonly sessionsDir: string;
+  /** 早期版本把所有项目的会话混放在这个全局目录；现在只用来迁移 */
+  private readonly legacySessionsDir: string;
   private readonly ready: Promise<void>;
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
@@ -80,7 +81,7 @@ export class Kernel {
     private readonly home: string,
     private readonly emit: (event: KernelEvent) => void,
   ) {
-    this.sessionsDir = path.join(home, "sessions");
+    this.legacySessionsDir = path.join(home, "sessions");
     this.gate = new Gate({
       approvalRequested: (request) => this.emit({ type: "approval.requested", request }),
       approvalClosed: (approvalId, decision) => this.emit({ type: "approval.resolved", approvalId, decision }),
@@ -353,10 +354,11 @@ export class Kernel {
 
   private async createLead(mode: "new" | "continue") {
     const store = this.requireStore();
+    await migrateLegacySessions(this.legacySessionsDir, store.info.root);
     const sessionManager =
       mode === "continue"
-        ? SessionManager.continueRecent(store.info.root, this.sessionsDir)
-        : SessionManager.create(store.info.root, this.sessionsDir);
+        ? SessionManager.continueRecent(store.info.root, store.leadSessionsDir)
+        : SessionManager.create(store.info.root, store.leadSessionsDir);
     const session = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
       { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null, statusText: "" },

@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runCheck } from "../src/project/check.js";
-import { ProjectStore } from "../src/project/store.js";
+import { migrateLegacySessions, ProjectStore } from "../src/project/store.js";
 
 let root: string;
 let store: ProjectStore;
@@ -114,5 +114,40 @@ describe("runCheck", () => {
     const issues = await runCheck(store);
     const hit = issues.find((i) => i.kind === "manuscript" && i.message.includes("待填"));
     expect(hit?.level).toBe("error");
+  });
+});
+
+describe("会话目录", () => {
+  test("create 建 .opentomato/sessions/lead 与 .gitignore", async () => {
+    const dir = store.leadSessionsDir;
+    expect(dir).toBe(path.join(root, ".opentomato/sessions/lead"));
+    expect((await fs.stat(dir)).isDirectory()).toBe(true);
+    expect(await fs.readFile(path.join(root, ".opentomato/.gitignore"), "utf8")).toBe("sessions/\n");
+  });
+
+  test("open 不覆盖已有 .gitignore", async () => {
+    await fs.writeFile(path.join(root, ".opentomato/.gitignore"), "custom\n");
+    await ProjectStore.open(root);
+    expect(await fs.readFile(path.join(root, ".opentomato/.gitignore"), "utf8")).toBe("custom\n");
+  });
+
+  test("migrateLegacySessions 只搬 cwd 匹配的 jsonl", async () => {
+    const legacy = await fs.mkdtemp(path.join(os.tmpdir(), "ot-sessions-"));
+    const header = (cwd: string) => `${JSON.stringify({ type: "session", version: 3, id: "x", cwd })}\n{"type":"message"}\n`;
+    await fs.writeFile(path.join(legacy, "a.jsonl"), header(root));
+    await fs.writeFile(path.join(legacy, "b.jsonl"), header("/somewhere/else"));
+    await fs.writeFile(path.join(legacy, "c.jsonl"), "not json\n");
+    await fs.writeFile(path.join(legacy, "d.txt"), header(root));
+    const moved = await migrateLegacySessions(legacy, root);
+    expect(moved).toBe(1);
+    expect((await fs.readdir(store.leadSessionsDir)).sort()).toEqual(["a.jsonl"]);
+    expect((await fs.readdir(legacy)).sort()).toEqual(["b.jsonl", "c.jsonl", "d.txt"]);
+    // 再跑一次是幂等的
+    expect(await migrateLegacySessions(legacy, root)).toBe(0);
+    await fs.rm(legacy, { recursive: true, force: true });
+  });
+
+  test("migrateLegacySessions 目录不存在返回 0", async () => {
+    expect(await migrateLegacySessions(path.join(root, "nope"), root)).toBe(0);
   });
 });
