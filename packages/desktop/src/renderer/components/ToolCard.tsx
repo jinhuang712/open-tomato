@@ -13,6 +13,7 @@ const LABELS: Record<string, string> = {
   doc_template: "拿模板",
   run_check: "一致性机检",
   write_doc: "写文档",
+  edit_doc: "改文档",
   ask_user: "问作者",
   spawn_agents: "派子 agent",
 };
@@ -196,7 +197,7 @@ export function ToolCard(props: { part: ToolPart }) {
       <Match when={props.part.name === "ask_user"}>
         <AskCard part={props.part} />
       </Match>
-      <Match when={props.part.name === "write_doc"}>
+      <Match when={props.part.name === "write_doc" || props.part.name === "edit_doc"}>
         <WriteCard part={props.part} />
       </Match>
       <Match when={props.part.name === "spawn_agents"}>
