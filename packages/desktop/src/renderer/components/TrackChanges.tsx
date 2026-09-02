@@ -69,7 +69,9 @@ function applyMarks(html: string): string {
       if (open) out += `</${open}>`;
       return out;
     })
-    .join("");
+    .join("")
+    // 跨块级边界时会产生只包着换行的空标签，去掉
+    .replace(/<(ins|del)[^>]*>\s*<\/\1>/g, "");
 }
 
 /**
