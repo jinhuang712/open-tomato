@@ -1,4 +1,4 @@
-import { createEffect, For, Match, on, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, on, Show, Switch } from "solid-js";
 import { actions, state } from "../state";
 import { AgentBubbles } from "./AgentBubbles";
 import { ApprovalDock } from "./ApprovalDock";
@@ -20,13 +20,20 @@ export function Chat(props: { agentId: string }) {
   const dockQuestion = () => question() ?? (isLead() ? state.questions[0] : undefined);
   const dockApproval = () => approval() ?? (isLead() ? state.approvals[0] : undefined);
 
+  const [awayFromBottom, setAwayFromBottom] = createSignal(false);
+  const distance = () => (scroller ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight : 0);
+  const scrollToBottom = () => {
+    if (!scroller) return;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  };
+
   createEffect(
     on(
       () => [props.agentId, messages().length, messages().at(-1)?.parts.length, JSON.stringify(messages().at(-1)?.parts.at(-1))],
       () => {
         if (!scroller) return;
-        const nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160;
-        if (nearBottom) scroller.scrollTop = scroller.scrollHeight;
+        if (distance() < 160) scroller.scrollTop = scroller.scrollHeight;
+        else setAwayFromBottom(true);
       },
     ),
   );
@@ -48,7 +55,7 @@ export function Chat(props: { agentId: string }) {
           </span>
         </div>
       </Show>
-      <div ref={scroller} class="flex-1 overflow-y-auto py-3">
+      <div ref={scroller} class="flex-1 overflow-y-auto py-3" onScroll={() => setAwayFromBottom(distance() > 240)}>
         <div class="max-w-[880px] mx-auto w-full h-full">
         <Show when={messages().length === 0}>
           <div class="h-full flex items-center justify-center text-ink-3 text-center px-10">
@@ -77,7 +84,16 @@ export function Chat(props: { agentId: string }) {
         </div>
       </div>
       {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
-      <div class="max-w-[880px] mx-auto w-full">
+      <div class="relative max-w-[880px] mx-auto w-full">
+        <Show when={awayFromBottom()}>
+          <button
+            class="absolute -top-11 right-6 z-10 w-9 h-9 rounded-full bg-paper border border-line shadow-lg text-ink-2 hover:text-ink hover:border-accent flex items-center justify-center"
+            title="回到底部"
+            onClick={scrollToBottom}
+          >
+            ↓
+          </button>
+        </Show>
         <Switch fallback={<Composer agentId={props.agentId} />}>
           <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
           <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
