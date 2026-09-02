@@ -21,6 +21,8 @@ export interface ToolContext {
   search: (query: string, limit?: number) => Promise<SearchHit[]>;
   /** 只有能派单的角色才有 */
   spawn?: (tasks: SpawnTask[], onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
+  /** 续接一个还活着的子 agent，把新消息发给它并等它这一轮的结论 */
+  continueAgent?: (agentId: string, message: string, onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
 }
 
 export interface ToolPermissions {
@@ -298,6 +300,26 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
             return { role: t.role, task: t.task };
           });
           const result = await spawn(tasks, (progress) => onUpdate?.(text(progress)), signal);
+          return text(result);
+        },
+      }),
+    );
+  }
+
+  if (perms.canSpawn && ctx.continueAgent) {
+    const continueAgent = ctx.continueAgent;
+    tools.push(
+      defineTool({
+        name: "continue_agent",
+        label: "续派子 agent",
+        description:
+          "接着和一个已经跑完一轮的子 agent 说话，它带着之前的上下文继续干。用于：它给了候选、作者拍板后让它在选中的候选上孵化落盘；或让它按作者意见修改。agentId 从 spawn_agents 结果的标题里取。不要用它重派一个全新的任务。",
+        parameters: Type.Object({
+          agentId: Type.String({ description: "spawn_agents 结果标题里的 id" }),
+          message: Type.String({ description: "发给它的消息：作者拍板了什么、接下来做什么" }),
+        }),
+        execute: async (_id, params, signal, onUpdate) => {
+          const result = await continueAgent(params.agentId, params.message, (progress) => onUpdate?.(text(progress)), signal);
           return text(result);
         },
       }),

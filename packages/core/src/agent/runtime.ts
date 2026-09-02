@@ -306,7 +306,10 @@ export class Kernel {
       onDocsChanged: () => void this.emitDocsChanged(),
       search: async (query, limit) => (await this.searchIndex()).query(query, limit),
     };
-    if (withSpawn) ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
+    if (withSpawn) {
+      ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
+      ctx.continueAgent = (childId, message, onProgress, signal) => this.continueChild(childId, message, onProgress, signal);
+    }
     return ctx;
   }
 
@@ -398,23 +401,41 @@ export class Kernel {
       { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
       session,
     );
+    return this.promptChild(live, task.task, onProgress, signal);
+  }
+
+  private async continueChild(
+    childId: string,
+    message: string,
+    onProgress: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const live = this.agents.get(childId);
+    if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
+    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
+    return this.promptChild(live, message, onProgress, signal);
+  }
+
+  /** 给子 agent 发一轮消息，等它跑完，把最后一段文字结论交回主编。会话跑完不退场，留给续接。 */
+  private async promptChild(live: LiveAgent, message: string, onProgress: (text: string) => void, signal?: AbortSignal): Promise<string> {
+    const { session, info } = live;
+    const header = `## ${info.label}（${info.role}，id=${info.agentId}）`;
     const onAbort = () => void session.abort().catch(() => {});
     signal?.addEventListener("abort", onAbort, { once: true });
-    onProgress(`${def.label} 开始`);
+    onProgress(`${info.label} 开始`);
     try {
-      await session.prompt(task.task);
+      await session.prompt(message);
       if (signal?.aborted) throw new Error("已中止");
       const answer = lastAssistantText(session.messages as unknown[]);
       this.setStatus(live, "done");
-      onProgress(`${def.label} 完成`);
-      return `## ${def.label}（${task.role}）\n\n${answer || "（没有文字结论）"}`;
+      onProgress(`${info.label} 完成`);
+      return `${header}\n\n${answer || "（没有文字结论）"}`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
-      onProgress(`${def.label} 失败：${msg}`);
-      return `## ${def.label}（${task.role}）\n\n执行失败：${msg}`;
+      onProgress(`${info.label} 失败：${msg}`);
+      return `${header}\n\n执行失败：${msg}`;
     } finally {
-      // 跑完不退场：会话留着，主编或作者还能接着对它说话；项目关闭时统一回收
       signal?.removeEventListener("abort", onAbort);
     }
   }

@@ -16,6 +16,7 @@ const LABELS: Record<string, string> = {
   edit_doc: "改文档",
   ask_user: "问作者",
   spawn_agents: "派子 agent",
+  continue_agent: "续派子 agent",
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -61,6 +62,8 @@ function summarize(part: ToolPart): string {
       const tasks = Array.isArray(a.tasks) ? (a.tasks as Array<{ role: string }>) : [];
       return tasks.map((t) => ROLE_LABELS[t.role] ?? t.role).join(" · ");
     }
+    case "continue_agent":
+      return str(a.message);
     default:
       return "";
   }
@@ -200,7 +203,7 @@ export function ToolCard(props: { part: ToolPart }) {
       <Match when={props.part.name === "write_doc" || props.part.name === "edit_doc"}>
         <WriteCard part={props.part} />
       </Match>
-      <Match when={props.part.name === "spawn_agents"}>
+      <Match when={props.part.name === "spawn_agents" || props.part.name === "continue_agent"}>
         <SpawnCard part={props.part} open={open()} toggle={() => setOpen(!open())} />
       </Match>
     </Switch>
