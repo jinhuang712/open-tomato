@@ -1,5 +1,6 @@
 import { diffChars } from "diff";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { marked } from "marked";
+import { createMemo, For, Show } from "solid-js";
 
 /** 拆 frontmatter：和内核同一套约定（--- 包裹的 YAML），这里只需要按行取 key: value */
 function splitDoc(raw: string): { meta: Record<string, string>; body: string } {
@@ -20,17 +21,61 @@ const META_LABELS: Record<string, string> = {
   status: "状态",
 };
 
-const COLLAPSE_OVER = 420;
-const KEEP_EDGE = 140;
+// 私用区字符当标记，先混进 markdown 源文本，渲染完再换成 <ins>/<del>
+const INS_OPEN = "";
+const INS_CLOSE = "";
+const DEL_OPEN = "";
+const DEL_CLOSE = "";
+const MARKS = /[-]/g;
+// 标记落在行首会挡住 markdown 语法（## / - / 1. / >），把它挪到语法后面
+const LINE_PREFIX = /^([-]+)((?:#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+)+)/gm;
 
-type Segment = { kind: "same" | "add" | "del"; text: string };
+/** 把 diff 结果合成一份带标记的 markdown 源文本 */
+function mergedSource(before: string, after: string, isNew: boolean): string {
+  if (isNew) return `${INS_OPEN}${after}${INS_CLOSE}`;
+  const out: string[] = [];
+  for (const p of diffChars(before, after)) {
+    if (p.added) out.push(INS_OPEN, p.value, INS_CLOSE);
+    else if (p.removed) out.push(DEL_OPEN, p.value, DEL_CLOSE);
+    else out.push(p.value);
+  }
+  return out.join("").replace(LINE_PREFIX, "$2$1");
+}
 
 /**
- * Word / Docs 式的审阅视图：整篇文档铺开，删的划掉，加的带底色。
- * 长段没改动的中间折起来，点一下展开。
+ * 渲染后把标记换成标签。标记可能跨过块级边界（一段插入横跨两个段落），
+ * 所以按「标签之间的文本片段」逐段处理，每段自己开合，保证 HTML 平衡。
+ */
+function applyMarks(html: string): string {
+  let open: "ins" | "del" | null = null;
+  return html
+    .split(/(<[^>]+>)/g)
+    .map((chunk) => {
+      if (chunk.startsWith("<")) return chunk.replace(MARKS, "");
+      if (!chunk) return chunk;
+      let out = open ? `<${open} class="tc-${open}">` : "";
+      for (const ch of chunk) {
+        if (ch === INS_OPEN || ch === DEL_OPEN) {
+          if (open) out += `</${open}>`;
+          open = ch === INS_OPEN ? "ins" : "del";
+          out += `<${open} class="tc-${open}">`;
+        } else if (ch === INS_CLOSE || ch === DEL_CLOSE) {
+          if (open) out += `</${open}>`;
+          open = null;
+        } else {
+          out += ch;
+        }
+      }
+      if (open) out += `</${open}>`;
+      return out;
+    })
+    .join("");
+}
+
+/**
+ * Word / Docs 式的审阅视图：整篇按 markdown 渲染，删的划掉，加的带下划线。
  */
 export function TrackChanges(props: { before: string; after: string; isNew: boolean }) {
-  const [expanded, setExpanded] = createSignal<Set<number>>(new Set());
   const before = createMemo(() => splitDoc(props.before));
   const after = createMemo(() => splitDoc(props.after));
 
@@ -41,28 +86,16 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
       .filter((c) => c.from !== c.to);
   });
 
-  const segments = createMemo<Segment[]>(() => {
-    if (props.isNew) return [{ kind: "add", text: after().body }];
-    return diffChars(before().body, after().body).map((p) => ({
-      kind: p.added ? "add" : p.removed ? "del" : "same",
-      text: p.value,
-    }));
+  const html = createMemo(() => {
+    const src = mergedSource(before().body, after().body, props.isNew);
+    return applyMarks(marked.parse(src, { async: false }) as string);
   });
-
-  const changeCount = () => segments().filter((s) => s.kind !== "same").length;
-
-  const toggle = (i: number) =>
-    setExpanded((s) => {
-      const n = new Set(s);
-      if (n.has(i)) n.delete(i);
-      else n.add(i);
-      return n;
-    });
+  const changed = () => before().body !== after().body;
 
   return (
     <div class="selectable">
       <Show when={metaChanges().length > 0}>
-        <div class="mb-4 rounded-lg border border-line bg-paper-2 px-4 py-2.5 text-[12.5px]">
+        <div class="mb-5 rounded-lg border border-line bg-paper-2 px-4 py-2.5 text-[12.5px]">
           <div class="text-ink-3 text-[11px] mb-1.5">头信息</div>
           <For each={metaChanges()}>
             {(c) => (
@@ -85,30 +118,11 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
         </div>
       </Show>
 
-      <Show when={changeCount() === 0 && metaChanges().length === 0}>
+      <Show when={!changed() && metaChanges().length === 0}>
         <div class="text-ink-3 text-center py-6">内容没有变化</div>
       </Show>
 
-      <div class="font-serif text-[15px] leading-[1.9] whitespace-pre-wrap break-words">
-        <For each={segments()}>
-          {(seg, i) => {
-            if (seg.kind === "add") return <ins class="tc-ins">{seg.text}</ins>;
-            if (seg.kind === "del") return <del class="tc-del">{seg.text}</del>;
-            const long = seg.text.length > COLLAPSE_OVER && i() !== 0 && i() !== segments().length - 1;
-            if (!long || expanded().has(i())) return <span>{seg.text}</span>;
-            const hidden = seg.text.length - KEEP_EDGE * 2;
-            return (
-              <>
-                <span>{seg.text.slice(0, KEEP_EDGE)}</span>
-                <button class="tc-fold" onClick={() => toggle(i())} title="展开未改动的部分">
-                  … 未改动 {hidden} 字 …
-                </button>
-                <span>{seg.text.slice(-KEEP_EDGE)}</span>
-              </>
-            );
-          }}
-        </For>
-      </div>
+      <div class="prose-zh tc-doc font-serif text-[15px]" innerHTML={html()} />
     </div>
   );
 }

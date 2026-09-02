@@ -155,35 +155,40 @@ mark {
   color: var(--color-ok);
   background: none;
   text-decoration: underline;
-  text-decoration-color: var(--color-ok);
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in srgb, var(--color-ok) 70%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 .tc-del {
   color: var(--color-danger);
   background: none;
   text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  opacity: 0.85;
+  text-decoration-thickness: 1px;
+  opacity: 0.7;
 }
-.tc-fold {
-  display: inline-block;
-  margin: 0 0.4em;
-  padding: 0 0.6em;
-  border-radius: 999px;
-  border: 1px dashed var(--color-line);
-  color: var(--color-ink-3);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  line-height: 1.8;
-  vertical-align: middle;
-  cursor: pointer;
+/* 整篇是 markdown 渲染，段间距和标题按文稿的节奏来 */
+.tc-doc {
+  line-height: 1.9;
 }
-.tc-fold:hover {
-  border-color: var(--color-accent);
-  color: var(--color-ink);
+.tc-doc h2 {
+  font-size: 1.05em;
+  color: var(--color-ink-2);
+  letter-spacing: 0.02em;
+  margin: 1.6em 0 0.4em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--color-line);
 }
-
+.tc-doc h2:first-child {
+  margin-top: 0;
+}
+.tc-doc p {
+  margin: 0.5em 0;
+}
+.tc-doc ol,
+.tc-doc ul {
+  margin: 0.4em 0;
+}
 /* 文档引用：胶囊，和正文明显区分 */
 .doc-link {
   display: inline-flex;
