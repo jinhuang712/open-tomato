@@ -37,13 +37,13 @@ export function AgentBubbles() {
   return (
     <Show when={agents().length > 0}>
       <div class="absolute top-3 right-4 z-20 flex flex-col items-end" onMouseEnter={enter} onMouseLeave={leave}>
-        {/* 收起态：一摞气泡，点某个直接进入 */}
+        {/* 收起态：从上到下一列气泡，点某个直接进入 */}
         <Show when={!open()}>
-          <div class="flex items-center -space-x-2">
-            <For each={agents().slice(0, 4)}>
+          <div class="flex flex-col items-center gap-1.5">
+            <For each={agents().slice(0, 5)}>
               {(a) => (
                 <button
-                  class={`relative w-9 h-9 rounded-full border-2 border-paper bg-paper-3 text-[12px] font-medium flex items-center justify-center shadow transition-transform hover:scale-110 hover:z-10 ${
+                  class={`relative w-9 h-9 rounded-full border-2 border-paper bg-paper-3 text-[12px] font-medium flex items-center justify-center shadow transition-transform hover:scale-110 ${
                     active() === a.agentId ? "ring-2 ring-accent" : ""
                   }`}
                   title={`${a.label} · ${STATUS[a.status]}`}
@@ -54,13 +54,13 @@ export function AgentBubbles() {
                 </button>
               )}
             </For>
-            <Show when={agents().length > 4}>
+            <Show when={agents().length > 5}>
               <span class="w-9 h-9 rounded-full border-2 border-paper bg-paper-2 text-[11px] text-ink-2 flex items-center justify-center shadow">
-                +{agents().length - 4}
+                +{agents().length - 5}
               </span>
             </Show>
             <Show when={running() > 0}>
-              <span class="ml-4 px-2 py-0.5 rounded-full bg-accent-soft text-accent text-[11px] shadow">{running()} 个在跑</span>
+              <span class="mt-1 px-2 py-0.5 rounded-full bg-accent-soft text-accent text-[11px] shadow whitespace-nowrap">{running()} 在跑</span>
             </Show>
           </div>
         </Show>
