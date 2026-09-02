@@ -66,8 +66,16 @@ app.setName("OpenTomato");
 
 void app.whenReady().then(() => {
   installMenu(() => mainWindow);
-  kernel.start();
   createWindow();
+  try {
+    kernel.start();
+  } catch (e) {
+    const message = `内核启动失败：${e instanceof Error ? e.message : String(e)}`;
+    console.error(message);
+    mainWindow?.webContents.once("did-finish-load", () => {
+      mainWindow?.webContents.send("kernel:event", { type: "kernel.error", message });
+    });
+  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

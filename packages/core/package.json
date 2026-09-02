@@ -15,7 +15,7 @@
       "import": "./dist/protocol.js"
     },
     "./server": {
-      "import": "./dist/server.js"
+      "default": "./dist/server.js"
     }
   },
   "scripts": {
