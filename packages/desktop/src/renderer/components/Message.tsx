@@ -10,11 +10,11 @@ export function Message(props: { message: UiMessage }) {
   return (
     <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`}>
       <div
-        class={`max-w-[78%] ${
+        class={
           isUser()
-            ? "bg-accent-soft text-ink rounded-2xl rounded-br-md px-4 py-2 whitespace-pre-wrap selectable"
-            : "w-full"
-        }`}
+            ? "max-w-[78%] bg-accent-soft text-ink rounded-2xl rounded-br-md px-4 py-2 whitespace-pre-wrap selectable"
+            : "w-full min-w-0"
+        }
       >
         <For each={visible()}>
           {(part) => (
