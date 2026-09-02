@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, "PingFang SC", "Helvetica Neue", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-mono: "SF Mono", Menlo, "JetBrains Mono", ui-monospace, monospace;
+  --font-serif: "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+
+  --color-paper: light-dark(#f6f4ef, #1c1b19);
+  --color-paper-2: light-dark(#eeebe3, #232220);
+  --color-paper-3: light-dark(#e4e0d5, #2c2a27);
+  --color-ink: light-dark(#26231f, #ece8df);
+  --color-ink-2: light-dark(#5c574f, #a8a298);
+  --color-ink-3: light-dark(#8f887c, #726c62);
+  --color-line: light-dark(#d9d4c8, #37342f);
+  --color-accent: light-dark(#c8472b, #e2664a);
+  --color-accent-soft: light-dark(#f7ddd5, #3d251f);
+  --color-ok: light-dark(#2f7d4a, #5fbf7f);
+  --color-ok-soft: light-dark(#d9efe0, #1f3527);
+  --color-warn: light-dark(#a86a11, #e0a54a);
+  --color-warn-soft: light-dark(#f7ead1, #3a2c14);
+  --color-danger: light-dark(#b3261e, #ef6a63);
+  --color-danger-soft: light-dark(#f9dbd9, #40201e);
+  --color-add: light-dark(#e2f3e6, #1c3324);
+  --color-add-strong: light-dark(#b6e0c1, #2c5a3a);
+  --color-del: light-dark(#fbe1de, #3d2120);
+  --color-del-strong: light-dark(#f1b8b2, #6b2f2b);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.selectable {
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prose-zh {
+  user-select: text;
+}
+.prose-zh p {
+  margin: 0.4em 0;
+}
+.prose-zh h1,
+.prose-zh h2,
+.prose-zh h3 {
+  font-weight: 600;
+  margin: 0.9em 0 0.35em;
+  line-height: 1.3;
+}
+.prose-zh h1 {
+  font-size: 1.2em;
+}
+.prose-zh h2 {
+  font-size: 1.1em;
+}
+.prose-zh h3 {
+  font-size: 1em;
+}
+.prose-zh ul,
+.prose-zh ol {
+  padding-left: 1.4em;
+  margin: 0.35em 0;
+}
+.prose-zh li {
+  margin: 0.15em 0;
+}
+.prose-zh code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--color-paper-3);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-zh pre {
+  background: var(--color-paper-3);
+  padding: 0.7em 0.9em;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.prose-zh pre code {
+  background: none;
+  padding: 0;
+}
+.prose-zh table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.prose-zh th,
+.prose-zh td {
+  border: 1px solid var(--color-line);
+  padding: 0.25em 0.6em;
+}
+.prose-zh blockquote {
+  border-left: 3px solid var(--color-line);
+  margin: 0.5em 0;
+  padding-left: 0.8em;
+  color: var(--color-ink-2);
+}
+.prose-zh hr {
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  margin: 0.8em 0;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, var(--color-ink-3) 0%, var(--color-ink) 50%, var(--color-ink-3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+textarea,
+input {
+  user-select: text;
+  font-family: inherit;
+}

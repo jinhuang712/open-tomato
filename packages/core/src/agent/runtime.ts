@@ -52,6 +52,9 @@ export class Kernel {
   private readonly gate: Gate;
   private readonly agents = new Map<string, LiveAgent>();
   private readonly sessionsDir: string;
+  private readonly ready: Promise<void>;
+  private markReady!: () => void;
+  private failReady!: (e: Error) => void;
 
   constructor(
     private readonly home: string,
@@ -62,10 +65,20 @@ export class Kernel {
       (request) => this.emit({ type: "approval.requested", request }),
       (request) => this.emit({ type: "question.requested", request }),
     );
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.markReady = resolve;
+      this.failReady = reject;
+    });
   }
 
   async init(version: string) {
-    this.models = await ModelsFacade.create(this.home);
+    try {
+      this.models = await ModelsFacade.create(this.home);
+    } catch (e) {
+      this.failReady(e instanceof Error ? e : new Error(String(e)));
+      throw e;
+    }
+    this.markReady();
     this.emit({ type: "kernel.ready", version, home: this.home });
     this.emit({ type: "models.state", state: this.models.state() });
   }
@@ -77,6 +90,7 @@ export class Kernel {
   // ───────────────────────── 请求分发 ─────────────────────────
 
   async handle<M extends RequestMethod>(method: M, params: RequestMap[M]["params"]): Promise<RequestMap[M]["result"]> {
+    await this.ready;
     const p = params as never;
     const handlers: { [K in RequestMethod]: (params: RequestMap[K]["params"]) => Promise<RequestMap[K]["result"]> } = {
       "project.create": async ({ root, name }) => {

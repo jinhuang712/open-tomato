@@ -2,7 +2,6 @@
   "name": "@opentomato/desktop",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "productName": "OpenTomato",
   "description": "OpenTomato macOS 桌面端",
   "main": "./out/main/index.js",
