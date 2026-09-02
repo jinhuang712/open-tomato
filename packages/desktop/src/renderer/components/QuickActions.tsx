@@ -1,3 +1,4 @@
+import { stubPrompt } from "@opentomato/core/protocol";
 import { For, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 
@@ -16,13 +17,14 @@ const QUICKS: Quick[] = [
     needsHistory: true,
     run: () =>
       void actions.send(
-        "继续上次的工作。先 project_overview 看一眼现状，用两三句话告诉我停在哪一步、下一步是什么，然后直接接着做。",
+        stubPrompt("继续", "继续上次的工作。先 project_overview 看一眼现状，用两三句话告诉我停在哪一步、下一步是什么，然后直接接着做。"),
       ),
   },
   {
     label: "现状盘点",
     hint: "进展到哪、还缺什么",
-    run: () => void actions.send("看一下项目盘面，用三五句话告诉我：进展到哪一步、哪些卡还是空的、下一步建议做什么。先不要动手改。"),
+    run: () =>
+      void actions.send(stubPrompt("现状盘点", "看一下项目盘面，用三五句话告诉我：进展到哪一步、哪些卡还是空的、下一步建议做什么。先不要动手改。")),
   },
   {
     label: "我有一个新点子",

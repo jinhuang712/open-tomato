@@ -68,6 +68,7 @@ function messageBlock(m: UiMessage, agentLabel: string): string {
   const lines: string[] = [`### ${who} · ${time}`, ""];
   for (const p of m.parts) {
     if (p.type === "text") lines.push(p.text.trim(), "");
+    else if (p.type === "stub") lines.push(`> ▶ 点了「${p.label}」`, "");
     else if (p.type === "tool") lines.push(...toolLine(p), "");
     // thinking 不导出
   }

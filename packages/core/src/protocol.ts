@@ -134,8 +134,22 @@ export interface CapabilityInfo {
 
 // ───────────────────────── 对话消息 ─────────────────────────
 
+/**
+ * 界面按钮 / 内核代用户发出的指令，不是用户亲手打的字。
+ * 消息体前面挂这个标记，UI 只显示一个小标签，不露内部 prompt。
+ */
+export const STUB_PREFIX = "⟦stub:";
+export const STUB_SUFFIX = "⟧";
+export const STUB_PATTERN = /^⟦stub:([^⟧\n]{1,40})⟧\r?\n?/;
+
+export function stubPrompt(label: string, text: string): string {
+  return `${STUB_PREFIX}${label}${STUB_SUFFIX}\n${text}`;
+}
+
 export type UiPart =
   | { type: "text"; text: string }
+  /** 内部指令的占位：只显示 label */
+  | { type: "stub"; label: string }
   | { type: "thinking"; text: string }
   | {
       type: "tool";

@@ -7,6 +7,21 @@ import { ToolCard } from "./ToolCard";
 export function Message(props: { message: UiMessage }) {
   const isUser = () => props.message.role === "user";
   const visible = () => props.message.parts.filter((p) => p.type !== "thinking");
+  const stub = () => {
+    const p = props.message.parts.find((x) => x.type === "stub");
+    return p && p.type === "stub" ? p.label : null;
+  };
+  // 界面按钮发出的指令只显示一个小标签，不露内部 prompt
+  if (stub() !== null) {
+    return (
+      <div class="flex justify-end px-5 py-1.5">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-paper-3 text-ink-2 text-[11.5px]">
+          <span class="text-ink-3">▶</span>
+          {stub()}
+        </span>
+      </div>
+    );
+  }
   return (
     <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`}>
       <div

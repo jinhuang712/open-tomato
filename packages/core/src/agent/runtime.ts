@@ -20,6 +20,7 @@ import type {
   UiMessage,
   UiPart,
 } from "../protocol.js";
+import { STUB_PATTERN, stubPrompt } from "../protocol.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
@@ -174,7 +175,7 @@ export class Kernel {
         const live = this.agents.get(id);
         if (!live) throw new Error("这个 agent 已经不在了");
         if (live.info.status !== "running") return null;
-        const text = live.info.role === "lead" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD;
+        const text = stubPrompt("暂停", live.info.role === "lead" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD);
         // steer 会插在当前这步工具结束之后，正在写的东西不会被掐断
         live.session.prompt(text, { streamingBehavior: "steer" }).catch(() => {});
         return null;
@@ -197,7 +198,7 @@ export class Kernel {
         for (const param of cap.params) {
           if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
         }
-        this.sendTo(LEAD_ID, cap.render(capParams));
+        this.sendTo(LEAD_ID, stubPrompt(cap.label, cap.render(capParams)));
         return null;
       },
       "roles.list": async () => roleInfos(),
@@ -572,12 +573,21 @@ function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
   if (!m || (m.role !== "user" && m.role !== "assistant")) return null;
   const parts: UiPart[] = [];
   if (typeof m.content === "string") {
-    if (m.content) parts.push({ type: "text", text: m.content });
+    const stub = m.role === "user" ? STUB_PATTERN.exec(m.content) : null;
+    if (stub) parts.push({ type: "stub", label: stub[1]!.trim() });
+    else if (m.content) parts.push({ type: "text", text: m.content });
   } else if (Array.isArray(m.content)) {
     for (const c of m.content as Array<Record<string, unknown>>) {
       switch (c.type) {
         case "text": {
           if (typeof c.text !== "string" || !c.text) break;
+          if (m.role === "user" && parts.length === 0) {
+            const stub = STUB_PATTERN.exec(c.text);
+            if (stub) {
+              parts.push({ type: "stub", label: stub[1]!.trim() });
+              break;
+            }
+          }
           // assistant 正文开头的状态行不进消息体，它走 status_text
           const text = m.role === "assistant" && parts.length === 0 ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
           if (text) parts.push({ type: "text", text });
