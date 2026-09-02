@@ -152,6 +152,8 @@ export interface AgentInfo {
   task: string;
   status: AgentStatus;
   error: string | null;
+  /** 模型每轮开头自报的一句「正在……」，运行中滚动显示 */
+  statusText: string;
 }
 
 export type AgentStreamEvent =
@@ -162,6 +164,7 @@ export type AgentStreamEvent =
   | { type: "tool_update"; toolCallId: string; output: string; details: unknown }
   | { type: "tool_end"; toolCallId: string; output: string; details: unknown; isError: boolean }
   | { type: "message_end"; message: UiMessage }
+  | { type: "status_text"; text: string }
   | { type: "history"; messages: UiMessage[] };
 
 // ───────────────────────── 审批 / 提问 ─────────────────────────

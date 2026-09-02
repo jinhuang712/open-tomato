@@ -64,8 +64,11 @@ export function Chat(props: { agentId: string }) {
           </div>
         </Show>
         <For each={messages()}>{(m) => <Message message={m} />}</For>
-        <Show when={agent()?.status === "running" && messages().at(-1)?.role !== "assistant"}>
-          <div class="px-5 py-2 text-ink-3 text-[12px] shimmer w-fit">{agent()?.label} 在想…</div>
+        <Show when={agent()?.status === "running"}>
+          <div class="px-5 py-2 flex items-center gap-2 text-[12px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            <span class="shimmer">{agent()?.statusText || `${agent()?.label} 正在理清思路`}</span>
+          </div>
         </Show>
         <Show when={agent()?.status === "error" && agent()?.error}>
           <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-[12px] selectable">{agent()?.error}</div>

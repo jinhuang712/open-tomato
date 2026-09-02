@@ -132,6 +132,7 @@ export function applyEvent(ev: KernelEvent) {
           if (a) {
             a.status = ev.status;
             a.error = ev.error;
+            if (ev.status !== "running") a.statusText = "";
           }
         }),
       );
@@ -170,6 +171,11 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
         case "history":
           s.transcripts[agentId] = ev.messages;
           return;
+        case "status_text": {
+          const a = s.agents[agentId];
+          if (a) a.statusText = ev.text;
+          return;
+        }
         case "message_start":
           if (!findMsg(ev.message.id)) list.push(ev.message);
           return;

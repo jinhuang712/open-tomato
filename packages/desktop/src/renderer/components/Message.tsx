@@ -1,24 +1,12 @@
 import type { UiMessage } from "@opentomato/core/protocol";
-import { createSignal, For, Match, Show, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { ToolCard } from "./ToolCard";
 
-function Thinking(props: { text: string }) {
-  const [open, setOpen] = createSignal(false);
-  return (
-    <div class="my-1 text-[12px]">
-      <button class="text-ink-3 hover:text-ink-2" onClick={() => setOpen(!open())}>
-        {open() ? "▾" : "▸"} 思考过程
-      </button>
-      <Show when={open()}>
-        <div class="mt-1 pl-3 border-l-2 border-line text-ink-2 whitespace-pre-wrap selectable">{props.text}</div>
-      </Show>
-    </div>
-  );
-}
-
+/** 思考过程不展示，只靠状态行告诉作者在干什么 */
 export function Message(props: { message: UiMessage }) {
   const isUser = () => props.message.role === "user";
+  const visible = () => props.message.parts.filter((p) => p.type !== "thinking");
   return (
     <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`}>
       <div
@@ -28,7 +16,7 @@ export function Message(props: { message: UiMessage }) {
             : "w-full"
         }`}
       >
-        <For each={props.message.parts}>
+        <For each={visible()}>
           {(part) => (
             <Switch>
               <Match when={part.type === "text" && part}>
@@ -38,7 +26,6 @@ export function Message(props: { message: UiMessage }) {
                   </Show>
                 )}
               </Match>
-              <Match when={part.type === "thinking" && part}>{(p) => <Thinking text={p().text} />}</Match>
               <Match when={part.type === "tool" && part}>{(p) => <ToolCard part={p()} />}</Match>
             </Switch>
           )}

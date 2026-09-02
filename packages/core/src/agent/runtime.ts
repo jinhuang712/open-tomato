@@ -26,7 +26,7 @@ import { ProjectStore } from "../project/store.js";
 import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
-import { ROLES, roleInfos } from "./roles.js";
+import { ROLES, STATUS_LINE_PATTERN, STATUS_LINE_RULE, roleInfos } from "./roles.js";
 import { createTools, type SpawnTask, type ToolContext, toolNames } from "./tools.js";
 
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
@@ -40,7 +40,12 @@ interface LiveAgent {
   unsubscribe: () => void;
   /** 正在流式输出的 assistant 消息 id */
   streamingMessageId: string | null;
+  /** 消息开头暂存的文本，用来截状态行；null 表示状态行已处理完 */
+  headBuffer: string | null;
 }
+
+/** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
+const HEAD_BUFFER_LIMIT = 48;
 
 /**
  * 内核：一个项目 + 一个主编会话 + 若干子 agent。
@@ -279,7 +284,7 @@ export class Kernel {
       model: this.requireModel(),
       thinkingLevel: this.models.thinkingLevel,
       modelRuntime: this.models.runtime,
-      resourceLoader: this.loaderFor(def.systemPrompt),
+      resourceLoader: this.loaderFor(`${def.systemPrompt}\n\n${STATUS_LINE_RULE}`),
       tools: toolNames(tools),
       customTools: tools,
       sessionManager,
@@ -289,7 +294,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession): LiveAgent {
-    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null };
+    const live: LiveAgent = { info, session, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -304,7 +309,7 @@ export class Kernel {
         : SessionManager.create(store.info.root, this.sessionsDir);
     const session = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
-      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null },
+      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null, statusText: "" },
       session,
     );
     this.emit({
@@ -349,7 +354,7 @@ export class Kernel {
     const agentId = randomUUID();
     const session = await this.buildSession(task.role, agentId, SessionManager.inMemory(store.info.root));
     const live = this.register(
-      { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null },
+      { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
       session,
     );
     const onAbort = () => void session.abort().catch(() => {});
@@ -384,7 +389,24 @@ export class Kernel {
   }
 
   private send(live: LiveAgent, event: AgentStreamEvent) {
+    if (event.type === "status_text") live.info.statusText = event.text;
     this.emit({ type: "agent.event", agentId: live.info.agentId, event });
+  }
+
+  /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
+  private forwardText(live: LiveAgent, messageId: string, delta: string) {
+    if (live.headBuffer === null) {
+      this.send(live, { type: "text_delta", messageId, delta });
+      return;
+    }
+    live.headBuffer += delta;
+    const hasNewline = live.headBuffer.includes("\n");
+    if (!hasNewline && live.headBuffer.length < HEAD_BUFFER_LIMIT) return;
+    const status = takeStatusLine(live.headBuffer);
+    const rest = status ? status.rest : live.headBuffer;
+    live.headBuffer = null;
+    if (status) this.send(live, { type: "status_text", text: status.text });
+    if (rest) this.send(live, { type: "text_delta", messageId, delta: rest });
   }
 
   private forward(live: LiveAgent, event: SessionEvent) {
@@ -401,6 +423,7 @@ export class Kernel {
         if (!msg) return;
         // user / assistant 都是一对 start / end，用同一个 id 才能在 UI 里合并成一条
         live.streamingMessageId = msg.id;
+        live.headBuffer = msg.role === "assistant" ? "" : null;
         this.send(live, { type: "message_start", message: msg });
         return;
       }
@@ -408,13 +431,20 @@ export class Kernel {
         const inner = ev.assistantMessageEvent as { type: string; delta?: string } | undefined;
         const messageId = live.streamingMessageId;
         if (!inner || !messageId) return;
-        if (inner.type === "text_delta" && inner.delta) this.send(live, { type: "text_delta", messageId, delta: inner.delta });
+        if (inner.type === "text_delta" && inner.delta) this.forwardText(live, messageId, inner.delta);
         if (inner.type === "thinking_delta" && inner.delta) this.send(live, { type: "thinking_delta", messageId, delta: inner.delta });
         return;
       }
       case "message_end": {
         const msg = normalizeMessage(ev.message, live.streamingMessageId ?? undefined);
         if (!msg) return;
+        // 开头攒着还没放行的文本（没换行的短回复）在这里补发
+        if (live.headBuffer) {
+          const status = takeStatusLine(live.headBuffer);
+          if (status) this.send(live, { type: "status_text", text: status.text });
+          else this.send(live, { type: "text_delta", messageId: msg.id, delta: live.headBuffer });
+        }
+        live.headBuffer = null;
         live.streamingMessageId = null;
         this.send(live, { type: "message_end", message: msg });
         const raw = ev.message as RawMessage;
@@ -468,6 +498,13 @@ interface RawMessage {
   errorMessage?: string;
 }
 
+/** 从文本开头摘状态行；没有就返回 null */
+export function takeStatusLine(text: string): { text: string; rest: string } | null {
+  const m = STATUS_LINE_PATTERN.exec(text);
+  if (!m) return null;
+  return { text: m[1]!.trim(), rest: text.slice(m[0].length).replace(/^\r?\n/, "") };
+}
+
 function contentText(result: unknown): string {
   const content = (result as { content?: unknown } | undefined)?.content;
   if (typeof content === "string") return content;
@@ -486,9 +523,13 @@ function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
   } else if (Array.isArray(m.content)) {
     for (const c of m.content as Array<Record<string, unknown>>) {
       switch (c.type) {
-        case "text":
-          if (typeof c.text === "string" && c.text) parts.push({ type: "text", text: c.text });
+        case "text": {
+          if (typeof c.text !== "string" || !c.text) break;
+          // assistant 正文开头的状态行不进消息体，它走 status_text
+          const text = m.role === "assistant" && parts.length === 0 ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
+          if (text) parts.push({ type: "text", text });
           break;
+        }
         case "thinking":
           parts.push({ type: "thinking", text: String(c.thinking ?? c.text ?? "") });
           break;

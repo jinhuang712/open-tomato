@@ -80,6 +80,9 @@ export function AgentBubbles() {
                       <span class="text-[11px] text-ink-3">{STATUS[a.status]}</span>
                     </div>
                     <div class="mt-0.5 pl-4 text-[12px] text-ink-2 line-clamp-2">{a.task || "统筹全局，派单与汇总"}</div>
+                    <Show when={a.status === "running" && a.statusText}>
+                      <div class="mt-0.5 pl-4 text-[11px] text-accent shimmer w-fit">{a.statusText}</div>
+                    </Show>
                   </button>
                 )}
               </For>
