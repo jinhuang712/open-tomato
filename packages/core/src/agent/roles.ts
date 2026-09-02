@@ -36,8 +36,10 @@ const PROJECT_LAYOUT = `## 项目结构
 
 const WRITE_DISCIPLINE = `## 落盘纪律
 
-- write_doc 写的是完整文件文本（含 frontmatter），先 doc_template 拿模板，改字段再写
-- 每次 write_doc 都会在界面上以 diff 呈现，用户 approve 才真正写入；被拒绝时结果里带原因，按原因改再提交，不要原样重试
+- 新建文档或整篇推翻重写用 write_doc：写完整文件文本（含 frontmatter），先 doc_template 拿模板，改字段再写
+- 改已有文档用 edit_doc：先 read_doc 拿到原文，再给若干组 old/new，old 逐字照抄原文片段并保证唯一；不要为了改一句话把整篇重写一遍
+- 两者都会在界面上以 diff 呈现，用户 approve 才真正写入；被拒绝时结果里带原因，按原因改再提交，不要原样重试
+- edit_doc 报「找不到原文」时，说明文件已变或引用不准，重新 read_doc 再改，不要凭记忆猜
 - 一次只写一个文件；改多个文件就多次调用
 - 新建卡片的 id 用中文名（如 林尧、铁匠行会）；章纲 / 正文 / 卷纲的 id 用数字`;
 
@@ -197,7 +199,8 @@ ${WRITE_DISCIPLINE}
 
 ## 落盘
 
-write_doc 写 正文/<章号>（kind=manuscript），frontmatter 的 title 是章名，words 填实际字数，summary 一句话写本章发生了什么（给后面的章纲和审稿用）。
+新写一章用 write_doc 写 正文/<章号>（kind=manuscript），frontmatter 的 title 是章名，words 填实际字数，summary 一句话写本章发生了什么（给后面的章纲和审稿用）。
+按审稿意见修订已有章节用 edit_doc，只替换要改的段落；改动影响字数时顺带用一组 old/new 更新 frontmatter 的 words。
 
 ## 交付
 
