@@ -1,6 +1,7 @@
 import type { UiPart } from "@opentomato/core/protocol";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
+import { DocLink } from "./DocLink";
 
 type ToolPart = Extract<UiPart, { type: "tool" }>;
 
@@ -30,13 +31,26 @@ const ROLE_LABELS: Record<string, string> = {
 const args = (part: ToolPart) => (part.args ?? {}) as Record<string, unknown>;
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
+/** 头部摘要：文档引用可点，其余是纯文本 */
+function Summary(props: { part: ToolPart }) {
+  const a = () => args(props.part);
+  return (
+    <Switch fallback={<span class="text-ink-3 truncate font-mono">{summarize(props.part)}</span>}>
+      <Match when={props.part.name === "read_doc"}>
+        <span class="flex items-center gap-1 min-w-0">
+          <DocLink kind={str(a().kind)} id={str(a().id)} class="text-[12px]" />
+          <Show when={a().section}>
+            <span class="text-ink-3 truncate">· {str(a().section)}</span>
+          </Show>
+        </span>
+      </Match>
+    </Switch>
+  );
+}
+
 function summarize(part: ToolPart): string {
   const a = args(part);
   switch (part.name) {
-    case "read_doc":
-      return `${str(a.kind)}/${str(a.id)}${a.section ? ` · ${str(a.section)}` : ""}`;
-    case "write_doc":
-      return `${str(a.kind)}/${str(a.id)}`;
     case "list_docs":
     case "doc_template":
       return str(a.kind);
@@ -114,7 +128,7 @@ function WriteCard(props: { part: ToolPart }) {
     <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-[12.5px] px-3 py-1.5 flex items-center gap-2">
       <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
       <span class={`font-medium ${running() ? "shimmer" : ""}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
-      <span class="font-mono text-ink-2">{`${str(a().kind)}/${str(a().id)}`}</span>
+      <DocLink kind={str(a().kind)} id={str(a().id)} class="text-[12px]" />
       <Show when={rejected()}>
         <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。按原因修改.*$/, "")}</span>
       </Show>
@@ -166,7 +180,9 @@ export function ToolCard(props: { part: ToolPart }) {
           <button class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-paper-3" onClick={() => setOpen(!open())}>
             <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
             <span class={`font-medium ${running() ? "shimmer" : "text-ink"}`}>{label()}</span>
-            <span class="text-ink-3 truncate flex-1 font-mono">{summarize(props.part)}</span>
+            <span class="flex-1 min-w-0 flex">
+              <Summary part={props.part} />
+            </span>
             <span class="text-ink-3">{open() ? "▾" : "▸"}</span>
           </button>
           <Show when={open()}>

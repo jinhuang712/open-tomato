@@ -143,6 +143,19 @@ body {
   margin: 0.8em 0;
 }
 
+.doc-link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.doc-link:hover {
+  background: var(--color-accent-soft);
+  text-decoration-color: var(--color-accent);
+}
+
 .shimmer {
   background: linear-gradient(90deg, var(--color-ink-3) 0%, var(--color-ink) 50%, var(--color-ink-3) 100%);
   background-size: 200% 100%;

@@ -2,6 +2,7 @@ import type { ApprovalRequest } from "@opentomato/core/protocol";
 import { createSignal, Show } from "solid-js";
 import { actions, state } from "../state";
 import { DiffView } from "./DiffView";
+import { DocLink } from "./DocLink";
 
 export function ApprovalDock(props: { request: ApprovalRequest }) {
   const [reason, setReason] = createSignal("");
@@ -13,7 +14,7 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
       <div class="flex items-center gap-2 px-4 py-2 bg-accent-soft/60 border-b border-line">
         <span class="w-2 h-2 rounded-full bg-accent" />
         <span class="font-medium">{agent()?.label ?? "agent"} 请求写入</span>
-        <span class="font-mono text-ink-2">{props.request.path}</span>
+        <DocLink kind={props.request.kind} id={props.request.docId} class="text-[12px]" />
         <Show when={props.request.isNew}>
           <span class="text-[11px] px-1.5 rounded bg-ok-soft text-ok">新建</span>
         </Show>

@@ -1,5 +1,6 @@
 import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
+import { installDocLinkHandler } from "./doclink";
 import { CapabilityDialog } from "./components/CapabilityDialog";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
@@ -59,6 +60,7 @@ function Toasts() {
 
 export function App() {
   onMount(() => {
+    const offDocLinks = installDocLinkHandler();
     const offEvent = bridge.onEvent(applyEvent);
     const offMenu = bridge.onMenu((cmd) => {
       switch (cmd) {
@@ -90,6 +92,7 @@ export function App() {
       .then((r) => setState("recent", r))
       .catch(() => {});
     onCleanup(() => {
+      offDocLinks();
       offEvent();
       offMenu();
     });
