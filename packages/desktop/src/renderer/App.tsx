@@ -99,9 +99,11 @@ export function App() {
           break;
       }
     });
-    // 内核可能在渲染层挂载前就 ready 了，主动拉一次
+    // 渲染层刷新过（HMR / 重新载入）时内核里可能还挂着项目和正在跑的 agent，
+    // 先让它全部停下回到空白，和眼前的界面对齐；内核 ready 后这个请求才会被处理
     void bridge
-      .request("models.list", {})
+      .request("kernel.reset", {})
+      .then(() => bridge.request("models.list", {}))
       .then((m) => setState({ models: m, ready: true }))
       .catch(() => {});
     void bridge

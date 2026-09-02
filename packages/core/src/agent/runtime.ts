@@ -103,6 +103,10 @@ export class Kernel {
     await this.ready;
     const p = params as never;
     const handlers: { [K in RequestMethod]: (params: RequestMap[K]["params"]) => Promise<RequestMap[K]["result"]> } = {
+      "kernel.reset": async () => {
+        await this.closeProject();
+        return null;
+      },
       "project.create": async ({ root, name }) => {
         await this.closeProject();
         this.store = await ProjectStore.create(root, name);

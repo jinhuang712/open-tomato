@@ -227,6 +227,8 @@ export type KernelEvent =
 // ───────────────────────── 请求（渲染层 → 内核） ─────────────────────────
 
 export interface RequestMap {
+  /** 渲染层重载后调用：停掉所有 agent、撤掉悬着的审批 / 提问、关闭项目，让内核回到和空白界面一致的状态 */
+  "kernel.reset": { params: Record<string, never>; result: null };
   "project.create": { params: { root: string; name: string }; result: ProjectInfo };
   "project.open": { params: { root: string }; result: ProjectInfo };
   "project.close": { params: Record<string, never>; result: null };
