@@ -11,12 +11,13 @@ const STATUS: Record<string, string> = { running: "运行中", idle: "待命", d
  */
 export function AgentBubbles() {
   const [open, setOpen] = createSignal(false);
-  const children = createMemo(() =>
-    state.agentOrder
-      .map((id) => state.agents[id])
-      .filter((a): a is AgentInfo => !!a && a.parentId !== null)
-      .reverse(),
-  );
+  // 主编永远排第一，后面是子 agent（新的在前）
+  const children = createMemo(() => {
+    const all = state.agentOrder.map((id) => state.agents[id]).filter((a): a is AgentInfo => !!a);
+    const lead = all.filter((a) => a.parentId === null);
+    const kids = all.filter((a) => a.parentId !== null).reverse();
+    return [...lead, ...kids];
+  });
   const running = () => children().filter((a) => a.status === "running").length;
   const active = () => (state.view.type === "chat" ? state.view.agentId : null);
 
@@ -30,7 +31,7 @@ export function AgentBubbles() {
       <div class="absolute top-3 right-4 z-20 flex flex-col items-end gap-2">
         {/* 收起态：一摞气泡 */}
         <Show when={!open()}>
-          <button class="flex items-center -space-x-2 group" onClick={() => setOpen(true)} title="展开子 agent">
+          <button class="flex items-center -space-x-2 group" onClick={() => setOpen(true)} title="展开 agents">
             <For each={children().slice(0, 3)}>
               {(a) => (
                 <span
@@ -58,7 +59,7 @@ export function AgentBubbles() {
         <Show when={open()}>
           <div class="w-[320px] max-h-[60vh] rounded-2xl border border-line bg-paper shadow-2xl overflow-hidden flex flex-col">
             <div class="flex items-center px-3 py-2 border-b border-line text-[12px]">
-              <span class="font-medium">子 agent</span>
+              <span class="font-medium">Agents</span>
               <span class="ml-2 text-ink-3">{children().length} 个 · {running()} 个在跑</span>
               <span class="flex-1" />
               <button class="text-ink-3 hover:text-ink px-1" onClick={() => setOpen(false)}>
@@ -78,7 +79,7 @@ export function AgentBubbles() {
                       <span class="flex-1" />
                       <span class="text-[11px] text-ink-3">{STATUS[a.status]}</span>
                     </div>
-                    <div class="mt-0.5 pl-4 text-[12px] text-ink-2 line-clamp-2">{a.task}</div>
+                    <div class="mt-0.5 pl-4 text-[12px] text-ink-2 line-clamp-2">{a.task || "统筹全局，派单与汇总"}</div>
                   </button>
                 )}
               </For>
