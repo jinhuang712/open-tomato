@@ -45,6 +45,35 @@ export function parseMcpText(body: string): string | undefined {
   return undefined;
 }
 
+/**
+ * 压掉 Exa 结果里的噪音：Published/Author 为 N/A 的行、「...」分隔出的过短碎片（标题被切成一两个词那种）。
+ * 只删不改，URL 和正文片段原样保留。
+ */
+export function compactResults(raw: string): string {
+  const out: string[] = [];
+  let prevEllipsis = false;
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (/^(Published|Author):\s*N\/A$/.test(t)) continue;
+    if (t === "...") {
+      if (!prevEllipsis) out.push("...");
+      prevEllipsis = true;
+      continue;
+    }
+    // 只有紧挨着「...」的短碎片才丢，避免误删正文里正常的短句
+    if (prevEllipsis && t.length > 0 && t.length < 12 && !/^(Title|URL):/.test(t)) continue;
+    out.push(line);
+    prevEllipsis = false;
+  }
+  // 紧跟在分隔线 / 下一条标题前，或整段末尾的孤立「...」没有信息量，去掉
+  const cleaned = out.filter((line, i) => {
+    if (line !== "...") return true;
+    const next = out.slice(i + 1).find((l) => l.trim() !== "");
+    return next !== undefined && next.trim() !== "---" && !next.startsWith("Title:");
+  });
+  return cleaned.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function searchWeb(query: string, opts: WebSearchOptions = {}, signal?: AbortSignal): Promise<string> {
   const q = query.trim();
   if (!q) throw new Error("query 不能为空");
@@ -75,7 +104,8 @@ export async function searchWeb(query: string, opts: WebSearchOptions = {}, sign
     });
     if (!res.ok) throw new Error(`搜索服务 HTTP ${res.status}`);
     const body = await res.text();
-    return parseMcpText(body) ?? "没有搜到结果，换个说法再试。";
+    const found = parseMcpText(body);
+    return found ? compactResults(found) : "没有搜到结果，换个说法再试。";
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", onOuterAbort);
