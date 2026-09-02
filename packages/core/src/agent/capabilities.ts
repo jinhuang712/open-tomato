@@ -32,7 +32,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派设定师设计：${p(params, "brief")}。
 
-要求：先让设定师给 2–4 个差异明显的候选方向（不落盘），你汇总后用 ask_user 让我选；我选定后再派设定师落成卡片。落卡后 run_check 一次。`,
+要求：第一轮 mode=propose 派设定师给 2–4 个差异明显的候选方向，你汇总后用 ask_user 让我选（一次只问一件）；我选定后用 continue_agent、mode=commit 让同一个设定师在选中的候选上落成卡片。落卡后 run_check 一次。`,
   },
   outline: {
     id: "outline",
@@ -44,7 +44,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派结构师编排：${p(params, "scope")}。
 
-要求：结构师动笔前读 守则/立项、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时先给我候选结构让我选；编排章纲直接落盘走审批。结束后 run_check，把 error 修掉再向我汇报。`,
+要求：结构师动笔前读 守则/立项、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时第一轮 mode=propose 先给我候选结构让我选，选定后 continue_agent、mode=commit 让同一个结构师落盘；编排章纲直接 mode=commit 落盘走审批。结束后 run_check，把 error 修掉再向我汇报。`,
   },
   draft: {
     id: "draft",
