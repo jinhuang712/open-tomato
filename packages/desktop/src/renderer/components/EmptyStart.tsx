@@ -45,9 +45,9 @@ export function EmptyStart() {
     if (cards === 0 && outlines === 0 && written === 0) {
       return {
         stage: "立项",
-        line: "这本书还是一张白纸。先把书名、一句话故事、读者是谁这几件事定下来。",
+        line: "这本书还是一张白纸。先聊清楚故事讲什么、给谁看，书名最后再定。",
         cards: [
-          { title: "立项访谈", desc: "主编逐个问你 7 个问题，答案落进守则/立项", run: () => runCap("interview"), primary: true },
+          { title: "立项访谈", desc: "从「这本书讲什么」开始聊，主编边聊边记，最后才定书名", run: () => runCap("interview"), primary: true },
           talk,
           adopt,
           { title: "直接设卡", desc: "跳过访谈，先建人物和世界设定", run: () => runCap("design") },
