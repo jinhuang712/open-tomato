@@ -5,6 +5,7 @@ import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
 import { Message } from "./Message";
 import { QuestionDock } from "./QuestionDock";
+import { QuickActions } from "./QuickActions";
 
 const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
@@ -102,7 +103,16 @@ export function Chat(props: { agentId: string }) {
             ↓
           </button>
         </Show>
-        <Switch fallback={<Composer agentId={props.agentId} />}>
+        <Switch
+          fallback={
+            <>
+              <Show when={isLead()}>
+                <QuickActions hasHistory={messages().length > 0} />
+              </Show>
+              <Composer agentId={props.agentId} />
+            </>
+          }
+        >
           <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
           <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
         </Switch>

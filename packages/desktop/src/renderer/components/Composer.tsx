@@ -1,8 +1,21 @@
-import { createSignal, Show } from "solid-js";
-import { actions, state } from "../state";
+import { createEffect, createSignal, Show } from "solid-js";
+import { actions, setState, state } from "../state";
 
 export function Composer(props: { agentId?: string }) {
   const [text, setText] = createSignal("");
+  let box: HTMLTextAreaElement | undefined;
+
+  // 快捷按钮预填：接过来、光标放末尾、清掉草稿
+  createEffect(() => {
+    const draft = state.composerDraft;
+    if (draft === null) return;
+    setText(draft);
+    setState("composerDraft", null);
+    queueMicrotask(() => {
+      box?.focus();
+      box?.setSelectionRange(draft.length, draft.length);
+    });
+  });
   const agentId = () => props.agentId ?? "lead";
   const isLead = () => agentId() === "lead";
   const agent = () => state.agents[agentId()];
@@ -29,6 +42,7 @@ export function Composer(props: { agentId?: string }) {
     <div class="px-5 pb-4 pt-1">
       <div class="rounded-2xl border border-line bg-paper-2 focus-within:border-accent transition-colors">
         <textarea
+          ref={box}
           class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-[13.5px] leading-relaxed"
           rows={3}
           placeholder={placeholder()}

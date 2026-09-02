@@ -46,6 +46,8 @@ export interface State {
   modelPickerOpen: boolean;
   capabilityDialog: CapabilityInfo | null;
   searchOpen: boolean;
+  /** 快捷按钮往输入框里预填的文字；Composer 消费后清空 */
+  composerDraft: string | null;
 }
 
 const initial: State = {
@@ -69,6 +71,7 @@ const initial: State = {
   modelPickerOpen: false,
   capabilityDialog: null,
   searchOpen: false,
+  composerDraft: null,
 };
 
 export const [state, setState] = createStore<State>(initial);
