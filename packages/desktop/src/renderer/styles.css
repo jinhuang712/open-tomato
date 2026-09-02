@@ -189,6 +189,26 @@ mark {
 .tc-doc ul {
   margin: 0.4em 0;
 }
+/* 整段替换：旧段划掉，新段另起一行，左侧一道细线标出 */
+.tc-blk {
+  padding-left: 0.9em;
+  border-left: 2px solid;
+  margin: 0.4em 0;
+}
+.tc-blk-del {
+  border-color: color-mix(in srgb, var(--color-danger) 60%, transparent);
+  color: var(--color-danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  opacity: 0.6;
+}
+.tc-blk-ins {
+  border-color: color-mix(in srgb, var(--color-ok) 70%, transparent);
+  color: var(--color-ok);
+}
+.tc-blk p {
+  margin: 0.2em 0;
+}
 /* 文档引用：胶囊，和正文明显区分 */
 .doc-link {
   display: inline-flex;

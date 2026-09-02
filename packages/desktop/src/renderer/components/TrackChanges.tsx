@@ -1,4 +1,4 @@
-import { diffChars } from "diff";
+import { diffArrays, diffChars } from "diff";
 import { marked } from "marked";
 import { createMemo, For, Show } from "solid-js";
 
@@ -30,9 +30,18 @@ const MARKS = /[-]/g;
 // 标记落在行首会挡住 markdown 语法（## / - / 1. / >），把它挪到语法后面
 const LINE_PREFIX = /^([-]+)((?:#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+)+)/gm;
 
-/** 把 diff 结果合成一份带标记的 markdown 源文本 */
-function mergedSource(before: string, after: string, isNew: boolean): string {
-  if (isNew) return `${INS_OPEN}${after}${INS_CLOSE}`;
+/** 一段里改动不大（相同字符占比 ≥ 该值）才做字内标记，否则整段旧的划掉、新的另起一行 */
+const INLINE_SIMILARITY = 0.55;
+
+function similarity(a: string, b: string): number {
+  if (!a && !b) return 1;
+  let same = 0;
+  for (const p of diffChars(a, b)) if (!p.added && !p.removed) same += p.value.length;
+  return (2 * same) / (a.length + b.length);
+}
+
+/** 段内字级标记：合成一份带标记的 markdown 源文本 */
+function inlineMarked(before: string, after: string): string {
   const out: string[] = [];
   for (const p of diffChars(before, after)) {
     if (p.added) out.push(INS_OPEN, p.value, INS_CLOSE);
@@ -40,6 +49,52 @@ function mergedSource(before: string, after: string, isNew: boolean): string {
     else out.push(p.value);
   }
   return out.join("").replace(LINE_PREFIX, "$2$1");
+}
+
+const render = (md: string) => marked.parse(md, { async: false }) as string;
+const blockDel = (md: string) => `<div class="tc-blk tc-blk-del">${render(md)}</div>`;
+const blockIns = (md: string) => `<div class="tc-blk tc-blk-ins">${render(md)}</div>`;
+
+const splitBlocks = (body: string) => body.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+
+/**
+ * 先按段落对齐，再决定每段怎么标：
+ * - 没变：正常渲染
+ * - 小改：段内字级标记
+ * - 大改 / 整段替换：旧段划掉，新段另起一行
+ */
+function renderTracked(before: string, after: string, isNew: boolean): string {
+  if (isNew) return blockIns(after);
+  const parts = diffArrays(splitBlocks(before), splitBlocks(after));
+  const html: string[] = [];
+  let removed: string[] = [];
+  const flushRemoved = () => {
+    for (const r of removed) html.push(blockDel(r));
+    removed = [];
+  };
+  for (const p of parts) {
+    if (p.removed) {
+      removed.push(...p.value);
+      continue;
+    }
+    if (p.added) {
+      const added = [...p.value];
+      // 删一段 + 加一段 挨着出现，按顺序配对
+      while (removed.length && added.length) {
+        const a = removed.shift()!;
+        const b = added.shift()!;
+        if (similarity(a, b) >= INLINE_SIMILARITY) html.push(applyMarks(render(inlineMarked(a, b))));
+        else html.push(blockDel(a), blockIns(b));
+      }
+      flushRemoved();
+      for (const b of added) html.push(blockIns(b));
+      continue;
+    }
+    flushRemoved();
+    for (const v of p.value) html.push(render(v));
+  }
+  flushRemoved();
+  return html.join("\n");
 }
 
 /**
@@ -75,7 +130,7 @@ function applyMarks(html: string): string {
 }
 
 /**
- * Word / Docs 式的审阅视图：整篇按 markdown 渲染，删的划掉，加的带下划线。
+ * Word / Docs 式的审阅视图：整篇按 markdown 渲染；小改在字内标，大改整段旧划掉、新另起一行。
  */
 export function TrackChanges(props: { before: string; after: string; isNew: boolean }) {
   const before = createMemo(() => splitDoc(props.before));
@@ -88,10 +143,7 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
       .filter((c) => c.from !== c.to);
   });
 
-  const html = createMemo(() => {
-    const src = mergedSource(before().body, after().body, props.isNew);
-    return applyMarks(marked.parse(src, { async: false }) as string);
-  });
+  const html = createMemo(() => renderTracked(before().body, after().body, props.isNew));
   const changed = () => before().body !== after().body;
 
   return (
