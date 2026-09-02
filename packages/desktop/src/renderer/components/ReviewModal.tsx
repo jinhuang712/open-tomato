@@ -1,5 +1,5 @@
 import type { ApprovalRequest } from "@opentomato/core/protocol";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
@@ -18,10 +18,14 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
     void actions.approve(props.request.approvalId);
     close();
   };
+  /** 原因必填：没有原因 agent 只能瞎猜，白耗一轮 */
+  const canReject = () => reason().trim() !== "";
   const reject = () => {
-    void actions.reject(props.request.approvalId, reason());
+    if (!canReject()) return;
+    void actions.reject(props.request.approvalId, reason().trim());
     close();
   };
+  const QUICK_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
   const remaining = () => state.approvals.length - 1;
 
   return (
@@ -87,18 +91,37 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
               </>
             }
           >
-            <input
-              class="w-[360px] px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
-              placeholder="拒绝原因（会回给 agent，让它照着改）"
-              value={reason()}
-              onInput={(e) => setReason(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") reject();
-                if (e.key === "Escape") setRejecting(false);
-              }}
-              autofocus
-            />
-            <button class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110" onClick={reject}>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex gap-1">
+                <For each={QUICK_REASONS}>
+                  {(r) => (
+                    <button
+                      class={`px-2 py-0.5 rounded border text-[11px] ${reason() === r ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3 hover:text-ink"}`}
+                      onClick={() => setReason(r)}
+                    >
+                      {r}
+                    </button>
+                  )}
+                </For>
+              </div>
+              <input
+                class="w-[420px] px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
+                placeholder="拒绝原因（必填，会回给 agent，让它照着改）"
+                value={reason()}
+                onInput={(e) => setReason(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") reject();
+                  if (e.key === "Escape") setRejecting(false);
+                }}
+                autofocus
+              />
+            </div>
+            <button
+              class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!canReject()}
+              title={canReject() ? "" : "先写拒绝原因"}
+              onClick={reject}
+            >
               确认拒绝
             </button>
             <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={() => setRejecting(false)}>
