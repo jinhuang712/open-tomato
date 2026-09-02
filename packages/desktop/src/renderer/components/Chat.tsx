@@ -49,6 +49,7 @@ export function Chat(props: { agentId: string }) {
         </div>
       </Show>
       <div ref={scroller} class="flex-1 overflow-y-auto py-3">
+        <div class="max-w-[880px] mx-auto w-full h-full">
         <Show when={messages().length === 0}>
           <div class="h-full flex items-center justify-center text-ink-3 text-center px-10">
             <Show when={isLead()} fallback={<div>子 agent 还没有输出</div>}>
@@ -73,12 +74,15 @@ export function Chat(props: { agentId: string }) {
         <Show when={agent()?.status === "error" && agent()?.error}>
           <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-[12px] selectable">{agent()?.error}</div>
         </Show>
+        </div>
       </div>
-      {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事 */}
-      <Switch fallback={<Composer agentId={props.agentId} />}>
-        <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
-        <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
-      </Switch>
+      {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
+      <div class="max-w-[880px] mx-auto w-full">
+        <Switch fallback={<Composer agentId={props.agentId} />}>
+          <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
+          <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
+        </Switch>
+      </div>
     </div>
   );
 }
