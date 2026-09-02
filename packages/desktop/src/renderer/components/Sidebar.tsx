@@ -1,6 +1,6 @@
 import type { DocKindId } from "@opentomato/core/protocol";
 import { createSignal, For, Show } from "solid-js";
-import { actions, setState, state } from "../state";
+import { actions, state } from "../state";
 
 const ORDER: DocKindId[] = ["guide", "world", "characters", "threads", "milestones", "volumes", "chapters", "manuscript"];
 
@@ -15,26 +15,7 @@ export function Sidebar() {
 
   return (
     <div class="flex flex-col h-full">
-      <div class="px-4 pt-3 pb-2 text-[11px] uppercase tracking-wider text-ink-3">能力</div>
-      <div class="px-2 grid grid-cols-2 gap-1">
-        <For each={state.capabilities}>
-          {(c) => (
-            <button
-              class="px-2.5 py-1.5 rounded-lg border border-line bg-paper-2 hover:border-accent hover:bg-accent-soft text-left text-[12px] disabled:opacity-40"
-              disabled={!state.models?.current}
-              title={c.description}
-              onClick={() => {
-                if (c.params.length === 0) void actions.runCapability(c.id, {});
-                else setState("capabilityDialog", c);
-              }}
-            >
-              {c.label}
-            </button>
-          )}
-        </For>
-      </div>
-
-      <div class="px-4 pt-4 pb-2 text-[11px] uppercase tracking-wider text-ink-3 flex items-center">
+      <div class="px-4 pt-3 pb-2 text-[11px] uppercase tracking-wider text-ink-3 flex items-center">
         <span>文档</span>
         <span class="flex-1" />
         <Show when={state.issues}>
