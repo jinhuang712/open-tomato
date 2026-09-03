@@ -96,10 +96,10 @@ export function Chat(props: { agentId: string }) {
             <>
               <Message message={m} />
               <Show when={state.interruptedAfter[props.agentId] === m.id}>
-                <div class="flex items-center gap-3 px-5 py-3 text-xs text-warn select-none">
-                  <span class="flex-1 border-t border-dashed border-warn/50" />
+                <div class="flex items-center gap-3 px-5 py-3 text-xs text-ink-3 select-none">
+                  <span class="flex-1 border-t border-line" />
                   <span>上次被打断了</span>
-                  <span class="flex-1 border-t border-dashed border-warn/50" />
+                  <span class="flex-1 border-t border-line" />
                 </div>
               </Show>
             </>
