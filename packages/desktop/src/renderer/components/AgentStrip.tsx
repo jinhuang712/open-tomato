@@ -8,7 +8,7 @@ const STATUS: Record<string, string> = { running: "运行中", idle: "待命", d
  * 在场的角色：钉在对话区顶部的一行，不随消息滚动，内容和消息同一列宽。
  * 主编永远第一个，后面是子 agent（新的在前）。点名字进它的会话，当前这位反白。
  * 每人只带一个词：跑着的显示它自报的「正在……」，其余显示状态；任务书收进悬停提示。
- * 在子 agent 会话里左侧多一个「回到主编」。只有主编一个人时不显示，没什么可切的。
+ * 在子 agent 会话里，列外左沿多一个「回到主编」。只有主编一个人时不显示，没什么可切的。
  */
 export function AgentStrip() {
   const agents = createMemo(() => {
@@ -21,14 +21,14 @@ export function AgentStrip() {
 
   return (
     <Show when={agents().length > 1 || inChild()}>
-      <div class="shrink-0 border-b border-line">
-      <div class="max-w-[760px] mx-auto flex items-center gap-4 px-5 h-9 text-xs text-ink-2 overflow-hidden">
-        <Show when={inChild()}>
-          <button class="shrink-0 text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
-            ← 回到主编
-          </button>
-          <span class="w-px h-4 bg-line-2 shrink-0" />
-        </Show>
+      <div class="relative shrink-0 border-b border-line text-xs text-ink-2">
+      {/* 「回到主编」放在列外的左沿，不挤占主编在名单里的位置 */}
+      <Show when={inChild()}>
+        <button class="absolute left-5 top-0 h-9 flex items-center text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
+          ← 回到主编
+        </button>
+      </Show>
+      <div class="max-w-[760px] mx-auto flex items-center gap-4 px-5 h-9 overflow-hidden">
         <For each={agents()}>
           {(a) => (
             <button
