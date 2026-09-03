@@ -1,5 +1,5 @@
 import type { ApprovalRequest } from "@opentomato/core/protocol";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
@@ -27,6 +27,20 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   };
   const QUICK_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
   const remaining = () => state.approvals.length - 1;
+
+  /** 打开或切回审阅视图时，滚到第一处改动；整篇都没改动就留在顶部 */
+  let scroller: HTMLDivElement | undefined;
+  createEffect(
+    on([tab, () => props.request.approvalId], () => {
+      if (tab() !== "review") return;
+      requestAnimationFrame(() => {
+        const first = scroller?.querySelector<HTMLElement>(".tc-ins, .tc-del, .tc-blk");
+        if (!first || !scroller) return;
+        const top = first.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+        scroller.scrollTo({ top: Math.max(0, top - scroller.clientHeight / 3) });
+      });
+    }),
+  );
 
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={close}>
@@ -59,7 +73,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-8 py-6">
+        <div ref={scroller} class="flex-1 overflow-y-auto px-8 py-6">
           <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} maxHeight="70vh" />}>
             <TrackChanges before={props.request.before} after={props.request.after} isNew={props.request.isNew} />
           </Show>
