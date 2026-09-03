@@ -205,6 +205,8 @@ export type AgentStreamEvent =
   | { type: "tool_end"; toolCallId: string; output: string; details: unknown; isError: boolean }
   | { type: "message_end"; message: UiMessage }
   | { type: "status_text"; text: string }
+  /** 排队中的消息：steering 会在当前这步工具结束后插进去，followUp 等整轮跑完再发 */
+  | { type: "queue_update"; steering: string[]; followUp: string[] }
   /** interrupted：上次会话没有正常收尾（发了话没回 / 工具跑一半 / 被中止），UI 在末尾画一条分隔线 */
   | { type: "history"; messages: UiMessage[]; interrupted: boolean };
 
@@ -294,8 +296,13 @@ export interface RequestMap {
   };
   "models.setApiKey": { params: { provider: string; apiKey: string }; result: ModelsState };
   "models.refresh": { params: Record<string, never>; result: ModelsState };
-  /** agentId 省略 = 主编；给子 agent 发话是插话（steer），它完成目标前不会停 */
-  "chat.send": { params: { text: string; agentId?: string }; result: null };
+  /**
+   * agentId 省略 = 主编。agent 跑着的时候按 deliverAs 决定怎么送：
+   * steer（默认）插话，在当前这步工具结束后就送到；followUp 排队，等这一轮完全跑完再送。空闲时两者都是直接发。
+   */
+  "chat.send": { params: { text: string; agentId?: string; deliverAs?: "steer" | "followUp" }; result: null };
+  /** 把还没送到的排队消息全部撤回，原文交还给输入框 */
+  "chat.clearQueue": { params: { agentId?: string }; result: { steering: string[]; followUp: string[] } };
   /** 强制中止。不给用户按钮；内核关项目 / 新会话 / reset 时内部走这条 */
   "chat.abort": { params: { agentId?: string }; result: null };
   /** 优雅暂停：让 agent 不再开新工具，收尾总结；主编会接着用 ask_user 问作者想怎么调整 */

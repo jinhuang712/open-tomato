@@ -196,9 +196,15 @@ export class Kernel {
         this.emit({ type: "models.state", state });
         return state;
       },
-      "chat.send": async ({ text, agentId }) => {
-        this.sendTo(agentId ?? LEAD_ID, text);
+      "chat.send": async ({ text, agentId, deliverAs }) => {
+        this.sendTo(agentId ?? LEAD_ID, text, deliverAs ?? "steer");
         return null;
+      },
+      "chat.clearQueue": async ({ agentId }) => {
+        const live = this.agents.get(agentId ?? LEAD_ID);
+        if (!live) return { steering: [], followUp: [] };
+        const q = live.session.clearQueue();
+        return { steering: [...q.steering], followUp: [...q.followUp] };
       },
       "chat.pause": async ({ agentId }) => {
         const id = agentId ?? LEAD_ID;
@@ -405,12 +411,10 @@ export class Kernel {
     this.setStatus(live, "idle");
   }
 
-  private sendTo(agentId: string, text: string) {
+  private sendTo(agentId: string, text: string, deliverAs: "steer" | "followUp" = "steer") {
     const live = this.agents.get(agentId);
     if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
-    const run = live.session.isStreaming
-      ? live.session.prompt(text, { streamingBehavior: "steer" })
-      : live.session.prompt(text);
+    const run = live.session.isStreaming ? live.session.prompt(text, { streamingBehavior: deliverAs }) : live.session.prompt(text);
     run.catch((e: unknown) => {
       this.setStatus(live, "error", e instanceof Error ? e.message : String(e));
     });
@@ -564,6 +568,13 @@ export class Kernel {
         return;
       case "agent_end":
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
+        return;
+      case "queue_update":
+        this.send(live, {
+          type: "queue_update",
+          steering: [...((ev.steering as readonly string[] | undefined) ?? [])],
+          followUp: [...((ev.followUp as readonly string[] | undefined) ?? [])],
+        });
         return;
       case "message_start": {
         const msg = normalizeMessage(ev.message);
