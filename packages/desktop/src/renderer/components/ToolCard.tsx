@@ -1,6 +1,7 @@
 import { hasLongOptions, optionLabel, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
+import { DispatchCard, ROLE_LABELS } from "./DispatchCard";
 import { DocLink } from "./DocLink";
 
 type ToolPart = Extract<UiPart, { type: "tool" }>;
@@ -19,16 +20,6 @@ const LABELS: Record<string, string> = {
   continue_agent: "续派子 agent",
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  architect: "设定师",
-  planner: "结构师",
-  writer: "执笔",
-  critic_market: "市场评审",
-  critic_reader: "读者评审",
-  critic_voice: "文风评审",
-  continuity: "连续性审校",
-  arbiter: "裁决",
-};
 
 const args = (part: ToolPart) => (part.args ?? {}) as Record<string, unknown>;
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -141,55 +132,6 @@ function WriteCard(props: { part: ToolPart }) {
   );
 }
 
-/** 派子 agent：任务书列表 + 回传 */
-function SpawnCard(props: { part: ToolPart; open: boolean; toggle: () => void }) {
-  const tasks = () => (Array.isArray(args(props.part).tasks) ? (args(props.part).tasks as Array<{ role: string; task: string }>) : []);
-  const running = () => props.part.status === "running";
-  return (
-    <div
-      class="my-2 text-xs rounded-lg border-l-2 pl-2.5 pr-2"
-      classList={{
-        "border-accent bg-accent-soft/40": running(),
-        "border-danger bg-danger-soft/40": props.part.status === "error",
-        "border-line-2 bg-paper-2": props.part.status === "done",
-      }}
-    >
-      <button class="w-full h-8 flex items-center gap-2 text-left hover:brightness-110" onClick={props.toggle}>
-        <span class="flex -space-x-1.5 shrink-0">
-          <For each={tasks()}>
-            {(t) => (
-              <span class="w-5 h-5 rounded-full bg-paper-4 text-ink-2 border border-paper-2 flex items-center justify-center text-[10px]">
-                {(ROLE_LABELS[t.role] ?? t.role).slice(0, 1)}
-              </span>
-            )}
-          </For>
-        </span>
-        <span class={running() ? "shimmer font-medium" : "text-ink font-medium"}>
-          {running() ? "子 agent 在干活" : props.part.status === "error" ? "子 agent 出错" : "子 agent 已回传"}
-        </span>
-        <span class="text-ink-2 truncate flex-1">{tasks().map((t) => ROLE_LABELS[t.role] ?? t.role).join(" · ")}</span>
-        <span class="text-ink-3">{props.open ? "▾" : "▸"}</span>
-      </button>
-      <Show when={props.open}>
-        <div class="mb-2 px-3 py-2 rounded-lg bg-paper-2 space-y-2 selectable text-sm">
-          <For each={tasks()}>
-            {(t) => (
-              <div class="mt-2">
-                <div class="text-ink-3 text-xs mb-0.5">任务书 · {ROLE_LABELS[t.role] ?? t.role}</div>
-                <div class="text-ink-2 whitespace-pre-wrap">{t.task}</div>
-              </div>
-            )}
-          </For>
-          <Show when={props.part.output}>
-            <div class="text-ink-3 text-xs mt-2 mb-0.5">回传</div>
-            <Output part={props.part} />
-          </Show>
-        </div>
-      </Show>
-    </div>
-  );
-}
-
 export function ToolCard(props: { part: ToolPart }) {
   const [open, setOpen] = createSignal(false);
   const label = () => LABELS[props.part.name] ?? props.part.name;
@@ -222,7 +164,7 @@ export function ToolCard(props: { part: ToolPart }) {
         <WriteCard part={props.part} />
       </Match>
       <Match when={props.part.name === "spawn_agents" || props.part.name === "continue_agent"}>
-        <SpawnCard part={props.part} open={open()} toggle={() => setOpen(!open())} />
+        <DispatchCard part={props.part} />
       </Match>
     </Switch>
   );
