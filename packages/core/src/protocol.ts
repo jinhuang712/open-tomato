@@ -122,7 +122,7 @@ export interface RoleInfo {
   canWrite: boolean;
 }
 
-export type CapabilityId = "interview" | "design" | "outline" | "draft" | "review" | "check";
+export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review" | "check";
 
 export interface CapabilityParam {
   name: string;
