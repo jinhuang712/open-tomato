@@ -226,7 +226,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           : "文件保持原样、被拒的稿子没有落盘。按原因改好后重新提交：整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc";
         return text(`用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${how}，不要原样重试。`);
       }
-      const header = await store.write(kind, preview.id, preview.after);
+      const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
       ctx.onDocsChanged();
       return text(`已写入 ${header.path}（${header.title}）`);
     };

@@ -10,6 +10,13 @@ const MARKER_FILE = "project.json";
 const PROJECT_FORMAT = 1;
 /** 项目内会话目录（相对 .opentomato/），主编会话 jsonl 落这里；子目录按角色分 */
 const SESSIONS_DIR = "sessions";
+export class StaleWriteError extends Error {
+  constructor(public readonly path: string) {
+    super(`${path} 在审批期间被改过，这次写入作废；请重新 read_doc 拿最新内容再提交`);
+    this.name = "StaleWriteError";
+  }
+}
+
 const LEAD_SESSIONS_DIR = path.join(SESSIONS_DIR, "lead");
 /** .opentomato/.gitignore：会话记录大且噪音多，不进 git；project.json 等保留 */
 const MARKER_GITIGNORE = `${SESSIONS_DIR}/\n`;
@@ -186,10 +193,18 @@ export class ProjectStore {
     return { kind, id: nid, path: rel, title, isNew: before === "", before, after: normalized, patch };
   }
 
-  async write(kind: DocKindId, id: string, raw: string): Promise<DocHeader> {
+  /**
+   * 落盘。传了 expectBefore 就要求磁盘上现在还是这份内容（预览时读到的那份），
+   * 不是就抛 StaleWriteError——审批悬着的时候作者手改了同一篇，不能被 approve 静默盖掉。
+   */
+  async write(kind: DocKindId, id: string, raw: string, opts: { expectBefore?: string } = {}): Promise<DocHeader> {
     this.assertWritable(raw);
     const nid = this.normalizeId(kind, id);
     const abs = this.absPath(kind, nid);
+    if (opts.expectBefore !== undefined) {
+      const current = (await fs.readFile(abs, "utf8").catch(() => null)) ?? "";
+      if (current !== opts.expectBefore) throw new StaleWriteError(this.relPath(kind, nid));
+    }
     await fs.mkdir(path.dirname(abs), { recursive: true });
     const normalized = raw.endsWith("\n") ? raw : `${raw}\n`;
     await fs.writeFile(abs, normalized, "utf8");

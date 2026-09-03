@@ -67,6 +67,19 @@ describe("ProjectStore", () => {
     expect(await store.readSection("characters", "lin-yao", "语音签名")).toBe("短句。");
   });
 
+  test("write 带 expectBefore：审批期间文件被改就拒写", async () => {
+    const v1 = "---\ntitle: 铁盟\nsummary: a\nkeywords: []\nstatus: draft\n---\n\n旧\n";
+    const v2 = v1.replace("旧", "作者手改");
+    const v3 = v1.replace("旧", "agent 稿");
+    await store.write("world", "sect", v1);
+    const p = await store.previewWrite("world", "sect", v3);
+    await store.write("world", "sect", v2);
+    await expect(store.write("world", "sect", p.after, { expectBefore: p.before })).rejects.toThrow("审批期间被改过");
+    expect((await store.read("world", "sect"))!.raw).toBe(v2);
+    await store.write("world", "sect", p.after, { expectBefore: v2 });
+    expect((await store.read("world", "sect"))!.raw).toBe(v3);
+  });
+
   test("previewWrite 出 unified diff", async () => {
     await store.write("world", "sect", "---\ntitle: 铁盟\nsummary: a\nkeywords: []\nstatus: draft\n---\n\n旧\n");
     const p = await store.previewWrite("world", "sect", "---\ntitle: 铁盟\nsummary: a\nkeywords: []\nstatus: draft\n---\n\n新\n");

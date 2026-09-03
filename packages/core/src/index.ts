@@ -1,5 +1,5 @@
 export * from "./protocol.js";
-export { ProjectStore, type WritePreview } from "./project/store.js";
+export { ProjectStore, StaleWriteError, type WritePreview } from "./project/store.js";
 export { DOC_KINDS, DOC_KIND_IDS, GUIDE_SEEDS, isDocKindId, resolveKind, kindInfos } from "./project/kinds.js";
 export { parseFrontmatter, stringifyFrontmatter, splitSections, pickSection } from "./project/frontmatter.js";
 export { runCheck } from "./project/check.js";
