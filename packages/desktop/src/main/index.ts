@@ -99,6 +99,10 @@ ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { default
 app.setName("OpenTomato");
 
 void app.whenReady().then(() => {
+  // 打包后图标由 electron-builder 写进 .app；开发态 Dock 显示的是 Electron 默认图标，这里手动换成自家的
+  if (!app.isPackaged && process.platform === "darwin") {
+    app.dock?.setIcon(join(__dirname, "../../build/icon.png"));
+  }
   installMenu(() => mainWindow);
   createWindow();
   try {
