@@ -122,17 +122,20 @@ export class Kernel {
         await this.closeProject();
         return null;
       },
+      // 先把新项目立起来再关旧的：新项目开不了（路径不对、已存在）时，当前项目保持原样
       "project.create": async ({ root, name }) => {
+        const store = await ProjectStore.create(root, name);
         await this.closeProject();
-        this.store = await ProjectStore.create(root, name);
+        this.store = store;
         await this.afterOpen("new");
-        return this.store.info;
+        return store.info;
       },
       "project.open": async ({ root }) => {
+        const store = await ProjectStore.open(root);
         await this.closeProject();
-        this.store = await ProjectStore.open(root);
+        this.store = store;
         await this.afterOpen("continue");
-        return this.store.info;
+        return store.info;
       },
       "project.close": async () => {
         await this.closeProject();
