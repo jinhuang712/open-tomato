@@ -4,11 +4,35 @@ import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
 
-/** 每个问题都带的两个逃生口，回答文本写成主编能直接执行的话 */
-const ESCAPES = [
-  { label: "我还没想好", hint: "让主编先给几个候选", answer: "我还没想好，你先替我想 3 个不同方向的候选，我来选。" },
-  { label: "先跳过", hint: "这一项记「待定」，继续下一项", answer: "这一项先跳过，记「待定」，继续下一项。" },
-];
+interface Escape {
+  label: string;
+  hint: string;
+  /** 回给主编的话，写成它能直接执行的指令 */
+  answer: string;
+}
+
+/**
+ * 逃生口按问题的形态变：
+ * - 没给候选：让主编先想几个
+ * - 给了短候选：都不对就换一批；也可以把这个决定交给主编
+ * - 给了长稿（两版写法、两版小传）：可以混搭、可以换思路
+ * 「先放一放」永远都有，不确定的留白是合法的。
+ */
+function escapesFor(req: QuestionRequest): Escape[] {
+  const n = req.options.length;
+  const list: Escape[] = [];
+  if (n === 0) {
+    list.push({ label: "我还没想好", hint: "让主编先给几个候选", answer: "我还没想好，你先替我想 3 个不同方向的候选，我来选。" });
+  } else if (hasLongOptions(req.options)) {
+    if (n >= 2) list.push({ label: "混搭", hint: "把几版的优点合成一版", answer: "这几版各有可取之处，帮我把优点合成一版再给我看。" });
+    list.push({ label: "都不太对", hint: "换个思路再给两版", answer: `这${n > 1 ? "几版" : "版"}方向都不太对，换个思路再给我两版。` });
+  } else {
+    list.push({ label: "换一批", hint: "这几个方向都不太对，再来 3 个", answer: "这几个都不太对，换 3 个不同方向再给我一批。" });
+    if (n >= 2) list.push({ label: "你替我定", hint: "主编从这几个里挑一个，说明理由", answer: "这个你替我定，从这几个里挑一个，说清为什么，然后接着往下。" });
+  }
+  list.push({ label: "先放一放", hint: "这一项记「待定」，不为它停下", answer: "这一项先记「待定」，不为它停下，接着往下。" });
+  return list;
+}
 
 const ORDINALS = ["一", "二", "三", "四", "五", "六", "七", "八"];
 
@@ -55,7 +79,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
                 </button>
               )}
             </For>
-            <EscapeButtons questionId={props.request.questionId} />
+            <EscapeButtons request={props.request} />
           </div>
         }
       >
@@ -76,7 +100,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
           </For>
         </div>
         <div class="flex flex-wrap gap-2 px-4 pb-3">
-          <EscapeButtons questionId={props.request.questionId} />
+          <EscapeButtons request={props.request} />
         </div>
       </Show>
 
@@ -113,15 +137,15 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   );
 }
 
-/** 逃生选项：永远都有，不靠模型记得给 */
-function EscapeButtons(props: { questionId: string }) {
+/** 逃生选项：永远都有，不靠模型记得给；具体几个、叫什么，按问题形态定 */
+function EscapeButtons(props: { request: QuestionRequest }) {
   return (
-    <For each={ESCAPES}>
+    <For each={escapesFor(props.request)}>
       {(e) => (
         <button
           class="px-3 py-1.5 rounded-lg border border-dashed border-line text-ink-2 hover:border-accent hover:text-ink text-left"
           title={e.hint}
-          onClick={() => void actions.answer(props.questionId, e.answer)}
+          onClick={() => void actions.answer(props.request.questionId, e.answer)}
         >
           {e.label}
         </button>

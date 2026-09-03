@@ -290,7 +290,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         name: "ask_user",
         label: "问作者",
         description:
-          "向作者提一个问题，等作者在界面上回答。**每次都要给 options**：封闭问题给明确选项；开放问题（书名、故事、人名这类）给 2–4 个你替作者想好的具体候选，作者点一下就能选，也能自由输入。候选是一大段文字（比如同一段的两种写法、两版人物小传）时，用 {label, text} 形式：label 是短名字（「主角是 A」「留白版」），text 是完整正文，界面会把它们并排铺开给作者对比。界面会自动补上「我还没想好」「先跳过」两个逃生选项，你不用重复给。",
+          "向作者提一个问题，等作者在界面上回答。**每次都要给 options**：封闭问题给明确选项；开放问题（书名、故事、人名这类）给 2–4 个你替作者想好的具体候选，作者点一下就能选，也能自由输入。候选是一大段文字（比如同一段的两种写法、两版人物小传）时，用 {label, text} 形式：label 是短名字（「主角是 A」「留白版」），text 是完整正文，界面会把它们并排铺开给作者对比。界面会按候选形态自动补逃生口（换一批 / 混搭 / 你替我定 / 先放一放），你不用重复给。",
         parameters: Type.Object({
           question: Type.String(),
           options: Type.Optional(
