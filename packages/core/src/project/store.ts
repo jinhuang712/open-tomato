@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
-import { asString, asStringArray, parseFrontmatter, pickSection, splitSections } from "./frontmatter.js";
+import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, frontmatterProblem } from "./frontmatter.js";
 import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
 
 const MARKER_DIR = ".opentomato";
@@ -176,6 +176,7 @@ export class ProjectStore {
   // ───────────── 写 ─────────────
 
   async previewWrite(kind: DocKindId, id: string, after: string): Promise<WritePreview> {
+    this.assertWritable(after);
     const nid = this.normalizeId(kind, id);
     const rel = this.relPath(kind, nid);
     const before = (await fs.readFile(this.absPath(kind, nid), "utf8").catch(() => null)) ?? "";
@@ -186,6 +187,7 @@ export class ProjectStore {
   }
 
   async write(kind: DocKindId, id: string, raw: string): Promise<DocHeader> {
+    this.assertWritable(raw);
     const nid = this.normalizeId(kind, id);
     const abs = this.absPath(kind, nid);
     await fs.mkdir(path.dirname(abs), { recursive: true });
@@ -195,6 +197,11 @@ export class ProjectStore {
   }
 
   // ───────────── 内部 ─────────────
+
+  private assertWritable(raw: string) {
+    const problem = frontmatterProblem(raw);
+    if (problem) throw new Error(problem);
+  }
 
   private toHeader(kind: DocKindId, id: string, raw: string): DocHeader {
     const { frontmatter } = parseFrontmatter(raw);

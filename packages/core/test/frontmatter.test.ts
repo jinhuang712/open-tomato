@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseFrontmatter, pickSection, splitSections, stringifyFrontmatter } from "../src/project/frontmatter.js";
+import { frontmatterProblem, parseFrontmatter, pickSection, splitSections, stringifyFrontmatter } from "../src/project/frontmatter.js";
 
 describe("frontmatter", () => {
   test("拆头和正文", () => {
@@ -40,5 +40,20 @@ describe("sections", () => {
   test("取段", () => {
     expect(pickSection(body, "关系")).toBe("待定");
     expect(pickSection(body, "不存在")).toBeUndefined();
+  });
+});
+
+describe("frontmatterProblem", () => {
+  test("合法文件返回 null", () => {
+    expect(frontmatterProblem("---\ntitle: x\nkeywords: [a, b]\n---\n\n正文\n")).toBeNull();
+  });
+  test("没有 frontmatter", () => {
+    expect(frontmatterProblem("直接正文")).toMatch(/frontmatter/);
+  });
+  test("YAML 解析失败", () => {
+    expect(frontmatterProblem("---\ntitle: [unclosed\n---\nbody")).toMatch(/不是合法 YAML/);
+  });
+  test("头部不是映射", () => {
+    expect(frontmatterProblem("---\n- a\n- b\n---\nbody")).toMatch(/映射/);
   });
 });

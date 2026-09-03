@@ -23,6 +23,23 @@ export function parseFrontmatter(raw: string): ParsedDoc {
   return { frontmatter: frontmatter as Record<string, unknown>, body: m[2] ?? "" };
 }
 
+/**
+ * 落盘前的校验：必须以 frontmatter 起始、YAML 能解析且是一个映射。
+ * 返回给用户 / 模型看的原因；合法返回 null。
+ */
+export function frontmatterProblem(raw: string): string | null {
+  const m = FENCE.exec(raw);
+  if (!m) return "文件必须以 frontmatter（--- 开头的 YAML 头）起始，先用 doc_template 拿模板";
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(m[1] ?? "");
+  } catch (e) {
+    return `frontmatter 不是合法 YAML：${e instanceof Error ? e.message.split("\n")[0] : String(e)}`;
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return "frontmatter 必须是 key: value 形式的映射";
+  return null;
+}
+
 export function stringifyFrontmatter(frontmatter: Record<string, unknown>, body: string): string {
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
   const trimmedBody = body.replace(/^\r?\n+/, "");
