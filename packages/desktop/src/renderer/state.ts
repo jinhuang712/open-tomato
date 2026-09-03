@@ -347,6 +347,18 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
+  /** 立刻掐断：模型调用和工具都停，在最后一条消息后画「被打断」分隔线 */
+  async stop(agentId?: string) {
+    const id = agentId ?? "lead";
+    try {
+      await bridge.request("chat.abort", id !== "lead" ? { agentId: id } : {});
+      const last = state.transcripts[id]?.at(-1);
+      if (last) setState("interruptedAfter", id, last.id);
+      toast("已停下");
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   /** 撤回排队中的消息，原文拼回输入框 */
   async recallQueue(agentId?: string) {
     try {

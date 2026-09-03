@@ -4,7 +4,8 @@ import { actions, setState, state } from "../state";
 
 /**
  * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上：
- * 插话 ⌘↩ 在当前这步工具结束后就送到；排队 ⇧⌘↩ 等这一轮跑完再送；暂停 ⌘. 让它收尾停下来问你。
+ * 插话 ⌘↩ 在当前这步工具结束后就送到；排队 ⇧⌘↩ 等这一轮跑完再送；
+ * 暂停 ⌘. 让它收尾停下来问你；停 ⇧⌘. 立刻掐断。
  * 还没送到的消息列在输入框上方，可以一键撤回到输入框里改。
  * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
  */
@@ -130,15 +131,17 @@ export function Composer(props: { agentId?: string }) {
             if (e.key === "Enter") {
               e.preventDefault();
               submit(e.shiftKey && busy() ? "followUp" : "steer");
-            } else if (e.key === "." && busy()) {
+            } else if ((e.key === "." || e.key === ">") && busy()) {
               e.preventDefault();
-              void actions.pause(agentId());
+              if (e.shiftKey) void actions.stop(agentId());
+              else void actions.pause(agentId());
             }
           }}
         />
         <div class="flex items-center gap-1.5 px-3 pb-2">
           <span class="flex-1" />
           <Show when={busy()}>
+            <ActionButton label="停" keys="⇧⌘." tone="danger" onClick={() => void actions.stop(agentId())} title="立刻掐断正在跑的模型调用和工具，写了一半的东西不落盘" />
             <ActionButton label="暂停" keys="⌘." tone="quiet" onClick={() => void actions.pause(agentId())} title="收尾当前这步，总结进度，然后停下来问你想怎么调整" />
             <ActionButton
               label="排队"
@@ -163,20 +166,21 @@ export function Composer(props: { agentId?: string }) {
   );
 }
 
-function ActionButton(props: { label: string; keys: string; tone: "primary" | "quiet"; disabled?: boolean; title?: string | undefined; onClick: () => void }) {
+function ActionButton(props: { label: string; keys: string; tone: "primary" | "quiet" | "danger"; disabled?: boolean; title?: string | undefined; onClick: () => void }) {
   return (
     <button
       class="h-7 pl-3 pr-2 rounded-md text-xs flex items-center gap-2 disabled:opacity-30"
       classList={{
         "bg-ink text-paper font-medium hover:brightness-110": props.tone === "primary",
         "text-ink-2 hover:text-ink hover:bg-paper-3": props.tone === "quiet",
+        "text-danger hover:bg-danger-soft": props.tone === "danger",
       }}
       disabled={props.disabled}
       title={props.title}
       onClick={props.onClick}
     >
       <span>{props.label}</span>
-      <kbd class="font-sans text-[10px] leading-4 px-1 rounded border" classList={{ "border-paper/30 text-paper/70": props.tone === "primary", "border-line-2 text-ink-3": props.tone === "quiet" }}>
+      <kbd class="font-sans text-[10px] leading-4 px-1 rounded border" classList={{ "border-paper/30 text-paper/70": props.tone === "primary", "border-line-2 text-ink-3": props.tone !== "primary" }}>
         {props.keys}
       </kbd>
     </button>
