@@ -13,10 +13,10 @@ export function Titlebar() {
         {(p) => <BookMenu name={p().name} />}
       </Show>
       <span class="flex-1" />
-      {/* 绝对定位居中，不受两侧内容宽度影响 */}
+      {/* 对边栏右侧的主区居中（边栏 232px，偏半个边栏宽），和对话列对齐 */}
       <Show when={state.project}>
         <button
-          class="no-drag absolute left-1/2 -translate-x-1/2 w-[320px] h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
+          class="no-drag absolute left-[calc(50%+116px)] -translate-x-1/2 w-[320px] h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
           onClick={() => setState("searchOpen", true)}
         >
           <SearchIcon />
