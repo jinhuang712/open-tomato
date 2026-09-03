@@ -1,5 +1,5 @@
 import { hasLongOptions, optionLabel, optionText, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
@@ -52,7 +52,11 @@ function answerOf(o: QuestionOption): string {
   return optionLabel(o);
 }
 
-export function QuestionDock(props: { request: QuestionRequest }) {
+export function QuestionDock(props: {
+  request: QuestionRequest;
+  /** 用户是否贴着消息流底部；不传就当作一直贴底（只有手动收起） */
+  following?: () => boolean;
+}) {
   const [text, setText] = createSignal("");
   const [open, setOpen] = createSignal(true);
   // 换了一个问题就重新展开，别让上一个问题的收起状态盖住新问题
@@ -60,6 +64,15 @@ export function QuestionDock(props: { request: QuestionRequest }) {
     props.request.questionId;
     setOpen(true);
   });
+  // 往上翻旧消息时卡片自动收成一行，别挡住正文；滚回底部再自动展开。
+  // 只在贴底状态切换的那一刻动一次，中间用户手动点开 / 收起都尊重。
+  createEffect(
+    on(
+      () => props.following?.() ?? true,
+      (f) => setOpen(f),
+      { defer: true },
+    ),
+  );
   const agent = () => state.agents[props.request.agentId];
   const long = () => hasLongOptions(props.request.options);
   const submit = () => {

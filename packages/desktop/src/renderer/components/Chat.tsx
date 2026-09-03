@@ -126,7 +126,7 @@ export function Chat(props: { agentId: string }) {
             </>
           }
         >
-          <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} /></div>}</Match>
+          <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} following={following} /></div>}</Match>
           <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
         </Switch>
       </div>
