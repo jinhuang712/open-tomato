@@ -37,6 +37,9 @@ type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
 
 const LEAD_ID = "lead";
 
+/** propose 轮发给子 agent 的开场说明：写工具已从会话里拿掉，别去试 */
+const PROPOSE_NOTICE = "【候选阶段：这一轮没有 write_doc / edit_doc，不要尝试落盘或写临时稿。把候选直接写在回复里交给主编，作者拍板后主编会让你接着落盘】";
+
 /** 界面 / 外部调用传来的 kind 先过一遍校验，别让 undefined 一路漏到 DOC_KINDS[kind] 上炸出 TypeError */
 function kindOf(v: unknown): DocKindId {
   const k = resolveKind(v);
@@ -425,8 +428,10 @@ export class Kernel {
       session,
       tools,
     );
-    this.setMode(live, task.mode ?? "commit");
-    return this.promptChild(live, task.task, onProgress, signal);
+    const mode = task.mode ?? "commit";
+    this.setMode(live, mode);
+    const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
+    return this.promptChild(live, prefix + task.task, onProgress, signal);
   }
 
   private async continueChild(
@@ -440,7 +445,7 @@ export class Kernel {
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
     if (mode) this.setMode(live, mode);
-    const prefix = mode === "commit" && live.mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : "";
+    const prefix = mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
     return this.promptChild(live, prefix + message, onProgress, signal);
   }
 
@@ -481,6 +486,7 @@ export class Kernel {
   // ───────────────────────── 事件转发 ─────────────────────────
 
   private setStatus(live: LiveAgent, status: AgentStatus, error: string | null = null) {
+    if (live.info.status === status && live.info.error === error) return;
     live.info.status = status;
     live.info.error = error;
     this.emit({ type: "agent.status", agentId: live.info.agentId, status, error });
