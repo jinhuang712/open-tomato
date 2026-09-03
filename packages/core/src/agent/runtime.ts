@@ -9,6 +9,7 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import type {
+  DocKindId,
   AgentInfo,
   AgentStatus,
   AgentStreamEvent,
@@ -22,7 +23,7 @@ import type {
 } from "../protocol.js";
 import { STUB_PATTERN, stubPrompt } from "../protocol.js";
 import { runCheck } from "../project/check.js";
-import { kindInfos } from "../project/kinds.js";
+import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
 import { migrateLegacySessions, ProjectStore } from "../project/store.js";
 import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
@@ -35,6 +36,13 @@ type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
 
 const LEAD_ID = "lead";
+
+/** 界面 / 外部调用传来的 kind 先过一遍校验，别让 undefined 一路漏到 DOC_KINDS[kind] 上炸出 TypeError */
+function kindOf(v: unknown): DocKindId {
+  const k = resolveKind(v);
+  if (!k) throw new Error(`未知的 kind：${String(v)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ")}`);
+  return k;
+}
 
 const PAUSE_PROMPT_LEAD = `【作者按了「暂停」】
 请立刻收尾，不要再开新的工具调用，也不要再派子 agent：
@@ -142,13 +150,13 @@ export class Kernel {
         return null;
       },
       "project.recent": async () => this.models.recentProjects,
-      "doc.read": async ({ kind, id }) => this.requireStore().read(kind, id),
+      "doc.read": async ({ kind, id }) => this.requireStore().read(kindOf(kind), id),
       "doc.write": async ({ kind, id, raw }) => {
-        const header = await this.requireStore().write(kind, id, raw);
+        const header = await this.requireStore().write(kindOf(kind), id, raw);
         await this.emitDocsChanged();
         return header;
       },
-      "doc.template": async ({ kind }) => this.requireStore().template(kind),
+      "doc.template": async ({ kind }) => this.requireStore().template(kindOf(kind)),
       "search.query": async ({ query, limit }) => (await this.searchIndex()).query(query, limit),
       "models.list": async () => this.models.state(),
       "models.select": async ({ provider, id, thinkingLevel }) => {
