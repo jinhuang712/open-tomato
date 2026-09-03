@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 const withStory = (story: string) => `---
-title: 立项简报
+title: 简介
 summary: 测试
 keywords: [立项]
 status: draft
@@ -34,22 +34,22 @@ ${story}
 `;
 
 describe("hasOneLineStory", () => {
-  test("新建项目的立项文档是「待填」，不过门", async () => {
+  test("新建项目的简介是「待填」，不过门", async () => {
     expect(await hasOneLineStory(store)).toBe(false);
   });
 
   test("段落有内容就过门", async () => {
-    await store.write("guide", "立项", withStory("落魄铸剑师为重铸镇国剑踏遍九州。"));
+    await store.write("brief", "简介", withStory("落魄铸剑师为重铸镇国剑踏遍九州。"));
     expect(await hasOneLineStory(store)).toBe(true);
   });
 
   test("段落为空不过门", async () => {
-    await store.write("guide", "立项", withStory(""));
+    await store.write("brief", "简介", withStory(""));
     expect(await hasOneLineStory(store)).toBe(false);
   });
 
-  test("立项文档不存在不过门", async () => {
-    await fs.rm(path.join(root, "守则", "立项.md"));
+  test("简介不存在不过门", async () => {
+    await fs.rm(path.join(root, "简介.md"));
     expect(await hasOneLineStory(store)).toBe(false);
   });
 });

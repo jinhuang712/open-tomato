@@ -18,10 +18,29 @@ afterEach(async () => {
 });
 
 describe("ProjectStore", () => {
-  test("create 建目录和守则", async () => {
+  test("create 建目录、预置简介，守则为空", async () => {
     expect(await ProjectStore.exists(root)).toBe(true);
-    const guides = await store.list("guide");
-    expect(guides.map((g) => g.id).sort()).toEqual(["偏好", "文风", "立项", "铁律"].sort());
+    const briefs = await store.list("brief");
+    expect(briefs.map((b) => b.path)).toEqual(["简介.md"]);
+    expect(briefs[0]!.progress).toEqual({ filled: 0, total: 7 });
+    expect(await store.list("rules")).toEqual([]);
+  });
+
+  test("简介是单例：任何 id 都落到 简介.md，填了几段就数几段", async () => {
+    expect(store.relPath("brief", "随便")).toBe("简介.md");
+    await store.write("brief", "", "---\ntitle: 简介\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n\n有了\n\n## 书名\n\n待定\n");
+    const [b] = await store.list("brief");
+    expect(b!.progress).toEqual({ filled: 1, total: 2 });
+  });
+
+  test("守则不传 id 自动编号", async () => {
+    const rule = (t: string) => `---\ntitle: ${t}\nsummary: s\nkeywords: []\nstatus: draft\nlevel: 必须\nscope: 对白\n---\n`;
+    const p1 = await store.previewWrite("rules", "", rule("主角不说脏话"));
+    expect(p1.path).toBe("守则/001.md");
+    await store.write("rules", p1.id, p1.after);
+    const p2 = await store.previewWrite("rules", "", rule("不写梦境开场"));
+    expect(p2.id).toBe("002");
+    expect(store.normalizeId("rules", "7")).toBe("007");
   });
 
   test("open 读回项目名", async () => {
@@ -36,10 +55,21 @@ describe("ProjectStore", () => {
     await fs.mkdir(path.join(legacy, "outline/chapters"), { recursive: true });
     await fs.mkdir(path.join(legacy, "guide"), { recursive: true });
     await fs.writeFile(path.join(legacy, "outline/chapters/0001.md"), "---\ntitle: 开局\nsummary: s\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\n---\n\nx\n");
-    await fs.writeFile(path.join(legacy, "guide/brief.md"), "---\ntitle: 立项简报\nsummary: s\nkeywords: []\nstatus: draft\n---\n\nx\n");
+    await fs.writeFile(path.join(legacy, "guide/brief.md"), "---\ntitle: 立项简报\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n\nx\n");
+    await fs.writeFile(path.join(legacy, "guide/rules.md"), "---\ntitle: 铁律\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 条目\n\n- 主角不能死\n- 不写穿越\n");
+    await fs.writeFile(path.join(legacy, "guide/style.md"), "---\ntitle: 文风\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 条目\n\n待定\n");
     const s = await ProjectStore.open(legacy);
     expect((await s.list("chapters")).map((h) => h.path)).toEqual(["章纲/0001.md"]);
-    expect((await s.list("guide")).map((h) => h.id)).toEqual(["立项"]);
+    const [brief] = await s.list("brief");
+    expect(brief!.path).toBe("简介.md");
+    expect(brief!.title).toBe("简介");
+    expect(brief!.progress).toEqual({ filled: 1, total: 1 });
+    const rules = await s.list("rules");
+    expect(rules.map((r) => [r.id, r.title, r.extra.level, r.extra.scope])).toEqual([
+      ["001", "主角不能死", "必须", "全局"],
+      ["002", "不写穿越", "必须", "全局"],
+    ]);
+    expect(await fs.readdir(path.join(legacy, "守则"))).toEqual(["001.md", "002.md"]);
     await fs.rm(legacy, { recursive: true, force: true });
   });
 
@@ -96,9 +126,10 @@ describe("ProjectStore", () => {
 });
 
 describe("runCheck", () => {
-  test("空项目只有守则的 warning", async () => {
+  test("空项目只有简介的 warning", async () => {
     const issues = await runCheck(store);
-    expect(issues.every((i) => i.kind === "guide")).toBe(true);
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.every((i) => i.kind === "brief" && i.level === "warning")).toBe(true);
   });
 
   test("章纲引用不存在的人物报 error", async () => {

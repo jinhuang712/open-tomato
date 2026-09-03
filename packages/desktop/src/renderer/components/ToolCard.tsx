@@ -3,6 +3,7 @@ import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { DispatchCard, ROLE_LABELS } from "./DispatchCard";
 import { DocLink } from "./DocLink";
+import { WebSearchCard } from "./WebSearchCard";
 
 type ToolPart = Extract<UiPart, { type: "tool" }>;
 
@@ -11,6 +12,7 @@ const LABELS: Record<string, string> = {
   list_docs: "列文档",
   read_doc: "读文档",
   search_docs: "搜文档",
+  web_search: "搜网络",
   doc_template: "拿模板",
   run_check: "一致性机检",
   write_doc: "写文档",
@@ -157,6 +159,9 @@ export function ToolCard(props: { part: ToolPart }) {
         </div>
       }
     >
+      <Match when={props.part.name === "web_search"}>
+        <WebSearchCard part={props.part} />
+      </Match>
       <Match when={props.part.name === "ask_user"}>
         <AskCard part={props.part} />
       </Match>

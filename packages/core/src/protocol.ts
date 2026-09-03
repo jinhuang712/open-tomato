@@ -12,13 +12,17 @@ export type DocKindId =
   | "volumes"
   | "chapters"
   | "manuscript"
-  | "guide";
+  | "brief"
+  | "rules";
 
 export interface DocKindInfo {
   id: DocKindId;
   label: string;
+  /** 存放目录；单例文档为 ""（文件直接放项目根） */
   dir: string;
   description: string;
+  /** 全书只有一份、路径即名字（如 简介.md），侧栏不展开 */
+  singleton?: boolean;
 }
 
 export interface DocHeader {
@@ -32,6 +36,8 @@ export interface DocHeader {
   status: string;
   /** 非通用字段原样透传 */
   extra: Record<string, unknown>;
+  /** 单例文档的填写进度：已填段 / 总段 */
+  progress?: { filled: number; total: number };
 }
 
 export interface DocContent extends DocHeader {

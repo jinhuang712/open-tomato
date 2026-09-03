@@ -7,6 +7,8 @@ export interface DocKind extends DocKindInfo {
   requiredFields: string[];
   /** 空白模板（完整文件文本，含 frontmatter） */
   template: string;
+  /** 不传 id 时由 store 分配下一个编号（一条一卡、只追加的类型） */
+  autoId?: boolean;
 }
 
 const slug = (id: string) =>
@@ -29,6 +31,43 @@ summary: 待填
 keywords: []
 status: draft
 ${extra}---
+`;
+
+/** 简介的空白稿（立项时预置在项目根 简介.md） */
+export const BRIEF_SEED_BODY = `---
+title: 简介
+summary: 书名、一句话故事、题材、平台、读者画像等立项答案
+keywords: [立项]
+status: draft
+---
+
+## 一句话故事
+
+待填
+
+## 题材与平台
+
+待填
+
+## 读者画像
+
+待填
+
+## 主角优势
+
+待填
+
+## 总规模
+
+待填
+
+## 人称与视角
+
+待填
+
+## 书名
+
+待定
 `;
 
 export const DOC_KINDS: Record<DocKindId, DocKind> = {
@@ -197,17 +236,42 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
 待填
 `,
   },
-  guide: {
-    id: "guide",
-    label: "写作守则",
-    dir: "守则",
-    description: "立项（立项答案）/ 文风 / 铁律（用户说绝不）/ 偏好（用户说尽量）。只追加、整份读。",
-    normalizeId: slug,
+  brief: {
+    id: "brief",
+    label: "简介",
+    dir: "",
+    singleton: true,
+    description: "这本书是什么：一句话故事、题材平台、读者画像、书名等立项答案。全书一份，七段，可改写。",
+    normalizeId: () => "简介",
     requiredFields: [],
-    template: `${common("")}
-## 条目
+    template: BRIEF_SEED_BODY,
+  },
+  rules: {
+    id: "rules",
+    label: "守则",
+    dir: "守则",
+    description:
+      "怎么写这本书：一条一卡，title 就是规则本身。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
+    normalizeId: padded(3),
+    autoId: true,
+    requiredFields: ["level", "scope"],
+    template: `---
+title: 待填  # 一句话就是规则本身，例如「主角不说脏话」
+summary: 待填
+keywords: []
+status: draft
+level: 待填  # 必须 / 尽量
+scope: 待填  # 文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局
+source: 待填  # 作者原话或来源
+---
 
-待定
+## 展开
+
+待定（规则的边界、例外）
+
+## 例子
+
+待定（正例 / 反例）
 `,
   },
 };
@@ -222,6 +286,7 @@ export function isDocKindId(v: unknown): v is DocKindId {
 export function resolveKind(v: unknown): DocKindId | null {
   if (typeof v !== "string") return null;
   const s = v.trim().replace(/\/$/, "");
+  if (s === "") return null;
   if (isDocKindId(s)) return s;
   for (const k of DOC_KIND_IDS) {
     const d = DOC_KINDS[k];
@@ -231,7 +296,7 @@ export function resolveKind(v: unknown): DocKindId | null {
 }
 
 /** 老布局（英文目录 / 英文守则文件名）→ 现布局，给 ProjectStore.open 做迁移用 */
-export const LEGACY_DIRS: Record<DocKindId, string> = {
+export const LEGACY_DIRS: Partial<Record<DocKindId, string>> = {
   world: "world",
   characters: "characters",
   threads: "threads",
@@ -239,85 +304,14 @@ export const LEGACY_DIRS: Record<DocKindId, string> = {
   volumes: "outline/volumes",
   chapters: "outline/chapters",
   manuscript: "manuscript",
-  guide: "guide",
+  rules: "guide",
 };
+/** 更老的英文守则文件名 → 中文文件名（都在 守则/ 下），再由 migrateGuide 拆成 简介 + 守则条目 */
 export const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
 
 export function kindInfos(): DocKindInfo[] {
   return DOC_KIND_IDS.map((k) => {
-    const { id, label, dir, description } = DOC_KINDS[k];
-    return { id, label, dir, description };
+    const { id, label, dir, description, singleton } = DOC_KINDS[k];
+    return { id, label, dir, description, ...(singleton ? { singleton } : {}) };
   });
 }
-
-/** 立项时预置的守则文件 */
-export const GUIDE_SEEDS: Record<string, string> = {
-  立项: `---
-title: 立项简报
-summary: 书名、一句话故事、题材、平台、读者画像等立项答案
-keywords: [立项]
-status: draft
----
-
-## 一句话故事
-
-待填
-
-## 题材与平台
-
-待填
-
-## 读者画像
-
-待填
-
-## 主角优势
-
-待填
-
-## 总规模
-
-待填
-
-## 人称与视角
-
-待填
-
-## 书名
-
-待定
-`,
-  文风: `---
-title: 文风
-summary: 句式、节奏、叙述距离、禁用表达
-keywords: [文风]
-status: draft
----
-
-## 条目
-
-待定
-`,
-  铁律: `---
-title: 铁律
-summary: 用户明确说过“绝不 / 不能 / 禁止”的事，逐条追加
-keywords: [铁律]
-status: draft
----
-
-## 条目
-
-待定
-`,
-  偏好: `---
-title: 偏好
-summary: 用户说过“尽量 / 可以 / 更喜欢”的事，逐条追加
-keywords: [偏好]
-status: draft
----
-
-## 条目
-
-待定
-`,
-};

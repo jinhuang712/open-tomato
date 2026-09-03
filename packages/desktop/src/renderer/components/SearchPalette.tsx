@@ -3,7 +3,7 @@ import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Sh
 import { bridge } from "../bridge";
 import { actions, errText, setState, state, toast } from "../state";
 
-const ORDER: DocKindId[] = ["characters", "world", "threads", "milestones", "volumes", "chapters", "manuscript", "guide"];
+const ORDER: DocKindId[] = ["characters", "world", "threads", "milestones", "volumes", "chapters", "manuscript", "rules", "brief"];
 
 /** 把命中的查询词高亮成 <mark>，只做纯文本层面的替换 */
 function highlight(text: string, q: string): string {

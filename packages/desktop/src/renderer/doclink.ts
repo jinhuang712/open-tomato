@@ -24,10 +24,15 @@ const ALIASES: Record<string, DocKindId> = {
   章纲: "chapters",
   manuscript: "manuscript",
   正文: "manuscript",
-  guide: "guide",
-  守则: "guide",
+  guide: "rules",
+  守则: "rules",
 };
 
+/** 单例文档没有 目录/id 形式，路径就是名字 */
+const SINGLETONS: Record<string, DocKindId> = { 简介: "brief" };
+const SINGLETON_ALTERNATION = Object.keys(SINGLETONS).join("|");
+
+/** 老会话里的守则引用：英文 id → 中文；「守则/立项」现在是 简介 */
 const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style: "文风", rules: "铁律", preferences: "偏好" };
 
 const DIR_ALTERNATION = Object.keys(ALIASES)
@@ -59,21 +64,35 @@ function refPattern(): RegExp {
   if (cachedRef && key === cacheKey) return cachedRef;
   cacheKey = key;
   const idAlt = ids.length > 0 ? ids.map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
-  cachedRef = new RegExp(`(?<![\\w/.\\-\\p{Script=Han}])(${DIR_ALTERNATION})\\/(${idAlt})(\\.md)?(?![\\w/.\\-])`, "gu");
+  cachedRef = new RegExp(
+    `(?<![\\w/.\\-\\p{Script=Han}])(?:(${DIR_ALTERNATION})\\/(${idAlt})|(${SINGLETON_ALTERNATION}))(\\.md)?(?![\\w/.\\-\\p{Script=Han}])`,
+    "gu",
+  );
   return cachedRef;
 }
 
-/** 给人看的路径：中文目录/id */
+/** 给人看的路径：中文目录/名字。单例只有名字；编号类（守则）用 title 代替编号，对外只有一个名字 */
 export function displayPath(kind: DocKindId | string, id: string): string {
   const dir = state.kinds.find((k) => k.id === kind)?.dir ?? kind;
-  return `${dir}/${id}`;
+  if (dir === "") return id;
+  const shownId = kind === "rules" ? (state.docs.find((d) => d.kind === kind && d.id === id)?.title ?? id) : id;
+  return `${dir}/${shownId}`;
+}
+
+/** 正则命中的三个分组 → 文档引用 */
+function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined): DocRef | null {
+  if (single !== undefined) {
+    const kind = SINGLETONS[single];
+    return kind ? { kind, id: single } : null;
+  }
+  const kind = dir !== undefined ? ALIASES[dir] : undefined;
+  return kind && id !== undefined ? { kind, id } : null;
 }
 
 export function parseDocRef(text: string): DocRef | null {
   const m = new RegExp(refPattern().source, "u").exec(text.trim());
   if (!m || m[0] !== text.trim()) return null;
-  const kind = ALIASES[m[1]!];
-  return kind ? { kind, id: m[2]! } : null;
+  return refFromMatch(m[1], m[2], m[3]);
 }
 
 /** 把 HTML 里出现的 目录/id 引用包成可点的链接（只碰文本，不碰标签属性） */
@@ -82,11 +101,11 @@ export function linkifyDocRefs(html: string): string {
     .split(/(<[^>]+>)/g)
     .map((chunk) => {
       if (chunk.startsWith("<")) return chunk;
-      return chunk.replace(refPattern(), (whole, dir: string, id: string) => {
-        const kind = ALIASES[dir];
-        if (!kind) return whole;
-        const shown = escapeHtml(displayPath(kind, id));
-        return `<a class="doc-link" data-doc="${escapeHtml(`${kind}/${id}`)}" title="打开 ${shown}">${shown}</a>`;
+      return chunk.replace(refPattern(), (whole, dir: string | undefined, id: string | undefined, single: string | undefined) => {
+        const ref = refFromMatch(dir, id, single);
+        if (!ref) return whole;
+        const shown = escapeHtml(displayPath(ref.kind, ref.id));
+        return `<a class="doc-link" data-doc="${escapeHtml(`${ref.kind}/${ref.id}`)}" title="打开 ${shown}">${shown}</a>`;
       });
     })
     .join("")
@@ -96,9 +115,11 @@ export function linkifyDocRefs(html: string): string {
 /** 芯片自己就是可点的块，外面再套一层「」显得多余 */
 const WRAPPED_LINK = /[「『“"]\s*(<a class="doc-link"[^>]*>[^<]*<\/a>)\s*[」』”"]/g;
 
-/** 老会话里还会出现英文守则 id，点开时映射到中文 */
-export function resolveLegacyId(kind: DocKindId, id: string): string {
-  return kind === "guide" ? (LEGACY_GUIDE_IDS[id] ?? id) : id;
+/** 老会话里还会出现英文守则 id 和「守则/立项」，点开时映射到现在的文档 */
+export function resolveLegacyRef(kind: DocKindId, id: string): DocRef {
+  if (kind !== "rules") return { kind, id };
+  const zh = LEGACY_GUIDE_IDS[id] ?? id;
+  return zh === "立项" ? { kind: "brief", id: "简介" } : { kind, id: zh };
 }
 
 /** 全局委托：点到 a[data-doc] 就打开文档 */
@@ -111,8 +132,8 @@ export function installDocLinkHandler(): () => void {
     if (slash < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const kind = ref.slice(0, slash) as DocKindId;
-    actions.openDoc(kind, resolveLegacyId(kind, ref.slice(slash + 1)));
+    const dest = resolveLegacyRef(ref.slice(0, slash) as DocKindId, ref.slice(slash + 1));
+    actions.openDoc(dest.kind, dest.id);
   };
   document.addEventListener("click", handler);
   return () => document.removeEventListener("click", handler);

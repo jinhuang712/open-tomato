@@ -3,7 +3,8 @@ import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
 import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, frontmatterProblem } from "./frontmatter.js";
-import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
+import { PLACEHOLDER } from "./check.js";
+import { BRIEF_SEED_BODY, DOC_KIND_IDS, DOC_KINDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
 import { settingsPath } from "./settings.js";
 
 const MARKER_DIR = ".opentomato";
@@ -83,15 +84,13 @@ export class ProjectStore {
     if (await ProjectStore.exists(root)) throw new Error(`已经是一个项目：${root}`);
     const info: ProjectInfo = { root, name: name.trim() || path.basename(root), createdAt: new Date().toISOString() };
     await fs.mkdir(path.join(root, MARKER_DIR), { recursive: true });
-    for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
+    await ensureKindDirs(root);
     await fs.writeFile(
       ProjectStore.markerPath(root),
       `${JSON.stringify({ format: PROJECT_FORMAT, ...info }, null, 2)}\n`,
       "utf8",
     );
-    for (const [id, raw] of Object.entries(GUIDE_SEEDS)) {
-      await fs.writeFile(path.join(root, DOC_KINDS.guide.dir, `${id}.md`), raw, "utf8");
-    }
+    await fs.writeFile(path.join(root, DOC_KINDS.brief.dir, `${DOC_KINDS.brief.normalizeId("")}.md`), BRIEF_SEED_BODY, "utf8");
     await ensureMarkerDir(root);
     return new ProjectStore(info);
   }
@@ -103,7 +102,7 @@ export class ProjectStore {
     const parsed = JSON.parse(raw) as Partial<ProjectInfo> & { format?: number };
     if (parsed.format !== PROJECT_FORMAT) throw new Error(`项目格式版本不匹配：${String(parsed.format)}`);
     await migrateLegacyLayout(root);
-    for (const k of DOC_KIND_IDS) await fs.mkdir(path.join(root, DOC_KINDS[k].dir), { recursive: true });
+    await ensureKindDirs(root);
     await ensureMarkerDir(root);
     return new ProjectStore({
       root,
@@ -131,7 +130,24 @@ export class ProjectStore {
   // ───────────── 读 ─────────────
 
   async list(kind: DocKindId): Promise<DocHeader[]> {
-    const dir = path.join(this.info.root, DOC_KINDS[kind].dir);
+    const out: DocHeader[] = [];
+    for (const { id, abs } of await this.files(kind)) {
+      const raw = await fs.readFile(abs, "utf8").catch(() => null);
+      if (raw === null) continue;
+      out.push(this.toHeader(kind, id, raw));
+    }
+    return out;
+  }
+
+  /** 某类下所有文档的 id 与绝对路径，按 id 排序；单例只看那一个文件，不扫项目根 */
+  private async files(kind: DocKindId): Promise<Array<{ id: string; abs: string }>> {
+    const def = DOC_KINDS[kind];
+    if (def.singleton) {
+      const id = def.normalizeId("");
+      const abs = this.absPath(kind, id);
+      return (await fs.access(abs).then(() => true, () => false)) ? [{ id, abs }] : [];
+    }
+    const dir = path.join(this.info.root, def.dir);
     let names: string[] = [];
     try {
       names = (await fs.readdir(dir)).filter((n) => n.endsWith(".md") && !n.startsWith("."));
@@ -139,14 +155,13 @@ export class ProjectStore {
       return [];
     }
     names.sort();
-    const out: DocHeader[] = [];
-    for (const n of names) {
-      const id = n.slice(0, -3);
-      const raw = await fs.readFile(path.join(dir, n), "utf8").catch(() => null);
-      if (raw === null) continue;
-      out.push(this.toHeader(kind, id, raw));
-    }
-    return out;
+    return names.map((n) => ({ id: n.slice(0, -3), abs: path.join(dir, n) }));
+  }
+
+  /** 自动编号类型的下一个 id：现有最大编号 + 1 */
+  async nextId(kind: DocKindId): Promise<string> {
+    const max = (await this.files(kind)).reduce((m, f) => Math.max(m, Number(f.id) || 0), 0);
+    return DOC_KINDS[kind].normalizeId(String(max + 1));
   }
 
   async listAll(): Promise<DocHeader[]> {
@@ -175,17 +190,10 @@ export class ProjectStore {
     if (q === "") return [];
     const hits: Array<{ score: number; h: DocHeader }> = [];
     for (const k of DOC_KIND_IDS) {
-      const dir = path.join(this.info.root, DOC_KINDS[k].dir);
-      let names: string[] = [];
-      try {
-        names = (await fs.readdir(dir)).filter((n) => n.endsWith(".md"));
-      } catch {
-        continue;
-      }
-      for (const n of names) {
-        const raw = await fs.readFile(path.join(dir, n), "utf8").catch(() => null);
+      for (const { id, abs } of await this.files(k)) {
+        const raw = await fs.readFile(abs, "utf8").catch(() => null);
         if (raw === null) continue;
-        const h = this.toHeader(k, n.slice(0, -3), raw);
+        const h = this.toHeader(k, id, raw);
         let score = 0;
         if (h.id.toLowerCase().includes(q) || h.title.toLowerCase().includes(q)) score += 10;
         if (h.keywords.some((kw) => kw.toLowerCase().includes(q))) score += 6;
@@ -206,7 +214,7 @@ export class ProjectStore {
 
   async previewWrite(kind: DocKindId, id: string, after: string): Promise<WritePreview> {
     this.assertWritable(after);
-    const nid = this.normalizeId(kind, id);
+    const nid = DOC_KINDS[kind].autoId && id.trim() === "" ? await this.nextId(kind) : this.normalizeId(kind, id);
     const rel = this.relPath(kind, nid);
     const before = (await fs.readFile(this.absPath(kind, nid), "utf8").catch(() => null)) ?? "";
     const normalized = after.endsWith("\n") ? after : `${after}\n`;
@@ -243,7 +251,7 @@ export class ProjectStore {
   private toHeader(kind: DocKindId, id: string, raw: string): DocHeader {
     const { frontmatter } = parseFrontmatter(raw);
     const { title, summary, keywords, status, ...extra } = frontmatter;
-    return {
+    const header: DocHeader = {
       kind,
       id,
       path: this.relPath(kind, id),
@@ -253,6 +261,20 @@ export class ProjectStore {
       status: asString(status, "draft"),
       extra,
     };
+    if (DOC_KINDS[kind].singleton) {
+      const sections = splitSections(parseFrontmatter(raw).body).filter((s) => s.heading);
+      const filled = sections.filter((s) => s.content.trim() !== "" && s.content.trim() !== "待定" && !s.content.includes(PLACEHOLDER)).length;
+      header.progress = { filled, total: sections.length };
+    }
+    return header;
+  }
+}
+
+/** 每类一个目录；单例（dir 为空）不建目录 */
+async function ensureKindDirs(root: string) {
+  for (const k of DOC_KIND_IDS) {
+    const dir = DOC_KINDS[k].dir;
+    if (dir !== "") await fs.mkdir(path.join(root, dir), { recursive: true });
   }
 }
 
@@ -260,7 +282,9 @@ export class ProjectStore {
 async function migrateLegacyLayout(root: string) {
   const exists = (p: string) => fs.access(p).then(() => true, () => false);
   for (const k of DOC_KIND_IDS) {
-    const from = path.join(root, LEGACY_DIRS[k]);
+    const legacy = LEGACY_DIRS[k];
+    if (legacy === undefined) continue;
+    const from = path.join(root, legacy);
     const to = path.join(root, DOC_KINDS[k].dir);
     if (from === to || !(await exists(from))) continue;
     await fs.mkdir(path.dirname(to), { recursive: true });
@@ -274,12 +298,65 @@ async function migrateLegacyLayout(root: string) {
     }
   }
   await fs.rmdir(path.join(root, "outline")).catch(() => {});
-  const guideDir = path.join(root, DOC_KINDS.guide.dir);
+  const guideDir = path.join(root, DOC_KINDS.rules.dir);
   for (const [en, zh] of Object.entries(LEGACY_GUIDE_IDS)) {
     const from = path.join(guideDir, `${en}.md`);
     const to = path.join(guideDir, `${zh}.md`);
     if ((await exists(from)) && !(await exists(to))) await fs.rename(from, to);
   }
+  await migrateGuide(root);
+}
+
+/** 旧守则四份 → 简介.md + 守则/ 一条一卡 */
+const LEGACY_GUIDE_RULES: Record<string, { level: string; scope: string }> = {
+  铁律: { level: "必须", scope: "全局" },
+  偏好: { level: "尽量", scope: "全局" },
+  文风: { level: "尽量", scope: "文字" },
+};
+
+/**
+ * 守则/立项.md 搬到项目根 简介.md；铁律 / 偏好 / 文风 三份按行拆成守则条目。
+ * 只在旧文件存在时动，搬过就不再重复。
+ */
+async function migrateGuide(root: string) {
+  const exists = (p: string) => fs.access(p).then(() => true, () => false);
+  const rulesDir = path.join(root, DOC_KINDS.rules.dir);
+  const legacyBrief = path.join(rulesDir, "立项.md");
+  const brief = path.join(root, `${DOC_KINDS.brief.normalizeId("")}.md`);
+  if (await exists(legacyBrief)) {
+    if (!(await exists(brief))) {
+      const raw = await fs.readFile(legacyBrief, "utf8");
+      await fs.writeFile(brief, raw.replace(/^title:\s*立项简报\s*$/m, "title: 简介"), "utf8");
+    }
+    await fs.unlink(legacyBrief);
+  }
+  let next = 1;
+  for (const n of (await fs.readdir(rulesDir).catch(() => [] as string[])).filter((n) => /^\d+\.md$/.test(n))) {
+    next = Math.max(next, Number(n.slice(0, -3)) + 1);
+  }
+  for (const [name, meta] of Object.entries(LEGACY_GUIDE_RULES)) {
+    const file = path.join(rulesDir, `${name}.md`);
+    if (!(await exists(file))) continue;
+    const { body } = parseFrontmatter(await fs.readFile(file, "utf8"));
+    for (const item of legacyGuideItems(body)) {
+      const id = DOC_KINDS.rules.normalizeId(String(next++));
+      const raw = `---\ntitle: ${yamlScalar(item)}\nsummary: 待填\nkeywords: []\nstatus: draft\nlevel: ${meta.level}\nscope: ${meta.scope}\nsource: 迁移自旧 守则/${name}\n---\n`;
+      await fs.writeFile(path.join(rulesDir, `${id}.md`), raw, "utf8");
+    }
+    await fs.unlink(file);
+  }
+}
+
+/** 旧守则正文里的条目：列表项和普通文字行都算一条，标题 / 空行 / 「待定」「待填」不算 */
+function legacyGuideItems(body: string): string[] {
+  return body
+    .split("\n")
+    .map((l) => l.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, "").trim())
+    .filter((l) => l !== "" && !l.startsWith("#") && l !== "待定" && l !== PLACEHOLDER);
+}
+
+function yamlScalar(s: string): string {
+  return /^[\p{L}\p{N}][^#:\[\]{}"'`]*$/u.test(s) ? s : JSON.stringify(s);
 }
 
 /** 建 .opentomato/sessions/lead 与 .gitignore（已有的不覆盖） */
