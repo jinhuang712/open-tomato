@@ -3,13 +3,23 @@
  * 在 Electron utilityProcess 里通过 process.parentPort 收发；
  * 直接 `node dist/server.js` 跑时退化为 stdin / stdout JSONL，方便终端调试。
  */
+import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Kernel } from "./agent/runtime.js";
 import type { Outbound, RequestEnvelope } from "./protocol.js";
 
-const VERSION = "0.1.0";
+/** 版本只在 package.json 维护一份，这里读出来 */
+const VERSION = (() => {
+  try {
+    const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+    return (JSON.parse(readFileSync(pkg, "utf8")) as { version?: string }).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
 
 interface ParentPort {
   on(event: "message", listener: (e: { data: unknown }) => void): void;
