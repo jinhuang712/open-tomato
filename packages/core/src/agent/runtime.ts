@@ -14,6 +14,8 @@ import type {
   AgentStatus,
   AgentStreamEvent,
   CheckIssue,
+  DispatchDetails,
+  DispatchSlot,
   KernelEvent,
   RequestMap,
   RequestMethod,
@@ -30,7 +32,16 @@ import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
 import { ROLES, STATUS_LINE_PATTERN, STATUS_LINE_RULE, roleInfos } from "./roles.js";
-import { createTools, type SpawnMode, type SpawnTask, type ToolContext, toolNames, WRITE_TOOL_NAMES } from "./tools.js";
+import {
+  createTools,
+  type DispatchProgress,
+  type DispatchResult,
+  type SpawnMode,
+  type SpawnTask,
+  type ToolContext,
+  toolNames,
+  WRITE_TOOL_NAMES,
+} from "./tools.js";
 
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
@@ -407,20 +418,36 @@ export class Kernel {
 
   // ───────────────────────── 子 agent ─────────────────────────
 
-  private async spawn(
-    parentId: string,
-    tasks: SpawnTask[],
-    onProgress: (text: string) => void,
-    signal?: AbortSignal,
-  ): Promise<string> {
-    const results = await Promise.all(tasks.map((t) => this.runChild(parentId, t, onProgress, signal)));
-    return results.join("\n\n");
+  /**
+   * 派单名册：一次 spawn 里所有人共用一份，谁变了就整份回传。
+   * 多人并行时进度不会互相覆盖，渲染层也能拿到每个人的 agentId 去跳会话。
+   */
+  private roster(slots: DispatchSlot[], onProgress: DispatchProgress) {
+    const snapshot = (): DispatchDetails => ({ slots: slots.map((x) => ({ ...x })) });
+    const line = (x: DispatchSlot) =>
+      x.status === "running" ? `${x.label} 开始` : x.status === "done" ? `${x.label} 完成` : x.status === "error" ? `${x.label} 失败：${x.error ?? ""}` : x.label;
+    return {
+      snapshot,
+      touch(slot: DispatchSlot, status: DispatchSlot["status"], error: string | null = null) {
+        slot.status = status;
+        slot.error = error;
+        onProgress(slots.map(line).join("\n"), snapshot());
+      },
+    };
+  }
+
+  private async spawn(parentId: string, tasks: SpawnTask[], onProgress: DispatchProgress, signal?: AbortSignal): Promise<DispatchResult> {
+    const slots: DispatchSlot[] = [];
+    const roster = this.roster(slots, onProgress);
+    const texts = await Promise.all(tasks.map((t) => this.runChild(parentId, t, slots, roster, signal)));
+    return { text: texts.join("\n\n"), details: roster.snapshot() };
   }
 
   private async runChild(
     parentId: string,
     task: SpawnTask,
-    onProgress: (text: string) => void,
+    slots: DispatchSlot[],
+    roster: ReturnType<Kernel["roster"]>,
     signal?: AbortSignal,
   ): Promise<string> {
     const store = this.requireStore();
@@ -434,23 +461,28 @@ export class Kernel {
     );
     const mode = task.mode ?? "commit";
     this.setMode(live, mode);
+    const slot: DispatchSlot = { agentId, role: task.role, label: def.label, task: task.task, status: "running", error: null };
+    slots.push(slot);
     const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
-    return this.promptChild(live, prefix + task.task, onProgress, signal);
+    return this.promptChild(live, prefix + task.task, slot, roster, signal);
   }
 
   private async continueChild(
     childId: string,
     message: string,
     mode: SpawnMode | undefined,
-    onProgress: (text: string) => void,
+    onProgress: DispatchProgress,
     signal?: AbortSignal,
-  ): Promise<string> {
+  ): Promise<DispatchResult> {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
     if (mode) this.setMode(live, mode);
     const prefix = mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
-    return this.promptChild(live, prefix + message, onProgress, signal);
+    const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
+    const roster = this.roster([slot], onProgress);
+    const text = await this.promptChild(live, prefix + message, slot, roster, signal);
+    return { text, details: roster.snapshot() };
   }
 
   /**
@@ -464,23 +496,30 @@ export class Kernel {
   }
 
   /** 给子 agent 发一轮消息，等它跑完，把最后一段文字结论交回主编。会话跑完不退场，留给续接。 */
-  private async promptChild(live: LiveAgent, message: string, onProgress: (text: string) => void, signal?: AbortSignal): Promise<string> {
+  private async promptChild(
+    live: LiveAgent,
+    message: string,
+    slot: DispatchSlot,
+    roster: ReturnType<Kernel["roster"]>,
+    signal?: AbortSignal,
+  ): Promise<string> {
     const { session, info } = live;
     const header = `## ${info.label}（${info.role}，id=${info.agentId}）`;
     const onAbort = () => void session.abort().catch(() => {});
     signal?.addEventListener("abort", onAbort, { once: true });
-    onProgress(`${info.label} 开始`);
+    this.setStatus(live, "running");
+    roster.touch(slot, "running");
     try {
       await session.prompt(message);
       if (signal?.aborted) throw new Error("已中止");
       const answer = lastAssistantText(session.messages as unknown[]);
       this.setStatus(live, "done");
-      onProgress(`${info.label} 完成`);
+      roster.touch(slot, "done");
       return `${header}\n\n${answer || "（没有文字结论）"}`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
-      onProgress(`${info.label} 失败：${msg}`);
+      roster.touch(slot, "error", msg);
       return `${header}\n\n执行失败：${msg}`;
     } finally {
       signal?.removeEventListener("abort", onAbort);

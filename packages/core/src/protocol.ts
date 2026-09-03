@@ -182,6 +182,20 @@ export interface AgentInfo {
   statusText: string;
 }
 
+/** spawn_agents / continue_agent 工具的 details：这张派单上每个人是谁、干到哪。渲染层靠它跳会话、显示进度 */
+export interface DispatchSlot {
+  agentId: string;
+  role: RoleId;
+  label: string;
+  task: string;
+  status: AgentStatus;
+  error: string | null;
+}
+
+export interface DispatchDetails {
+  slots: DispatchSlot[];
+}
+
 export type AgentStreamEvent =
   | { type: "message_start"; message: UiMessage }
   | { type: "text_delta"; messageId: string; delta: string }

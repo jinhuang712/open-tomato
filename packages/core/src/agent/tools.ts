@@ -1,6 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import type { CheckIssue, DocKindId, RoleId, SearchHit } from "../protocol.js";
+import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { applyEdits } from "../project/edits.js";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../project/kinds.js";
@@ -24,6 +24,13 @@ export interface SpawnTask {
   mode?: SpawnMode;
 }
 
+/** 派单过程中每次有人开始/完成/失败都回调一次：text 是给模型看的进度，details 是给渲染层的名册 */
+export type DispatchProgress = (text: string, details: DispatchDetails) => void;
+export interface DispatchResult {
+  text: string;
+  details: DispatchDetails;
+}
+
 export interface ToolContext {
   store: ProjectStore;
   gate: Gate;
@@ -32,9 +39,9 @@ export interface ToolContext {
   onDocsChanged: () => void;
   search: (query: string, limit?: number) => Promise<SearchHit[]>;
   /** 只有能派单的角色才有 */
-  spawn?: (tasks: SpawnTask[], onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
+  spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
   /** 续接一个还活着的子 agent，把新消息发给它并等它这一轮的结论；mode 给了就切换它的落盘权限 */
-  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: (text: string) => void, signal?: AbortSignal) => Promise<string>;
+  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
 }
@@ -394,8 +401,8 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           if (tasks.some((t) => STORY_GATED_ROLES.has(t.role)) && !(await hasOneLineStory(store))) {
             throw new Error(ONE_LINE_STORY_GATE_MESSAGE);
           }
-          const result = await spawn(tasks, (progress) => onUpdate?.(text(progress)), signal);
-          return text(result);
+          const result = await spawn(tasks, (progress, details) => onUpdate?.({ ...text(progress), details }), signal);
+          return { ...text(result.text), details: result.details };
         },
       }),
     );
@@ -415,8 +422,8 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "要切换它的落盘权限时给：拍板后让它落盘就传 commit；不传保持原样" })),
         }),
         execute: async (_id, params, signal, onUpdate) => {
-          const result = await continueAgent(params.agentId, params.message, params.mode, (progress) => onUpdate?.(text(progress)), signal);
-          return text(result);
+          const result = await continueAgent(params.agentId, params.message, params.mode, (progress, details) => onUpdate?.({ ...text(progress), details }), signal);
+          return { ...text(result.text), details: result.details };
         },
       }),
     );
