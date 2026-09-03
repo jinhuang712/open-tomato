@@ -15,12 +15,87 @@ function splitDoc(raw: string): { meta: Record<string, string>; body: string } {
   return { meta, body: (m[2] ?? "").replace(/^\r?\n/, "") };
 }
 
-const META_LABELS: Record<string, string> = {
-  title: "标题",
-  summary: "摘要",
-  keywords: "关键词",
-  status: "状态",
-};
+/** 关键词是 [a, b] 形式的行内列表，拆成芯片 */
+function listOf(v: string | undefined): string[] {
+  if (!v) return [];
+  const m = /^\[(.*)\]$/.exec(v.trim());
+  return (m ? m[1]! : v)
+    .split(/[,，]/)
+    .map((x) => x.trim().replace(/^["']|["']$/g, ""))
+    .filter(Boolean);
+}
+
+/** 头信息里同一个位置的旧值 / 新值：变了就旧的划掉、新的标绿；没变原样 */
+function Tracked(props: { from: string | undefined; to: string | undefined; isNew: boolean; class?: string }) {
+  const same = () => props.from === props.to;
+  return (
+    <span class={props.class}>
+      <Show when={!same() && props.from}>
+        <del class="tc-del">{props.from}</del>
+      </Show>
+      <Show when={!same() && props.from && props.to}>
+        <span class="text-ink-3 mx-1"> </span>
+      </Show>
+      <Show when={props.to}>
+        <Show when={same() && !props.isNew} fallback={<ins class="tc-ins">{props.to}</ins>}>
+          {props.to}
+        </Show>
+      </Show>
+    </span>
+  );
+}
+
+/**
+ * 头部和文档阅读页同一个样子：标题、摘要、一排芯片（状态、关键词、其余字段）。
+ * 芯片增删按 ins/del 标：删掉的芯片划掉，新加的标绿；改了值的字段旧芯片划掉、新芯片标绿。
+ */
+function MetaHead(props: { before: Record<string, string>; after: Record<string, string>; isNew: boolean }) {
+  const chips = createMemo(() => {
+    const b = props.before;
+    const a = props.after;
+    const out: { text: string; state: "same" | "ins" | "del"; dim: boolean }[] = [];
+    const push = (text: string, state: "same" | "ins" | "del", dim = false) => out.push({ text, state: state === "same" && props.isNew ? "ins" : state, dim });
+    if (b.status !== a.status) {
+      if (b.status) push(b.status, "del");
+      if (a.status) push(a.status, "ins");
+    } else if (a.status) push(a.status, "same");
+    const kb = listOf(b.keywords);
+    const ka = listOf(a.keywords);
+    for (const k of kb) if (!ka.includes(k)) push(k, "del");
+    for (const k of ka) push(k, kb.includes(k) ? "same" : "ins");
+    const skip = new Set(["title", "summary", "keywords", "status"]);
+    const keys = [...new Set([...Object.keys(b), ...Object.keys(a)])].filter((k) => !skip.has(k));
+    for (const k of keys) {
+      if (b[k] === a[k]) push(`${k}=${a[k]}`, "same", true);
+      else {
+        if (b[k] !== undefined) push(`${k}=${b[k]}`, "del", true);
+        if (a[k] !== undefined) push(`${k}=${a[k]}`, "ins", true);
+      }
+    }
+    return out;
+  });
+  return (
+    <div class="mb-5">
+      <h1 class="font-serif text-xl mb-1">
+        <Tracked from={props.before.title} to={props.after.title} isNew={props.isNew} />
+      </h1>
+      <div class="text-ink-2 mb-1">
+        <Tracked from={props.before.summary} to={props.after.summary} isNew={props.isNew} />
+      </div>
+      <div class="flex flex-wrap gap-1.5 text-xs">
+        <For each={chips()}>
+          {(c) => (
+            <span class={`px-1.5 rounded ${c.dim ? "bg-paper-2 text-ink-3" : "bg-paper-3 text-ink-2"}`}>
+              <Show when={c.state === "same"} fallback={c.state === "ins" ? <ins class="tc-ins">{c.text}</ins> : <del class="tc-del">{c.text}</del>}>
+                {c.text}
+              </Show>
+            </span>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+}
 
 // 私用区字符当标记，先混进 markdown 源文本，渲染完再换成 <ins>/<del>
 const INS_OPEN = "";
@@ -149,28 +224,8 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
 
   return (
     <div class="selectable">
-      <Show when={metaChanges().length > 0}>
-        <div class="mb-5 rounded-lg border border-line bg-paper-2 px-4 py-2.5 text-xs">
-          <div class="text-ink-3 text-xs mb-1.5">头信息</div>
-          <For each={metaChanges()}>
-            {(c) => (
-              <div class="flex gap-3 py-0.5">
-                <span class="w-16 shrink-0 text-ink-3">{META_LABELS[c.key] ?? c.key}</span>
-                <span class="min-w-0">
-                  <Show when={c.from !== undefined}>
-                    <del class="tc-del">{c.from || "（空）"}</del>
-                  </Show>
-                  <Show when={c.from !== undefined && c.to !== undefined}>
-                    <span class="text-ink-3 mx-1.5">→</span>
-                  </Show>
-                  <Show when={c.to !== undefined}>
-                    <ins class="tc-ins">{c.to || "（空）"}</ins>
-                  </Show>
-                </span>
-              </div>
-            )}
-          </For>
-        </div>
+      <Show when={Object.keys(after().meta).length > 0 || Object.keys(before().meta).length > 0}>
+        <MetaHead before={before().meta} after={after().meta} isNew={props.isNew} />
       </Show>
 
       <Show when={!changed() && metaChanges().length === 0}>
