@@ -44,7 +44,9 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         </button>
         <span class="text-ink-3">|</span>
         <span class="text-ink-3">{kindLabel()}</span>
-        <span class="text-ink-2">{props.id}</span>
+        <Show when={!state.kinds.find((k) => k.id === props.kind)?.singleton}>
+          <span class="text-ink-2">{props.kind === "rules" ? (doc()?.title ?? props.id) : props.id}</span>
+        </Show>
         <span class="flex-1" />
         <Show when={doc()}>
           {(d) => (
