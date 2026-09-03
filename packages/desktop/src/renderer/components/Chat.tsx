@@ -5,7 +5,7 @@ import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
 import { EmptyStart } from "./EmptyStart";
 import { Message } from "./Message";
-import { QuestionDock } from "./QuestionDock";
+import { QuestionDock, summarizeQuestion } from "./QuestionDock";
 import { QuickActions } from "./QuickActions";
 import { QuotePill } from "./QuotePill";
 
@@ -113,11 +113,13 @@ export function Chat(props: { agentId: string }) {
         <Show when={agent()?.status === "error" && agent()?.error}>
           <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable">{agent()?.error}</div>
         </Show>
+        {/* 提问卡就在消息流末尾，跟着正文一起滚；往上翻时它自然滚走，底部另有一行浮条 */}
+        <Show when={dockQuestion()}>{(q) => <QuestionDock request={q()} />}</Show>
         </div>
       </div>
       {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
       <div class="relative max-w-[760px] mx-auto w-full">
-        <Show when={!following()}>
+        <Show when={!following() && !dockQuestion()}>
           <button
             class="absolute -top-11 right-6 z-10 w-9 h-9 rounded-full bg-paper border border-line shadow-lg text-ink-2 hover:text-ink hover:border-accent flex items-center justify-center"
             title="回到底部"
@@ -136,7 +138,25 @@ export function Chat(props: { agentId: string }) {
             </>
           }
         >
-          <Match when={dockQuestion()}>{(q) => <div class="pb-4"><QuestionDock request={q()} following={following} /></div>}</Match>
+          <Match when={dockQuestion()}>
+            {(q) => (
+              // 浮条盖在滚动区上方、不占高度，所以显示 / 隐藏都不会牵动滚动位置
+              <div class="h-4">
+                <Show when={!following()}>
+                  <button
+                    class="absolute bottom-4 left-5 right-5 h-9 flex items-center gap-2 px-4 rounded-lg border border-line-2 bg-paper-2 shadow-lg text-xs text-left hover:bg-paper"
+                    onClick={scrollToBottom}
+                    title="回到问题"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-warn shrink-0" />
+                    <span class="font-medium shrink-0">{state.agents[q().agentId]?.label ?? "agent"} 想问你</span>
+                    <span class="flex-1 min-w-0 truncate text-ink-3">{summarizeQuestion(q().text)}</span>
+                    <span class="ml-auto shrink-0 text-ink-3">›</span>
+                  </button>
+                </Show>
+              </div>
+            )}
+          </Match>
           <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
         </Switch>
       </div>

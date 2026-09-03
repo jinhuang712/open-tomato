@@ -1,5 +1,5 @@
 import { hasLongOptions, optionLabel, optionText, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
@@ -42,7 +42,7 @@ function draftLabel(o: QuestionOption, i: number): string {
 }
 
 /** 折叠态的一行摘要：取问题正文首行，抹掉 markdown 记号 */
-function summarize(text: string): string {
+export function summarizeQuestion(text: string): string {
   const line = text.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
   return line.replace(/^[#>\-*\s]+/, "").replace(/[*`_]/g, "");
 }
@@ -52,11 +52,7 @@ function answerOf(o: QuestionOption): string {
   return optionLabel(o);
 }
 
-export function QuestionDock(props: {
-  request: QuestionRequest;
-  /** 用户是否贴着消息流底部；不传就当作一直贴底（只有手动收起） */
-  following?: () => boolean;
-}) {
+export function QuestionDock(props: { request: QuestionRequest }) {
   const [text, setText] = createSignal("");
   const [open, setOpen] = createSignal(true);
   // 换了一个问题就重新展开，别让上一个问题的收起状态盖住新问题
@@ -64,15 +60,6 @@ export function QuestionDock(props: {
     props.request.questionId;
     setOpen(true);
   });
-  // 往上翻旧消息时卡片自动收成一行，别挡住正文；滚回底部再自动展开。
-  // 只在贴底状态切换的那一刻动一次，中间用户手动点开 / 收起都尊重。
-  createEffect(
-    on(
-      () => props.following?.() ?? true,
-      (f) => setOpen(f),
-      { defer: true },
-    ),
-  );
   const agent = () => state.agents[props.request.agentId];
   const long = () => hasLongOptions(props.request.options);
   const submit = () => {
@@ -93,7 +80,7 @@ export function QuestionDock(props: {
         <span class="w-2 h-2 rounded-full bg-warn shrink-0" />
         <span class="font-medium shrink-0">{agent()?.label ?? "agent"} 想问你</span>
         <Show when={!open()}>
-          <span class="flex-1 min-w-0 truncate text-ink-3">{summarize(props.request.text)}</span>
+          <span class="flex-1 min-w-0 truncate text-ink-3">{summarizeQuestion(props.request.text)}</span>
         </Show>
         <span class="ml-auto shrink-0 text-ink-3 transition-transform" classList={{ "rotate-90": open() }}>
           ›
