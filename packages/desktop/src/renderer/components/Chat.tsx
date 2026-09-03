@@ -1,6 +1,6 @@
 import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { actions, state } from "../state";
-import { AgentBubbles } from "./AgentBubbles";
+import { AgentStrip } from "./AgentStrip";
 import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
 import { EmptyStart } from "./EmptyStart";
@@ -69,9 +69,8 @@ export function Chat(props: { agentId: string }) {
 
   return (
     <div class="relative flex flex-col h-full min-w-0">
-      <AgentBubbles />
       <Show when={!isLead()}>
-        <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-xs">
+        <div class="flex items-center gap-2 px-5 h-9 border-b border-line text-xs">
           <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
             ← 回到主编
           </button>
@@ -85,7 +84,8 @@ export function Chat(props: { agentId: string }) {
         </div>
       </Show>
       <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
-        <div class="max-w-[880px] mx-auto w-full min-h-full flex flex-col">
+        <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
+        <AgentStrip />
         <Show when={messages().length === 0}>
           <Show when={isLead()} fallback={<div class="h-full flex items-center justify-center text-ink-3">子 agent 还没有输出</div>}>
             <EmptyStart />
@@ -117,7 +117,7 @@ export function Chat(props: { agentId: string }) {
         </div>
       </div>
       {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
-      <div class="relative max-w-[880px] mx-auto w-full">
+      <div class="relative max-w-[760px] mx-auto w-full">
         <Show when={!following()}>
           <button
             class="absolute -top-11 right-6 z-10 w-9 h-9 rounded-full bg-paper border border-line shadow-lg text-ink-2 hover:text-ink hover:border-accent flex items-center justify-center"
