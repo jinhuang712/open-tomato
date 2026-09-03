@@ -213,12 +213,33 @@ export interface ApprovalRequest {
 
 export type ApprovalDecision = "approve" | "reject";
 
+/**
+ * 一个候选：短的直接给字串；长的（一段正文、一种写法）给 label + text，
+ * label 是作者一眼能认出的短名字，text 是完整候选正文（支持 Markdown）。
+ */
+export type QuestionOption = string | { label: string; text: string };
+
 export interface QuestionRequest {
   questionId: string;
   agentId: string;
   text: string;
-  options: string[];
+  options: QuestionOption[];
   allowFreeText: boolean;
+}
+
+/** 候选的短名字：带 label 的用 label，纯字串就是它自己 */
+export function optionLabel(o: QuestionOption): string {
+  return typeof o === "string" ? o : o.label;
+}
+
+/** 候选的完整正文 */
+export function optionText(o: QuestionOption): string {
+  return typeof o === "string" ? o : o.text;
+}
+
+/** 有没有候选长到不适合用 chip 排：带 label 的、含换行的、超过 40 字的 */
+export function hasLongOptions(options: QuestionOption[]): boolean {
+  return options.some((o) => typeof o !== "string" || o.includes("\n") || o.length > 40);
 }
 
 // ───────────────────────── 事件（内核 → 渲染层） ─────────────────────────
