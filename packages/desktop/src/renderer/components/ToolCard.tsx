@@ -123,8 +123,8 @@ function WriteCard(props: { part: ToolPart }) {
   return (
     <div class={`my-1 h-7 flex items-center gap-2 text-xs ${running() ? "px-3 rounded-md bg-warn-soft text-warn" : "text-ink-3"}`}>
       <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-      <span class={running() ? "font-medium" : "text-ink-2"}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
-      <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs" />
+      <span class={`shrink-0 ${running() ? "font-medium" : "text-ink-2"}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
+      <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs shrink-0" />
       <Show when={rejected()}>
         <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。按原因修改.*$/, "")}</span>
       </Show>
