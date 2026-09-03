@@ -10,6 +10,18 @@ const MARKER_FILE = "project.json";
 const PROJECT_FORMAT = 1;
 /** 项目内会话目录（相对 .opentomato/），主编会话 jsonl 落这里；子目录按角色分 */
 const SESSIONS_DIR = "sessions";
+/** 先写同目录临时文件再 rename 覆盖：写一半崩掉不会留下半截正文 */
+async function writeAtomic(abs: string, content: string) {
+  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.${process.pid}.${Date.now()}.tmp`);
+  try {
+    await fs.writeFile(tmp, content, "utf8");
+    await fs.rename(tmp, abs);
+  } catch (e) {
+    await fs.rm(tmp, { force: true }).catch(() => {});
+    throw e;
+  }
+}
+
 export class StaleWriteError extends Error {
   constructor(public readonly path: string) {
     super(`${path} 在审批期间被改过，这次写入作废；请重新 read_doc 拿最新内容再提交`);
@@ -207,7 +219,7 @@ export class ProjectStore {
     }
     await fs.mkdir(path.dirname(abs), { recursive: true });
     const normalized = raw.endsWith("\n") ? raw : `${raw}\n`;
-    await fs.writeFile(abs, normalized, "utf8");
+    await writeAtomic(abs, normalized);
     return this.toHeader(kind, nid, normalized);
   }
 
