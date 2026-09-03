@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { actions, setState, state } from "../state";
+import { actions, state } from "../state";
 
 export function Welcome() {
   return (
@@ -14,10 +14,6 @@ export function Welcome() {
           </button>
           <button class="px-4 py-2 rounded-lg border border-line hover:bg-paper-2" onClick={() => void actions.openProject()}>
             打开项目…
-          </button>
-          <span class="flex-1" />
-          <button class="px-4 py-2 rounded-lg text-ink-2 hover:bg-paper-2" onClick={() => setState("modelPickerOpen", true)}>
-            {state.models?.current ? `${state.models.current.provider} / ${state.models.current.id}` : "配置模型"}
           </button>
         </div>
 
