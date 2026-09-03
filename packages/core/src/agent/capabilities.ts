@@ -34,7 +34,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派设定师设计：${p(params, "brief")}。
 
-要求：第一轮 mode=propose 派设定师给 2–4 个差异明显的候选方向，你汇总后用 ask_user 让我选（一次只问一件）；我选定后用 continue_agent、mode=commit 让同一个设定师在选中的候选上落成卡片。落卡后 run_check 一次。`,
+要求：方向还没定就先让设定师出候选，我挑了再让它落卡；我已经说清要什么就直接落。落卡后 run_check 一次。`,
   },
   outline: {
     id: "outline",
@@ -61,12 +61,12 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
   review: {
     id: "review",
     label: "多路审稿",
-    description: "四路只读评审并行看一章，冲突时裁决。",
+    description: "多路只读评审看一章，冲突时裁决。",
     params: [{ name: "chapter", label: "章号", placeholder: "例如：12", required: true }],
     render: (params) =>
       `请审第 ${p(params, "chapter")} 章正文（正文/${p(params, "chapter")}）。
 
-用一次 spawn_agents 同时派 critic_market、critic_reader、critic_voice、continuity 四个角色，任务书都指向这一章。四路都回来后：
+按这一章的情况决定派哪几路评审（市场 / 读者 / 语音 / 一致性），一次 spawn_agents 并行派出，任务书都指向这一章。评审都回来后：
 1. 合并成一份问题清单，按「必须改 / 建议看」分级，去重
 2. 意见冲突的点派 arbiter 裁决
 3. 给我结论 + 清单，然后用 ask_user 问我要返修哪些（可多选），不要自动开始返修`,
