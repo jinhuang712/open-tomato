@@ -4,60 +4,49 @@ import { actions, state } from "../state";
 
 const ORDER: DocKindId[] = ["guide", "world", "characters", "threads", "milestones", "volumes", "chapters", "manuscript"];
 
+/**
+ * 边栏是这本书的骨架：八类材料按创作顺序排，空的类别灰显不展开。
+ * 机检结果只在有问题的文档旁点一个点，不另占地方；重新机检在书名菜单里。
+ */
 export function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Record<string, boolean>>({});
   const toggle = (k: string) => setCollapsed((c) => ({ ...c, [k]: !c[k] }));
   const docsOf = (k: DocKindId) => state.docs.filter((d) => d.kind === k);
   const kindLabel = (k: DocKindId) => state.kinds.find((x) => x.id === k)?.label ?? k;
   const activeDoc = () => (state.view.type === "doc" ? `${state.view.kind}/${state.view.id}` : null);
-  const errorCount = () => state.issues?.filter((i) => i.level === "error").length ?? 0;
-  const warnCount = () => state.issues?.filter((i) => i.level === "warning").length ?? 0;
+  const issueOf = (kind: string, id: string) => state.issues?.find((i) => i.kind === kind && i.id === id);
 
   return (
-    <div class="flex flex-col h-full">
-      <div class="px-4 pt-3 pb-2 text-xs uppercase tracking-wider text-ink-3 flex items-center">
-        <span>文档</span>
-        <span class="flex-1" />
-        <Show when={state.issues}>
-          <button class="normal-case tracking-normal flex items-center gap-1" onClick={() => void actions.runCheck()} title="重新机检">
-            <Show when={errorCount() > 0}>
-              <span class="px-1.5 rounded bg-danger-soft text-danger">{errorCount()} err</span>
-            </Show>
-            <Show when={warnCount() > 0}>
-              <span class="px-1.5 rounded bg-warn-soft text-warn">{warnCount()} warn</span>
-            </Show>
-            <Show when={errorCount() === 0 && warnCount() === 0}>
-              <span class="px-1.5 rounded bg-ok-soft text-ok">通过</span>
-            </Show>
-          </button>
-        </Show>
-      </div>
-      <div class="flex-1 overflow-y-auto px-2 pb-3">
-        <For each={ORDER}>
-          {(k) => (
-            <div class="mb-1">
-              <button class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-paper-2 text-left" onClick={() => toggle(k)}>
-                <span class="text-ink-3 text-xs w-3">{collapsed()[k] ? "▸" : "▾"}</span>
-                <span class="font-medium">{kindLabel(k)}</span>
-                <span class="text-ink-3 text-xs">{docsOf(k).length}</span>
+    <div class="h-full overflow-y-auto px-2 py-3">
+      <For each={ORDER}>
+        {(k) => {
+          const docs = () => docsOf(k);
+          const empty = () => docs().length === 0;
+          return (
+            <div>
+              <button
+                class={`w-full h-7.5 flex items-center gap-2 px-2 rounded-md text-left ${empty() ? "text-ink-3" : "text-ink hover:bg-paper-3"}`}
+                disabled={empty()}
+                onClick={() => toggle(k)}
+              >
+                <span class="flex-1">{kindLabel(k)}</span>
+                <span class="text-xs text-ink-3 tabular-nums">{empty() ? "—" : docs().length}</span>
               </button>
-              <Show when={!collapsed()[k]}>
-                <For each={docsOf(k)}>
+              <Show when={!empty() && !collapsed()[k]}>
+                <For each={docs()}>
                   {(d) => {
-                    const hasIssue = () => state.issues?.some((i) => i.kind === d.kind && i.id === d.id && i.level === "error");
+                    const issue = () => issueOf(d.kind, d.id);
+                    const on = () => activeDoc() === `${d.kind}/${d.id}`;
                     return (
                       <button
-                        class={`w-full flex items-center gap-2 pl-7 pr-2 py-1 rounded-md text-left text-xs ${
-                          activeDoc() === `${d.kind}/${d.id}` ? "bg-paper-3" : "hover:bg-paper-2"
-                        }`}
+                        class={`w-full h-7 flex items-center gap-2 pl-6 pr-2 rounded-md text-left ${on() ? "bg-paper-3 text-ink" : "text-ink-2 hover:bg-paper-3 hover:text-ink"}`}
                         onClick={() => actions.openDoc(d.kind, d.id)}
-                        title={d.summary}
+                        title={issue()?.message ?? d.summary}
                       >
-                        <span class="text-ink-3 shrink-0">{d.id}</span>
                         <span class="truncate">{d.title}</span>
                         <span class="flex-1" />
-                        <Show when={hasIssue()}>
-                          <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
+                        <Show when={issue()}>
+                          {(i) => <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${i().level === "error" ? "bg-danger" : "bg-warn"}`} />}
                         </Show>
                       </button>
                     );
@@ -65,9 +54,9 @@ export function Sidebar() {
                 </For>
               </Show>
             </div>
-          )}
-        </For>
-      </div>
+          );
+        }}
+      </For>
     </div>
   );
 }

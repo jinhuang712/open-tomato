@@ -8,14 +8,15 @@ import { actions, setState, state } from "../state";
 export function Titlebar() {
   const pending = () => state.questions.length + state.approvals.length;
   return (
-    <div class="drag h-11 shrink-0 flex items-center pl-[84px] pr-3 gap-3 border-b border-line">
+    <div class="drag relative h-11 shrink-0 flex items-center pl-[84px] pr-3 gap-3 border-b border-line">
       <Show when={state.project} fallback={<span class="text-ink-2">OpenTomato</span>}>
         {(p) => <BookMenu name={p().name} />}
       </Show>
       <span class="flex-1" />
+      {/* 绝对定位居中，不受两侧内容宽度影响 */}
       <Show when={state.project}>
         <button
-          class="no-drag w-[320px] h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
+          class="no-drag absolute left-1/2 -translate-x-1/2 w-[320px] h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
           onClick={() => setState("searchOpen", true)}
         >
           <SearchIcon />
@@ -23,7 +24,6 @@ export function Titlebar() {
           <kbd class="font-sans text-xs text-ink-3 border border-line-2 rounded px-1 leading-4">⌘K</kbd>
         </button>
       </Show>
-      <span class="flex-1" />
       <div class="no-drag flex items-center gap-1 text-xs">
         <Show when={pending() > 0}>
           <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110" onClick={() => actions.openChat("lead")}>

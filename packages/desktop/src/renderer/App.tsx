@@ -84,7 +84,7 @@ export function App() {
       <Titlebar />
       <Show when={state.project} fallback={<Welcome />}>
         <div class="flex-1 flex min-h-0">
-          <aside class="w-[260px] shrink-0 border-r border-line bg-paper-2/60 overflow-hidden">
+          <aside class="w-[232px] shrink-0 border-r border-line overflow-hidden">
             <Sidebar />
           </aside>
           <main class="flex-1 min-w-0">
