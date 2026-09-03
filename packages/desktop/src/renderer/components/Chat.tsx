@@ -30,7 +30,17 @@ export function Chat(props: { agentId: string }) {
     scroller.scrollTop = scroller.scrollHeight;
     setFollowing(true);
   };
-  const onScroll = () => setFollowing(distance() < 24);
+  // 只有用户真正往上滚（scrollTop 变小且没贴底）才取消跟随。
+  // dock 收起 / 展开会改变可视区高度，浏览器夹住 scrollTop 也会触发 scroll 事件，
+  // 那种被动滚动如果拿 distance 直接判定，会和卡片的自动收展互相触发、来回闪。
+  let lastTop = 0;
+  const onScroll = () => {
+    if (!scroller) return;
+    const top = scroller.scrollTop;
+    if (distance() < 24) setFollowing(true);
+    else if (top < lastTop) setFollowing(false);
+    lastTop = top;
+  };
   const onWheel = (e: WheelEvent) => {
     if (e.deltaY < 0) setFollowing(false);
   };
