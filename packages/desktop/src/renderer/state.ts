@@ -46,6 +46,8 @@ export interface State {
   transcripts: Record<string, UiMessage[]>;
   /** agentId → 上次被打断时的最后一条消息 id，UI 在它后面画分隔线 */
   interruptedAfter: Record<string, string>;
+  /** agentId → 还没送到的消息：插话的和排队的 */
+  queues: Record<string, { steering: string[]; followUp: string[] }>;
   approvals: ApprovalRequest[];
   questions: QuestionRequest[];
   issues: CheckIssue[] | null;
@@ -76,6 +78,7 @@ const initial: State = {
   agentOrder: [],
   transcripts: {},
   interruptedAfter: {},
+  queues: {},
   approvals: [],
   questions: [],
   issues: null,
@@ -219,6 +222,10 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
           if (a) a.statusText = ev.text;
           return;
         }
+        case "queue_update": {
+          s.queues[agentId] = { steering: ev.steering, followUp: ev.followUp };
+          return;
+        }
         case "message_start":
           if (findMsg(ev.message.id)) return;
           // 同一条用户消息可能被上游按不同 id 报两次，按内容 + 时间兜底去重
@@ -331,11 +338,22 @@ export const actions = {
   async closeProject() {
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
-  async send(text: string, agentId?: string) {
+  async send(text: string, agentId?: string, deliverAs: "steer" | "followUp" = "steer") {
     const t = text.trim();
     if (!t) return;
     try {
-      await bridge.request("chat.send", agentId && agentId !== "lead" ? { text: t, agentId } : { text: t });
+      await bridge.request("chat.send", { text: t, deliverAs, ...(agentId && agentId !== "lead" ? { agentId } : {}) });
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /** 撤回排队中的消息，原文拼回输入框 */
+  async recallQueue(agentId?: string) {
+    try {
+      const q = await bridge.request("chat.clearQueue", agentId && agentId !== "lead" ? { agentId } : {});
+      const texts = [...q.steering, ...q.followUp];
+      setState("queues", agentId ?? "lead", { steering: [], followUp: [] });
+      if (texts.length > 0) setState("composerDraft", texts.join("\n\n"));
     } catch (e) {
       toast(errText(e), "error");
     }

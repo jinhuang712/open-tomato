@@ -2,6 +2,12 @@ import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, setState, state } from "../state";
 
+/**
+ * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上：
+ * 插话 ⌘↩ 在当前这步工具结束后就送到；排队 ⇧⌘↩ 等这一轮跑完再送；暂停 ⌘. 让它收尾停下来问你。
+ * 还没送到的消息列在输入框上方，可以一键撤回到输入框里改。
+ * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
+ */
 export function Composer(props: { agentId?: string }) {
   const [text, setText] = createSignal("");
   let box: HTMLTextAreaElement | undefined;
@@ -43,29 +49,48 @@ export function Composer(props: { agentId?: string }) {
   const resting = () => !isLead() && agent()?.status === "done";
   const noModel = () => !state.models?.current;
   const disabled = () => noModel() || gone();
+  const queue = () => state.queues[agentId()] ?? { steering: [], followUp: [] };
+  const pending = () => [...queue().steering.map((t) => ({ kind: "插话", text: t })), ...queue().followUp.map((t) => ({ kind: "排队", text: t }))];
 
   const placeholder = () => {
     if (noModel()) return "先在右上角选一个模型并填 API key";
     if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
-    if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊…（⌘↩ 发送，比如挑一个候选让它往下孵化）`;
-    if (!isLead()) return `给${agent()?.label ?? "子 agent"}插话…（⌘↩ 发送，它会在当前步骤后处理）`;
+    if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊，比如挑一个候选让它往下孵化`;
+    if (busy()) return isLead() ? "主编在忙。插话它这步做完就看，排队等它这轮跑完" : `${agent()?.label ?? "子 agent"}在忙。插话它这步做完就看，排队等它这轮跑完`;
     if (quotes().length) return "对这段说点什么";
     return "和主编说话";
   };
 
   // 引用按 markdown 引用块排在正文前面，主编一眼看出作者在对哪段说话
   const canSend = () => Boolean(text().trim()) || quotes().length > 0;
-  const send = () => {
-    if (!canSend()) return;
+  const submit = (deliverAs: "steer" | "followUp") => {
+    if (!canSend() || disabled()) return;
     const blocks = quotes().map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
     const t = [...blocks, text().trim()].filter(Boolean).join("\n\n");
     setText("");
     setState("composerQuotes", []);
-    void actions.send(t, agentId());
+    void actions.send(t, agentId(), deliverAs);
   };
 
   return (
     <div class="px-5 pb-4 pt-1">
+      <Show when={pending().length > 0}>
+        <div class="mb-2 px-1 flex items-start gap-3 text-xs">
+          <div class="flex-1 min-w-0 space-y-1">
+            <For each={pending()}>
+              {(m) => (
+                <div class="flex items-baseline gap-2 min-w-0">
+                  <span class="shrink-0 text-ink-3">{m.kind}</span>
+                  <span class="truncate text-ink-2">{m.text}</span>
+                </div>
+              )}
+            </For>
+          </div>
+          <button class="shrink-0 text-ink-3 hover:text-ink" onClick={() => void actions.recallQueue(agentId())} title="还没送到的都收回输入框">
+            撤回
+          </button>
+        </div>
+      </Show>
       <div class="rounded-xl border border-line-2 bg-paper-2 focus-within:border-ink-3 transition-colors">
         <Show when={isLead() && quotes().length > 0}>
           <div class="flex flex-col gap-1.5 px-3 pt-3">
@@ -100,33 +125,60 @@ export function Composer(props: { agentId?: string }) {
             autoGrow(e.currentTarget);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            const mod = e.metaKey || e.ctrlKey;
+            if (!mod) return;
+            if (e.key === "Enter") {
               e.preventDefault();
-              send();
+              submit(e.shiftKey && busy() ? "followUp" : "steer");
+            } else if (e.key === "." && busy()) {
+              e.preventDefault();
+              void actions.pause(agentId());
             }
           }}
         />
-        <div class="flex items-center gap-2 px-3 pb-2">
+        <div class="flex items-center gap-1.5 px-3 pb-2">
           <span class="flex-1" />
           <Show when={busy()}>
-            <button
-              class="h-7 px-3 rounded-md text-xs text-ink-2 hover:text-ink hover:bg-paper-3"
-              onClick={() => void actions.pause(agentId())}
-              title="收尾当前这步，总结进度，然后停下来问你想怎么调整"
-            >
-              暂停
-            </button>
+            <ActionButton label="暂停" keys="⌘." tone="quiet" onClick={() => void actions.pause(agentId())} title="收尾当前这步，总结进度，然后停下来问你想怎么调整" />
+            <ActionButton
+              label="排队"
+              keys="⇧⌘↩"
+              tone="quiet"
+              disabled={!canSend() || disabled()}
+              onClick={() => submit("followUp")}
+              title="等这一轮完全跑完再送到，不打扰它手上的活"
+            />
           </Show>
-          <button
-            class="h-7 px-3 rounded-md bg-ink text-paper text-xs font-medium hover:brightness-110 disabled:opacity-30"
+          <ActionButton
+            label={busy() ? "插话" : "发送"}
+            keys="⌘↩"
+            tone="primary"
             disabled={!canSend() || disabled()}
-            onClick={send}
-            title="⌘↩"
-          >
-            {busy() ? "插话" : "发送"}
-          </button>
+            onClick={() => submit("steer")}
+            title={busy() ? "当前这步工具结束后就送到，它会马上看" : undefined}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+function ActionButton(props: { label: string; keys: string; tone: "primary" | "quiet"; disabled?: boolean; title?: string | undefined; onClick: () => void }) {
+  return (
+    <button
+      class="h-7 pl-3 pr-2 rounded-md text-xs flex items-center gap-2 disabled:opacity-30"
+      classList={{
+        "bg-ink text-paper font-medium hover:brightness-110": props.tone === "primary",
+        "text-ink-2 hover:text-ink hover:bg-paper-3": props.tone === "quiet",
+      }}
+      disabled={props.disabled}
+      title={props.title}
+      onClick={props.onClick}
+    >
+      <span>{props.label}</span>
+      <kbd class="font-sans text-[10px] leading-4 px-1 rounded border" classList={{ "border-paper/30 text-paper/70": props.tone === "primary", "border-line-2 text-ink-3": props.tone === "quiet" }}>
+        {props.keys}
+      </kbd>
+    </button>
   );
 }
