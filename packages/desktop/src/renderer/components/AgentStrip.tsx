@@ -6,8 +6,9 @@ const STATUS: Record<string, string> = { running: "运行中", idle: "待命", d
 
 /**
  * 在场的角色：钉在对话区顶部的一行，不随消息滚动，内容和消息同一列宽。
- * 主编永远第一个，后面是子 agent（新的在前）。点名字进它的会话。
- * 只有主编一个人时不显示，没什么可切的。
+ * 主编永远第一个，后面是子 agent（新的在前）。点名字进它的会话，当前这位反白。
+ * 每人只带一个词：跑着的显示它自报的「正在……」，其余显示状态；任务书收进悬停提示。
+ * 在子 agent 会话里左侧多一个「回到主编」。只有主编一个人时不显示，没什么可切的。
  */
 export function AgentStrip() {
   const agents = createMemo(() => {
@@ -15,12 +16,19 @@ export function AgentStrip() {
     return [...all.filter((a) => a.parentId === null), ...all.filter((a) => a.parentId !== null).reverse()];
   });
   const active = () => (state.view.type === "chat" ? state.view.agentId : null);
-  const statusOf = (a: AgentInfo) => (a.status === "running" && a.statusText) || a.task || STATUS[a.status];
+  const statusOf = (a: AgentInfo) => (a.status === "running" && a.statusText) || STATUS[a.status];
+  const inChild = () => active() !== null && active() !== "lead";
 
   return (
-    <Show when={agents().length > 1}>
+    <Show when={agents().length > 1 || inChild()}>
       <div class="shrink-0 border-b border-line">
       <div class="max-w-[760px] mx-auto flex items-center gap-4 px-5 h-9 text-xs text-ink-2 overflow-hidden">
+        <Show when={inChild()}>
+          <button class="shrink-0 text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
+            ← 回到主编
+          </button>
+          <span class="w-px h-4 bg-line-2 shrink-0" />
+        </Show>
         <For each={agents()}>
           {(a) => (
             <button
@@ -36,7 +44,7 @@ export function AgentStrip() {
                 {a.label.slice(0, 1)}
               </span>
               <span class="shrink-0">{a.label}</span>
-              <span class="truncate text-ink-3 max-w-[180px]">{statusOf(a)}</span>
+              <span class="truncate text-ink-3 max-w-[200px]">{statusOf(a)}</span>
               <Show when={a.status === "running"}>
                 <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0 ring-3 ring-accent-soft" />
               </Show>

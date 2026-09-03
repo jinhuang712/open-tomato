@@ -8,7 +8,6 @@ import { Message } from "./Message";
 import { QuestionDock } from "./QuestionDock";
 import { QuickActions } from "./QuickActions";
 
-const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
 export function Chat(props: { agentId: string }) {
   let scroller: HTMLDivElement | undefined;
@@ -69,20 +68,6 @@ export function Chat(props: { agentId: string }) {
 
   return (
     <div class="relative flex flex-col h-full min-w-0">
-      <Show when={!isLead()}>
-        <div class="flex items-center gap-2 px-5 h-9 border-b border-line text-xs">
-          <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
-            ← 回到主编
-          </button>
-          <span class="text-ink-3">|</span>
-          <span class={`w-2 h-2 rounded-full ${agent()?.status === "running" ? "bg-accent animate-pulse" : agent()?.status === "error" ? "bg-danger" : "bg-ok"}`} />
-          <span class="font-medium">{agent()?.label}</span>
-          <span class="text-ink-3">{STATUS[agent()?.status ?? "idle"]}</span>
-          <span class="text-ink-3 truncate flex-1" title={agent()?.task}>
-            {agent()?.task}
-          </span>
-        </div>
-      </Show>
       <AgentStrip />
       <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
         <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
