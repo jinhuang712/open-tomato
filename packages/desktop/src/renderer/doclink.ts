@@ -35,6 +35,8 @@ const DIR_ALTERNATION = Object.keys(ALIASES)
   .map((k) => k.replace(/\//g, "\\/"))
   .join("|");
 
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 let cacheKey = "";
@@ -83,7 +85,8 @@ export function linkifyDocRefs(html: string): string {
       return chunk.replace(refPattern(), (whole, dir: string, id: string) => {
         const kind = ALIASES[dir];
         if (!kind) return whole;
-        return `<a class="doc-link" data-doc="${kind}/${id}" title="打开 ${displayPath(kind, id)}">${displayPath(kind, id)}</a>`;
+        const shown = escapeHtml(displayPath(kind, id));
+        return `<a class="doc-link" data-doc="${escapeHtml(`${kind}/${id}`)}" title="打开 ${shown}">${shown}</a>`;
       });
     })
     .join("");
