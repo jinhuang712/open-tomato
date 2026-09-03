@@ -126,7 +126,7 @@ function WriteCard(props: { part: ToolPart }) {
       <span class={`shrink-0 ${running() ? "font-medium" : "text-ink-2"}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
       <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs shrink-0" />
       <Show when={rejected()}>
-        <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。按原因修改.*$/, "")}</span>
+        <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。文件(没有创建|保持原样).*$/, "")}</span>
       </Show>
     </div>
   );
