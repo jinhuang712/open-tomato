@@ -221,7 +221,10 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         signal,
       );
       if (outcome.decision === "reject") {
-        return text(`用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。按原因修改后再提交，不要原样重试。`);
+        const how = preview.isNew
+          ? "文件没有创建。按原因改好后用 write_doc 重新提交全文"
+          : "文件保持原样、被拒的稿子没有落盘。按原因改好后重新提交：整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc";
+        return text(`用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${how}，不要原样重试。`);
       }
       const header = await store.write(kind, preview.id, preview.after);
       ctx.onDocsChanged();
