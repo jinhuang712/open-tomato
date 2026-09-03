@@ -1,4 +1,4 @@
-import type { UiPart } from "@opentomato/core/protocol";
+import { optionLabel, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { DocLink } from "./DocLink";
@@ -93,7 +93,8 @@ function Output(props: { part: ToolPart }) {
 /** 问作者：问题 + 答案直接铺开，不折叠 */
 function AskCard(props: { part: ToolPart }) {
   const a = () => args(props.part);
-  const options = () => (Array.isArray(a().options) ? (a().options as string[]) : []);
+  // 候选可能是 string 或 {label, text}，历史里只铺短名字，正文不重复展示
+  const options = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]).map(optionLabel) : []);
   const answer = () => props.part.output.replace(/^作者回答：/, "");
   return (
     <div class="my-1.5 rounded-lg border border-warn/40 bg-warn-soft/30 text-[12.5px] overflow-hidden">

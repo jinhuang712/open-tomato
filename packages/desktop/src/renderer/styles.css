@@ -269,3 +269,69 @@ input {
   user-select: text;
   font-family: inherit;
 }
+
+/* ───────── 问答卡：长候选并排成稿纸 ───────── */
+.drafts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+}
+.draft {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-paper-2);
+  overflow: hidden;
+}
+.draft-tab {
+  padding: 6px 12px;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper-3);
+}
+.draft-body {
+  flex: 1;
+  padding: 10px 14px;
+  max-height: 40vh;
+  overflow-y: auto;
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--color-ink);
+}
+.draft-body p {
+  margin: 0.6em 0;
+  text-indent: 2em;
+}
+.draft-body p:first-child {
+  margin-top: 0;
+}
+.draft-body p:last-child {
+  margin-bottom: 0;
+}
+.draft-foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-line);
+  display: flex;
+  justify-content: flex-end;
+}
+.draft-pick {
+  padding: 4px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-weight: 500;
+}
+.draft:hover .draft-pick,
+.draft-pick:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  outline: none;
+}
+.draft-pick:hover {
+  background: var(--color-accent-soft);
+}
