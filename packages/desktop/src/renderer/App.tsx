@@ -8,58 +8,9 @@ import { ModelPicker } from "./components/ModelPicker";
 import { ReviewModal } from "./components/ReviewModal";
 import { SearchPalette } from "./components/SearchPalette";
 import { Sidebar } from "./components/Sidebar";
+import { Titlebar } from "./components/Titlebar";
 import { Welcome } from "./components/Welcome";
 import { actions, applyEvent, setState, state } from "./state";
-
-function Titlebar() {
-  return (
-    <div class="drag h-12 shrink-0 flex items-center pl-[84px] pr-4 border-b border-line bg-paper-2">
-      <Show when={state.project} fallback={<span class="font-serif text-ink-2">OpenTomato</span>}>
-        {(p) => (
-          <>
-            <span class="font-serif text-lg">{p().name}</span>
-            <span class="ml-2 text-ink-3 text-xs truncate max-w-[40%]">{p().root}</span>
-          </>
-        )}
-      </Show>
-      <span class="flex-1" />
-      {/* 标题栏正中的搜索入口，⌘P 同效 */}
-      <Show when={state.project}>
-        <button
-          class="no-drag w-[360px] h-7 px-3 rounded-lg border border-line bg-paper/60 hover:bg-paper-3 text-ink-3 text-xs flex items-center gap-2"
-          onClick={() => setState("searchOpen", true)}
-        >
-          <span>⌕</span>
-          <span class="flex-1 text-left">搜人物、设定、章节、正文…</span>
-          <kbd class="text-xs border border-line rounded px-1">⌘P</kbd>
-        </button>
-      </Show>
-      <span class="flex-1" />
-      <div class="no-drag flex items-center gap-1.5 text-xs">
-        <Show when={state.approvals.length > 0}>
-          <span class="px-2 py-0.5 rounded-md bg-warn-soft text-warn">{state.approvals.length} 待审</span>
-        </Show>
-        <Show when={state.questions.length > 0}>
-          <span class="px-2 py-0.5 rounded-md bg-warn-soft text-warn">{state.questions.length} 待答</span>
-        </Show>
-        <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => setState("modelPickerOpen", true)}>
-          {state.models?.current ? state.models.current.id : "选择模型"}
-        </button>
-        <Show when={state.project}>
-          <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => void actions.exportChat()} title="导出当前会话为 JSONL（⌘E）">
-            导出会话
-          </button>
-          <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => void actions.newChat()} title="⌘⇧N">
-            新会话
-          </button>
-          <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => void actions.closeProject()}>
-            关闭项目
-          </button>
-        </Show>
-      </div>
-    </div>
-  );
-}
 
 function Toasts() {
   return (
