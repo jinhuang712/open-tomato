@@ -69,7 +69,6 @@ export function Composer(props: { agentId?: string }) {
           }}
         />
         <div class="flex items-center gap-2 px-3 pb-2">
-          <span class="text-xs text-ink-3">{state.models?.thinkingLevel && state.models.thinkingLevel !== "off" ? `思考 ${state.models.thinkingLevel}` : ""}</span>
           <span class="flex-1" />
           <Show when={busy()}>
             <button

@@ -30,8 +30,11 @@ export function Titlebar() {
             {pending()} 项等你拍板
           </button>
         </Show>
-        <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3" onClick={() => setState("modelPickerOpen", true)}>
-          {state.models?.current ? state.models.current.id : "选择模型"}
+        <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3 flex items-center gap-1.5" onClick={() => setState("modelPickerOpen", true)}>
+          <span>{state.models?.current ? state.models.current.id : "选择模型"}</span>
+          <Show when={state.models?.thinkingLevel && state.models.thinkingLevel !== "off"}>
+            <span class="text-ink-3">思考 {state.models!.thinkingLevel}</span>
+          </Show>
         </button>
       </div>
     </div>
