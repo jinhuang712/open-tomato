@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "assets" / "logo-raw.png"
 OUT = ROOT / "assets" / "logo"
 DESKTOP_BUILD = ROOT / "packages" / "desktop" / "build"
+RENDERER_ASSETS = ROOT / "packages" / "desktop" / "src" / "renderer" / "assets"
 
 BG_TOLERANCE = 40  # 与四角背景色的通道差阈值
 SIZES = (1024, 512, 256, 128, 64, 32, 16)
@@ -147,6 +148,10 @@ def main() -> None:
     icon.resize((64, 64), Image.LANCZOS).save(
         OUT / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)]
     )
+
+    # 6. 渲染层用的透明底小 logo（欢迎页徽标条）
+    RENDERER_ASSETS.mkdir(parents=True, exist_ok=True)
+    resize(logo_1024, 64).save(RENDERER_ASSETS / "logo-64.png")
 
     for p in sorted(OUT.iterdir()):
         print(p.relative_to(ROOT), p.stat().st_size)

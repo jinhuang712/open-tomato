@@ -29,6 +29,13 @@
   --color-add-strong: light-dark(#b6e0c1, #2c5a3a);
   --color-del: light-dark(#fbe1de, #362020);
   --color-del-strong: light-dark(#f1b8b2, #6b2f2b);
+  /* 欢迎页像素 wordmark 三段色，中间调不抢前景 */
+  --color-pixel-gray: light-dark(#b9b5ae, #5e5b57);
+  --color-pixel-gray-hi: light-dark(#d0ccc5, #7d7973);
+  --color-pixel-red: light-dark(#d98a7f, #b8493c);
+  --color-pixel-red-hi: light-dark(#e9aca3, #d4695b);
+  --color-pixel-green: light-dark(#8fbf95, #4f8a57);
+  --color-pixel-green-hi: light-dark(#b0d6b4, #6ea875);
 
   /* 字阶四档：12 辅助 · 13 界面与对话 · 15 稿件 · 20 标题 */
   --text-xs: 12px;

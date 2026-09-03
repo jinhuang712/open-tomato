@@ -1,11 +1,15 @@
 import { For, Show } from "solid-js";
 import { actions, state } from "../state";
+import { PixelWordmark } from "./PixelArt";
+import logo from "../assets/logo-64.png";
 
 export function Welcome() {
   return (
-    <div class="h-full flex items-center justify-center">
-      <div class="w-[560px]">
-        <div class="text-xl mb-1">OpenTomato</div>
+    <div class="h-full flex flex-col items-center">
+      <div class="mt-24">
+        <PixelWordmark />
+      </div>
+      <div class="w-[560px] mt-20">
         <div class="text-ink-2 mb-8">从一句话到一本书。每一次落笔，你先看 diff 再点头。</div>
 
         <div class="flex gap-2 mb-8">
@@ -37,6 +41,11 @@ export function Welcome() {
         <Show when={state.kernelError}>
           <div class="mt-8 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable">{state.kernelError}</div>
         </Show>
+      </div>
+      <div class="flex-1" />
+      <div class="mb-12 flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-lg border border-line text-xs text-ink-2">
+        <img src={logo} alt="" class="w-4 h-4" style={{ "image-rendering": "pixelated" }} />
+        <span>OpenTomato</span>
       </div>
     </div>
   );
