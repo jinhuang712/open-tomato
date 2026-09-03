@@ -97,7 +97,9 @@ export function applyEvent(ev: KernelEvent) {
       console.info(`[ui] kernel ready v${ev.version} home=${ev.home}`);
       setState({ ready: true, home: ev.home, kernelError: null });
       void refreshAfterReady();
-      if (bridge.initialProject && !state.project) void actions.openProject(bridge.initialProject);
+      // 内核崩溃重拉后是空的，把界面上还开着的项目重新打开
+      if (state.project) void actions.openProject(state.project.root);
+      else if (bridge.initialProject) void actions.openProject(bridge.initialProject);
       return;
     case "kernel.error":
       setState("kernelError", ev.message);
