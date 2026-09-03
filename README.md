@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/logo-256.png" width="160" alt="OpenTomato"></p>
+
 # OpenTomato
 
 macOS 桌面小说写作工具。
