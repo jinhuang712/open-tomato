@@ -34,9 +34,18 @@ function createWindow() {
   win.on("closed", () => {
     mainWindow = null;
   });
+  // 渲染层任何外链（模型回复里的 [x](url)、搜索结果）都交给系统浏览器，主窗口不许离开 App 页面
+  const openOutside = (url: string) => {
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
+  };
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    openOutside(url);
     return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (e, url) => {
+    if (url === win.webContents.getURL()) return;
+    e.preventDefault();
+    openOutside(url);
   });
 
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
