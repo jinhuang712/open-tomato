@@ -3,7 +3,7 @@ import { asStringArray } from "./frontmatter.js";
 import { DOC_KINDS } from "./kinds.js";
 import type { ProjectStore } from "./store.js";
 
-const PLACEHOLDER = "待填";
+export const PLACEHOLDER = "待填";
 
 /**
  * 机械对账。只报不拦：

@@ -2,6 +2,7 @@ import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent
 import { Type } from "typebox";
 import type { CheckIssue, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { applyEdits } from "../project/edits.js";
+import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../project/kinds.js";
 import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
@@ -9,6 +10,9 @@ import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
 import { searchWeb } from "./websearch.js";
 
 export type SpawnMode = "propose" | "commit";
+
+/** 没有一句话故事就不能派的角色：排大纲、写正文都建在故事之上 */
+const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["planner", "writer"]);
 
 /** propose 时从会话里剥掉的工具 */
 export const WRITE_TOOL_NAMES = ["write_doc", "edit_doc"] as const;
@@ -317,7 +321,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       defineTool({
         name: "spawn_agents",
         label: "派子 agent",
-        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。`,
+        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 planner / writer 要求 守则/立项 的「一句话故事」已填，否则会被拒。`,
         parameters: Type.Object({
           tasks: Type.Array(
             Type.Object({
@@ -334,6 +338,9 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
             if (!isRoleId(role) || role === "lead") throw new Error(`不能派这个角色：${String(role)}`);
             return { role, task: t.task, ...(t.mode ? { mode: t.mode } : {}) };
           });
+          if (tasks.some((t) => STORY_GATED_ROLES.has(t.role)) && !(await hasOneLineStory(store))) {
+            throw new Error(ONE_LINE_STORY_GATE_MESSAGE);
+          }
           const result = await spawn(tasks, (progress) => onUpdate?.(text(progress)), signal);
           return text(result);
         },
