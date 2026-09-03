@@ -68,7 +68,7 @@ export function DispatchCard(props: { part: ToolPart }) {
     const all = state.agentOrder.map((id) => state.agents[id]).filter((x): x is AgentInfo => !!x);
     if (isContinue()) {
       const agent = state.agents[String(a().agentId ?? "")] ?? null;
-      return [{ role: agent?.role ?? "", label: agent?.label ?? "同一位", task: String(a().message ?? ""), agent, roster: null }];
+      return [{ role: agent?.role ?? "", label: agent?.label ?? "原来那位", task: String(a().message ?? ""), agent, roster: null }];
     }
     const tasks = Array.isArray(a().tasks) ? (a().tasks as Array<{ role: string; task: string }>) : [];
     const used = new Set<string>();
@@ -94,7 +94,11 @@ export function DispatchCard(props: { part: ToolPart }) {
   const phrase = (s: Slot) => {
     const st = statusOf(s);
     if (st.status === "running") return st.statusText || (s.agent || s.roster ? "在干活" : "开始");
-    if (st.status === "error") return st.error ? `失败，${st.error}` : "失败";
+    if (st.status === "error") {
+      if (st.error) return `失败，${st.error}`;
+      if (isContinue() && !s.agent && !s.roster) return "已被回收，得重派";
+      return "失败";
+    }
     if (st.status === "done") return "已回传";
     return "待命";
   };
