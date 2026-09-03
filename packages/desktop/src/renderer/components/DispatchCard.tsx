@@ -1,4 +1,4 @@
-import type { AgentInfo, UiPart } from "@opentomato/core/protocol";
+import type { AgentInfo, DispatchDetails, DispatchSlot, UiPart } from "@opentomato/core/protocol";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { actions, state } from "../state";
@@ -16,13 +16,19 @@ export const ROLE_LABELS: Record<string, string> = {
   arbiter: "裁决",
 };
 
-/** 一张派单里的一个人：角色 + 任务书 + 找得到就挂上真实的 agent */
+/** 一张派单里的一个人：角色 + 任务书 + 找得到就挂上真实的 agent；roster 是内核在 details 里给的名册项 */
 interface Slot {
   role: string;
   label: string;
   task: string;
   agent: AgentInfo | null;
+  roster: DispatchSlot | null;
 }
+
+const rosterOf = (part: ToolPart): DispatchSlot[] => {
+  const d = part.details as Partial<DispatchDetails> | null | undefined;
+  return Array.isArray(d?.slots) ? d.slots : [];
+};
 
 /** 回传文本按内核的 `## 角色名（role，id=xxx）` 标题切成每人一段 */
 const HEADER = /^## (.+?)（([\w-]+)[,，]\s*id=([\w-]+)）\s*$/m;
@@ -53,16 +59,20 @@ export function DispatchCard(props: { part: ToolPart }) {
   const here = () => (state.view.type === "chat" ? state.view.agentId : null);
 
   const slots = createMemo<Slot[]>(() => {
+    const roster = rosterOf(props.part);
+    // 新内核：details 里直接有名册，按 agentId 对上
+    if (roster.length > 0) {
+      return roster.map((r) => ({ role: r.role, label: r.label, task: r.task, agent: state.agents[r.agentId] ?? null, roster: r }));
+    }
+    // 旧会话回放：没有 details，退回从入参和回传文本里拼
     const all = state.agentOrder.map((id) => state.agents[id]).filter((x): x is AgentInfo => !!x);
     if (isContinue()) {
       const agent = state.agents[String(a().agentId ?? "")] ?? null;
-      const role = agent?.role ?? "";
-      return [{ role, label: agent?.label ?? "同一位", task: String(a().message ?? ""), agent }];
+      return [{ role: agent?.role ?? "", label: agent?.label ?? "同一位", task: String(a().message ?? ""), agent, roster: null }];
     }
     const tasks = Array.isArray(a().tasks) ? (a().tasks as Array<{ role: string; task: string }>) : [];
     const used = new Set<string>();
     return tasks.map((t) => {
-      // 先用回传里的 id 精确对上；没回传时按「同父 · 同任务书」找，新的优先
       const byId = returns().find((r) => r.role === t.role && !used.has(r.agentId));
       let agent = byId ? (state.agents[byId.agentId] ?? null) : null;
       if (!agent) {
@@ -70,21 +80,32 @@ export function DispatchCard(props: { part: ToolPart }) {
           [...all].reverse().find((x) => x.role === t.role && x.task === t.task && x.parentId === here() && !used.has(x.agentId)) ?? null;
       }
       if (agent) used.add(agent.agentId);
-      return { role: t.role, label: ROLE_LABELS[t.role] ?? t.role, task: t.task, agent };
+      return { role: t.role, label: ROLE_LABELS[t.role] ?? t.role, task: t.task, agent, roster: null };
     });
   });
 
+  /** 状态优先看活着的 agent（有 statusText），其次看名册快照（会话重开后 agent 已不在），最后看工具本身 */
+  const statusOf = (s: Slot): { status: string; error: string | null; statusText: string } => {
+    if (s.agent) return { status: s.agent.status, error: s.agent.error, statusText: s.agent.statusText };
+    if (s.roster) return { status: s.roster.status, error: s.roster.error, statusText: "" };
+    return { status: props.part.status, error: null, statusText: "" };
+  };
+
   const phrase = (s: Slot) => {
-    const ag = s.agent;
-    if (!ag) return props.part.status === "running" ? "开始" : props.part.status === "error" ? "失败" : "已回传";
-    if (ag.status === "running") return ag.statusText || "在干活";
-    if (ag.status === "error") return ag.error ? `失败，${ag.error}` : "失败";
-    if (ag.status === "done") return "已回传";
+    const st = statusOf(s);
+    if (st.status === "running") return st.statusText || (s.agent || s.roster ? "在干活" : "开始");
+    if (st.status === "error") return st.error ? `失败，${st.error}` : "失败";
+    if (st.status === "done") return "已回传";
     return "待命";
   };
-  const running = (s: Slot) => (s.agent ? s.agent.status === "running" : props.part.status === "running");
-  const failed = (s: Slot) => (s.agent ? s.agent.status === "error" : props.part.status === "error");
-  const go = (s: Slot) => s.agent && actions.openChat(s.agent.agentId);
+  const running = (s: Slot) => statusOf(s).status === "running";
+  const failed = (s: Slot) => statusOf(s).status === "error";
+  /** 子 agent 会话只活在内存里，项目重开后就没了；名册里的 id 只用来对状态，不能再跳 */
+  const targetId = (s: Slot) => s.agent?.agentId ?? null;
+  const go = (s: Slot) => {
+    const id = targetId(s);
+    if (id) actions.openChat(id);
+  };
 
   return (
     <div class="my-2 text-xs">
@@ -97,8 +118,8 @@ export function DispatchCard(props: { part: ToolPart }) {
               <div class="flex items-center gap-2 h-7 min-w-0">
                 <button
                   class="flex items-center gap-2 min-w-0 flex-1 text-left group disabled:cursor-default"
-                  disabled={!s.agent}
-                  title={s.agent ? `进 ${s.label} 的会话` : undefined}
+                  disabled={!targetId(s)}
+                  title={targetId(s) ? `进 ${s.label} 的会话` : undefined}
                   onClick={() => go(s)}
                 >
                   <span
@@ -127,7 +148,8 @@ export function DispatchCard(props: { part: ToolPart }) {
             <div class="mb-1 space-y-4 selectable text-sm">
               <For each={slots()}>
                 {(s) => {
-                  const ret = () => returns().find((r) => (s.agent ? r.agentId === s.agent.agentId : r.role === s.role));
+                  const rid = () => s.agent?.agentId ?? s.roster?.agentId ?? null;
+                  const ret = () => returns().find((r) => (rid() ? r.agentId === rid() : r.role === s.role));
                   return (
                     <div>
                       <div class="text-ink-3 text-xs mb-1">
