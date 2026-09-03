@@ -102,7 +102,7 @@ export function App() {
       <Show when={state.searchOpen && state.project}>
         <SearchPalette />
       </Show>
-      <Show when={state.approvals.find((a) => a.approvalId === state.reviewOpen)}>{(r) => <ReviewModal request={r()} />}</Show>
+      <Show when={state.approvals.find((a) => a.approvalId === state.reviewOpen)} keyed>{(r) => <ReviewModal request={r} />}</Show>
       <Toasts />
     </div>
   );
