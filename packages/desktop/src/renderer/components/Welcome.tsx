@@ -43,9 +43,9 @@ export function Welcome() {
         </Show>
       </div>
       <div class="flex-1" />
-      <div class="mb-12 flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-lg border border-line text-xs text-ink-2">
-        <img src={logo} alt="" class="w-4 h-4" style={{ "image-rendering": "pixelated" }} />
-        <span>OpenTomato</span>
+      <div class="mb-12 flex flex-col items-center gap-2 px-6 pt-4 pb-3 rounded-lg border border-line">
+        <img src={logo} alt="" class="w-12 h-12" style={{ "image-rendering": "pixelated" }} />
+        <span class="text-xs text-ink-2">OpenTomato</span>
       </div>
     </div>
   );
