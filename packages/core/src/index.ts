@@ -3,6 +3,7 @@ export { ProjectStore, StaleWriteError, type WritePreview } from "./project/stor
 export { DOC_KINDS, DOC_KIND_IDS, GUIDE_SEEDS, isDocKindId, resolveKind, kindInfos } from "./project/kinds.js";
 export { parseFrontmatter, stringifyFrontmatter, splitSections, pickSection } from "./project/frontmatter.js";
 export { runCheck } from "./project/check.js";
+export { readProjectSettings, writeProjectSettings, type ProjectSettings } from "./project/settings.js";
 export { ROLES, ROLE_IDS, roleInfos, isRoleId } from "./agent/roles.js";
 export { CAPABILITIES, CAPABILITY_IDS, capabilityInfos, isCapabilityId } from "./agent/capabilities.js";
 export { Kernel, normalizeHistory } from "./agent/runtime.js";

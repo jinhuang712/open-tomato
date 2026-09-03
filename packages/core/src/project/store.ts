@@ -4,6 +4,7 @@ import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
 import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, frontmatterProblem } from "./frontmatter.js";
 import { DOC_KIND_IDS, DOC_KINDS, GUIDE_SEEDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
+import { settingsPath } from "./settings.js";
 
 const MARKER_DIR = ".opentomato";
 const MARKER_FILE = "project.json";
@@ -49,6 +50,15 @@ export class ProjectStore {
 
   static markerPath(root: string): string {
     return path.join(root, MARKER_DIR, MARKER_FILE);
+  }
+
+  /** 项目级设置：<root>/.opentomato/settings.json */
+  static settingsPath(root: string): string {
+    return settingsPath(root, MARKER_DIR);
+  }
+
+  get settingsPath(): string {
+    return ProjectStore.settingsPath(this.info.root);
   }
 
   /** 主编会话 jsonl 的目录：<root>/.opentomato/sessions/lead */

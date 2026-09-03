@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { ModelInfo, ModelsState, ProviderInfo, ThinkingLevel } from "../protocol.js";
+import { readProjectSettings, writeProjectSettings, type ProjectSettings } from "../project/settings.js";
 
 interface Persisted {
   model: { provider: string; id: string } | null;
@@ -17,10 +18,12 @@ const DEFAULT_PERSISTED: Persisted = { model: null, thinkingLevel: "off", recent
  * 模型选择器底座：包一层 pi 的 ModelRuntime。
  * 凭据、自定义 provider、模型目录缓存全部沿用 pi 自己的 ~/.pi/agent；
  * 本应用只在 <home>/state.json 记模型选择和最近项目。
+ * 绑定了项目时，项目自己的 settings.json 优先：模型与思考档以它为准，切模型也同步写回去。
  */
 export class ModelsFacade {
   private persisted: Persisted = { ...DEFAULT_PERSISTED };
   private availableIds = new Set<string>();
+  private project: { file: string; settings: ProjectSettings } | null = null;
 
   private constructor(
     public readonly runtime: ModelRuntime,
@@ -44,7 +47,16 @@ export class ModelsFacade {
   // ───────────── 状态 ─────────────
 
   get thinkingLevel(): ThinkingLevel {
-    return this.persisted.thinkingLevel;
+    return this.project?.settings.thinkingLevel ?? this.persisted.thinkingLevel;
+  }
+
+  /** 打开项目时调用：读项目 settings.json，之后模型选择以它为准 */
+  async bindProject(settingsFile: string) {
+    this.project = { file: settingsFile, settings: await readProjectSettings(settingsFile) };
+  }
+
+  unbindProject() {
+    this.project = null;
   }
 
   get recentProjects(): string[] {
@@ -56,10 +68,10 @@ export class ModelsFacade {
     await this.save();
   }
 
-  /** 当前选中的模型；没选或选的已不可用时退到第一个可用的 */
+  /** 当前选中的模型：项目设置 → 全局上次选择 → 第一个可用的 */
   currentModel(): Model<Api> | undefined {
-    const want = this.persisted.model;
-    if (want) {
+    for (const want of [this.project?.settings.model, this.persisted.model]) {
+      if (!want) continue;
       const m = this.runtime.getModel(want.provider, want.id);
       if (m) return m;
     }
@@ -97,8 +109,14 @@ export class ModelsFacade {
     const m = this.runtime.getModel(provider, id);
     if (!m) throw new Error(`没有这个模型：${provider}/${id}`);
     this.persisted.model = { provider, id };
-    if (thinkingLevel) this.persisted.thinkingLevel = m.reasoning ? thinkingLevel : "off";
+    const level = thinkingLevel ? (m.reasoning ? thinkingLevel : "off") : undefined;
+    if (level) this.persisted.thinkingLevel = level;
     await this.save();
+    if (this.project) {
+      const patch: Partial<ProjectSettings> = { model: { provider, id } };
+      if (level) patch.thinkingLevel = level;
+      this.project.settings = await writeProjectSettings(this.project.file, patch);
+    }
     return m;
   }
 

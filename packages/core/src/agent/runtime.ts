@@ -253,6 +253,8 @@ export class Kernel {
   private async afterOpen(mode: "new" | "continue") {
     const store = this.requireStore();
     await this.models.rememberProject(store.info.root);
+    await this.models.bindProject(store.settingsPath);
+    this.emit({ type: "models.state", state: this.models.state() });
     this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
     await this.createLead(mode);
   }
@@ -262,7 +264,9 @@ export class Kernel {
     await this.disposeAgents();
     this.store = null;
     this.index = null;
+    this.models.unbindProject();
     this.emit({ type: "project.closed" });
+    this.emit({ type: "models.state", state: this.models.state() });
   }
 
   private async disposeAgents() {
