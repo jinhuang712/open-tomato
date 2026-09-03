@@ -52,18 +52,21 @@ export interface ToolPermissions {
   canAsk: boolean;
 }
 
+/** 给人看的类型名：目录名；单例没有目录就用标签 */
+const zhDir = (kind: DocKindId) => DOC_KINDS[kind].dir || DOC_KINDS[kind].label;
+
 const KIND_SCHEMA = Type.String({
-  description: `文档类型，写英文 kind 或中文目录名都行：${DOC_KIND_IDS.map((k) => `${k}=${DOC_KINDS[k].dir}`).join("、")}`,
+  description: `文档类型，写英文 kind 或中文名都行：${DOC_KIND_IDS.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
 });
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
 
-/** 给作者 / 模型看的路径一律中文目录 */
-const zhPath = (kind: DocKindId, id: string) => `${DOC_KINDS[kind].dir}/${id}`;
+/** 给作者 / 模型看的路径一律中文目录；单例只有名字 */
+const zhPath = (kind: DocKindId, id: string) => (DOC_KINDS[kind].singleton ? zhDir(kind) : `${DOC_KINDS[kind].dir}/${id}`);
 
 function assertKind(kind: unknown): DocKindId {
   const k = resolveKind(kind);
-  if (!k) throw new Error(`未知的 kind：${String(kind)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ")}`);
+  if (!k) throw new Error(`未知的 kind：${String(kind)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${zhDir(x)}）`).join(" / ")}`);
   return k;
 }
 
@@ -125,7 +128,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         for (const k of DOC_KIND_IDS) {
           const docs = all.filter((d) => d.kind === k);
           if (docs.length === 0) continue;
-          lines.push("", `## ${DOC_KINDS[k].dir}/（kind=${k}）${docs.length} 篇`);
+          lines.push("", DOC_KINDS[k].singleton ? `## ${zhDir(k)}（kind=${k}）` : `## ${DOC_KINDS[k].dir}/（kind=${k}）${docs.length} 篇`);
           for (const d of docs) lines.push(`- ${d.id} | ${d.title} | ${d.status} | ${d.summary}`);
         }
         return text(lines.join("\n"));
@@ -142,7 +145,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       execute: async (_id, params) => {
         const kind = assertKind(params.kind);
         const docs = await store.list(kind);
-        if (docs.length === 0) return text(`${DOC_KINDS[kind].dir}/ 下没有文档。`);
+        if (docs.length === 0) return text(`${zhDir(kind)} 下没有文档。`);
         return text(
           docs
             .map((d) => {
@@ -291,7 +294,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           "新建文档或整篇重写：写入完整文件文本（含 frontmatter，用 doc_template 拿模板）。改已有文档的局部请用 edit_doc。会先在界面上给用户看 diff，用户批准后才真正写入；被拒时返回原因。",
         parameters: Type.Object({
           kind: KIND_SCHEMA,
-          id: Type.String({ description: "文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字" }),
+          id: Type.String({ description: "文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字；守则留空自动编号；简介随便填都落到同一份" }),
           content: Type.String({ description: "完整文件文本，必须以 --- 开头的 frontmatter 起始" }),
         }),
         execute: async (toolCallId, params, signal) => {
@@ -381,7 +384,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       defineTool({
         name: "spawn_agents",
         label: "派子 agent",
-        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 planner / writer 要求 守则/立项 的「一句话故事」已填，否则会被拒。`,
+        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 planner / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
         parameters: Type.Object({
           tasks: Type.Array(
             Type.Object({
