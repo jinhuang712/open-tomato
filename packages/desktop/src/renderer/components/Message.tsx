@@ -23,7 +23,7 @@ export function Message(props: { message: UiMessage }) {
     );
   }
   return (
-    <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`}>
+    <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`} data-role={props.message.role}>
       <div
         class={
           isUser()

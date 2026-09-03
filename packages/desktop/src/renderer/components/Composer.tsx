@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, setState, state } from "../state";
 
@@ -18,6 +18,18 @@ export function Composer(props: { agentId?: string }) {
       if (box) autoGrow(box);
     });
   });
+  // 作者圈了一段字进来，光标跟过去，让他直接开口
+  const quotes = () => state.composerQuotes;
+  createEffect(
+    on(
+      () => quotes().length,
+      (n, prev) => {
+        if (prev !== undefined && n > prev) box?.focus();
+      },
+      { defer: true },
+    ),
+  );
+  const dropQuote = (id: string) => setState("composerQuotes", (qs) => qs.filter((q) => q.id !== id));
   // 发送后清空要把高度收回去
   createEffect(() => {
     text();
@@ -37,19 +49,45 @@ export function Composer(props: { agentId?: string }) {
     if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊…（⌘↩ 发送，比如挑一个候选让它往下孵化）`;
     if (!isLead()) return `给${agent()?.label ?? "子 agent"}插话…（⌘↩ 发送，它会在当前步骤后处理）`;
+    if (quotes().length) return "对这段说点什么";
     return "和主编说话";
   };
 
+  // 引用按 markdown 引用块排在正文前面，主编一眼看出作者在对哪段说话
+  const canSend = () => Boolean(text().trim()) || quotes().length > 0;
   const send = () => {
-    const t = text();
-    if (!t.trim()) return;
+    if (!canSend()) return;
+    const blocks = quotes().map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
+    const t = [...blocks, text().trim()].filter(Boolean).join("\n\n");
     setText("");
+    setState("composerQuotes", []);
     void actions.send(t, agentId());
   };
 
   return (
     <div class="px-5 pb-4 pt-1">
       <div class="rounded-xl border border-line-2 bg-paper-2 focus-within:border-ink-3 transition-colors">
+        <Show when={isLead() && quotes().length > 0}>
+          <div class="flex flex-col gap-1.5 px-3 pt-3">
+            <For each={quotes()}>
+              {(q) => (
+                <div class="group flex items-start gap-2 pl-3 pr-1 py-0.5 border-l-2 border-ink-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs text-ink-3 leading-tight">{q.role === "user" ? "你说过" : "主编说过"}</div>
+                    <div class="font-serif text-sm text-ink-2 whitespace-pre-line line-clamp-2">{q.text}</div>
+                  </div>
+                  <button
+                    class="shrink-0 w-6 h-6 rounded-md text-ink-3 hover:text-ink hover:bg-paper-3 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    title="去掉这段引用"
+                    onClick={() => dropQuote(q.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
         <textarea
           ref={box}
           class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm placeholder:text-ink-3"
@@ -81,7 +119,7 @@ export function Composer(props: { agentId?: string }) {
           </Show>
           <button
             class="h-7 px-3 rounded-md bg-ink text-paper text-xs font-medium hover:brightness-110 disabled:opacity-30"
-            disabled={!text().trim() || disabled()}
+            disabled={!canSend() || disabled()}
             onClick={send}
             title="⌘↩"
           >

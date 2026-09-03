@@ -85,6 +85,26 @@ body {
   user-select: text;
 }
 
+/* 批注药丸：从选区边上冒出来，只在作者松手那一下动一次 */
+.quote-pill {
+  animation: quote-pill-in 120ms ease-out;
+}
+@keyframes quote-pill-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quote-pill {
+    animation: none;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

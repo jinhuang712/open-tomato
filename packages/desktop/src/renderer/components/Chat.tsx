@@ -7,6 +7,7 @@ import { EmptyStart } from "./EmptyStart";
 import { Message } from "./Message";
 import { QuestionDock } from "./QuestionDock";
 import { QuickActions } from "./QuickActions";
+import { QuotePill } from "./QuotePill";
 
 
 export function Chat(props: { agentId: string }) {
@@ -69,6 +70,9 @@ export function Chat(props: { agentId: string }) {
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
+      <Show when={isLead()}>
+        <QuotePill within={() => scroller} />
+      </Show>
       <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
         <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
         <Show when={messages().length === 0}>

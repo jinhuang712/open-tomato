@@ -25,6 +25,14 @@ export interface Toast {
   text: string;
 }
 
+
+export interface ComposerQuote {
+  id: string;
+  /** 被圈的是谁说的话 */
+  role: "user" | "assistant";
+  text: string;
+}
+
 export interface State {
   ready: boolean;
   home: string;
@@ -50,6 +58,8 @@ export interface State {
   searchOpen: boolean;
   /** 快捷按钮往输入框里预填的文字；Composer 消费后清空 */
   composerDraft: string | null;
+  /** 作者在主会话里圈出来准备批注的段落，随下一条消息一起发出 */
+  composerQuotes: ComposerQuote[];
   /** 正在弹窗审阅的 approvalId */
   reviewOpen: string | null;
 }
@@ -77,6 +87,7 @@ const initial: State = {
   capabilityDialog: null,
   searchOpen: false,
   composerDraft: null,
+  composerQuotes: [],
   reviewOpen: null,
 };
 
