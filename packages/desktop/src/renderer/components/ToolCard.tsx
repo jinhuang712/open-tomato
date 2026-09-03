@@ -146,15 +146,32 @@ function SpawnCard(props: { part: ToolPart; open: boolean; toggle: () => void })
   const tasks = () => (Array.isArray(args(props.part).tasks) ? (args(props.part).tasks as Array<{ role: string; task: string }>) : []);
   const running = () => props.part.status === "running";
   return (
-    <div class="my-1 text-xs">
-      <button class="w-full h-7 flex items-center gap-2 text-left text-ink-3 hover:text-ink-2" onClick={props.toggle}>
-        <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-        <span class={running() ? "shimmer" : "text-ink-2"}>{running() ? "子 agent 在干活" : "子 agent 已回传"}</span>
-        <span class="text-ink-3 truncate flex-1">{tasks().map((t) => ROLE_LABELS[t.role] ?? t.role).join(" · ")}</span>
+    <div
+      class="my-2 text-xs rounded-lg border-l-2 pl-2.5 pr-2"
+      classList={{
+        "border-accent bg-accent-soft/40": running(),
+        "border-danger bg-danger-soft/40": props.part.status === "error",
+        "border-line-2 bg-paper-2": props.part.status === "done",
+      }}
+    >
+      <button class="w-full h-8 flex items-center gap-2 text-left hover:brightness-110" onClick={props.toggle}>
+        <span class="flex -space-x-1.5 shrink-0">
+          <For each={tasks()}>
+            {(t) => (
+              <span class="w-5 h-5 rounded-full bg-paper-4 text-ink-2 border border-paper-2 flex items-center justify-center text-[10px]">
+                {(ROLE_LABELS[t.role] ?? t.role).slice(0, 1)}
+              </span>
+            )}
+          </For>
+        </span>
+        <span class={running() ? "shimmer font-medium" : "text-ink font-medium"}>
+          {running() ? "子 agent 在干活" : props.part.status === "error" ? "子 agent 出错" : "子 agent 已回传"}
+        </span>
+        <span class="text-ink-2 truncate flex-1">{tasks().map((t) => ROLE_LABELS[t.role] ?? t.role).join(" · ")}</span>
         <span class="text-ink-3">{props.open ? "▾" : "▸"}</span>
       </button>
       <Show when={props.open}>
-        <div class="mt-1 px-4 py-2 rounded-lg bg-paper-2 space-y-2 selectable text-sm">
+        <div class="mb-2 px-3 py-2 rounded-lg bg-paper-2 space-y-2 selectable text-sm">
           <For each={tasks()}>
             {(t) => (
               <div class="mt-2">
