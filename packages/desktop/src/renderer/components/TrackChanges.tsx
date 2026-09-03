@@ -1,6 +1,7 @@
 import { diffArrays, diffChars } from "diff";
 import { marked } from "marked";
 import { createMemo, For, Show } from "solid-js";
+import { sanitizeHtml } from "../markdown";
 
 /** 拆 frontmatter：和内核同一套约定（--- 包裹的 YAML），这里只需要按行取 key: value */
 function splitDoc(raw: string): { meta: Record<string, string>; body: string } {
@@ -143,7 +144,7 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
       .filter((c) => c.from !== c.to);
   });
 
-  const html = createMemo(() => renderTracked(before().body, after().body, props.isNew));
+  const html = createMemo(() => sanitizeHtml(renderTracked(before().body, after().body, props.isNew)));
   const changed = () => before().body !== after().body;
 
   return (
