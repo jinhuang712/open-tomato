@@ -15,7 +15,7 @@ export function Sidebar() {
 
   return (
     <div class="flex flex-col h-full">
-      <div class="px-4 pt-3 pb-2 text-[11px] uppercase tracking-wider text-ink-3 flex items-center">
+      <div class="px-4 pt-3 pb-2 text-xs uppercase tracking-wider text-ink-3 flex items-center">
         <span>文档</span>
         <span class="flex-1" />
         <Show when={state.issues}>
@@ -37,9 +37,9 @@ export function Sidebar() {
           {(k) => (
             <div class="mb-1">
               <button class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-paper-2 text-left" onClick={() => toggle(k)}>
-                <span class="text-ink-3 text-[10px] w-3">{collapsed()[k] ? "▸" : "▾"}</span>
+                <span class="text-ink-3 text-xs w-3">{collapsed()[k] ? "▸" : "▾"}</span>
                 <span class="font-medium">{kindLabel(k)}</span>
-                <span class="text-ink-3 text-[11px]">{docsOf(k).length}</span>
+                <span class="text-ink-3 text-xs">{docsOf(k).length}</span>
               </button>
               <Show when={!collapsed()[k]}>
                 <For each={docsOf(k)}>
@@ -47,13 +47,13 @@ export function Sidebar() {
                     const hasIssue = () => state.issues?.some((i) => i.kind === d.kind && i.id === d.id && i.level === "error");
                     return (
                       <button
-                        class={`w-full flex items-center gap-2 pl-7 pr-2 py-1 rounded-md text-left text-[12px] ${
+                        class={`w-full flex items-center gap-2 pl-7 pr-2 py-1 rounded-md text-left text-xs ${
                           activeDoc() === `${d.kind}/${d.id}` ? "bg-paper-3" : "hover:bg-paper-2"
                         }`}
                         onClick={() => actions.openDoc(d.kind, d.id)}
                         title={d.summary}
                       >
-                        <span class="font-mono text-ink-3 shrink-0">{d.id}</span>
+                        <span class="text-ink-3 shrink-0">{d.id}</span>
                         <span class="truncate">{d.title}</span>
                         <span class="flex-1" />
                         <Show when={hasIssue()}>

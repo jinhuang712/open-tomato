@@ -38,13 +38,13 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
 
   return (
     <div class="flex flex-col h-full min-w-0">
-      <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-[12px]">
+      <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-xs">
         <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
           ← 对话
         </button>
         <span class="text-ink-3">|</span>
         <span class="text-ink-3">{kindLabel()}</span>
-        <span class="font-mono">{props.id}</span>
+        <span class="text-ink-2">{props.id}</span>
         <span class="flex-1" />
         <Show when={doc()}>
           {(d) => (
@@ -72,7 +72,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         </Show>
       </div>
       <Show when={issues().length > 0}>
-        <div class="px-5 py-2 bg-warn-soft/50 border-b border-line text-[12px] space-y-0.5">
+        <div class="px-5 py-2 bg-warn-soft/50 border-b border-line text-xs space-y-0.5">
           <For each={issues()}>
             {(i) => (
               <div class={i.level === "error" ? "text-danger" : "text-warn"}>
@@ -95,25 +95,25 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
               when={editing()}
               fallback={
                 <div class="max-w-3xl mx-auto px-8 py-6">
-                  <h1 class="font-serif text-2xl mb-1">{d().title}</h1>
+                  <h1 class="font-serif text-xl mb-1">{d().title}</h1>
                   <div class="text-ink-2 mb-1">{d().summary}</div>
-                  <div class="flex flex-wrap gap-1.5 mb-5 text-[11px]">
+                  <div class="flex flex-wrap gap-1.5 mb-5 text-xs">
                     <span class="px-1.5 rounded bg-paper-3 text-ink-2">{d().status}</span>
                     <For each={d().keywords}>{(k) => <span class="px-1.5 rounded bg-paper-3 text-ink-2">{k}</span>}</For>
                     <For each={Object.entries(d().extra)}>
                       {([k, v]) => (
-                        <span class="px-1.5 rounded bg-paper-2 text-ink-3 font-mono">
+                        <span class="px-1.5 rounded bg-paper-2 text-ink-3">
                           {k}={typeof v === "string" ? v : JSON.stringify(v)}
                         </span>
                       )}
                     </For>
                   </div>
-                  <div class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-[15px] leading-8" : ""}`} innerHTML={renderMarkdown(d().body)} />
+                  <div class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`} innerHTML={renderMarkdown(d().body)} />
                 </div>
               }
             >
               <textarea
-                class="w-full h-full p-6 bg-paper font-mono text-[12.5px] leading-relaxed outline-none resize-none"
+                class="w-full h-full p-6 bg-paper font-mono text-xs leading-relaxed outline-none resize-none"
                 value={draft()}
                 onInput={(e) => setDraft(e.currentTarget.value)}
                 spellcheck={false}

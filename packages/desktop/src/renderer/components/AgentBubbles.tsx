@@ -43,7 +43,7 @@ export function AgentBubbles() {
             <For each={agents().slice(0, 5)}>
               {(a) => (
                 <button
-                  class={`relative w-9 h-9 rounded-full border-2 border-paper bg-paper-3 text-[12px] font-medium flex items-center justify-center shadow transition-transform hover:scale-110 ${
+                  class={`relative w-9 h-9 rounded-full border-2 border-paper bg-paper-3 text-xs font-medium flex items-center justify-center shadow transition-transform hover:scale-110 ${
                     active() === a.agentId ? "ring-2 ring-accent" : ""
                   }`}
                   title={`${a.label} · ${STATUS[a.status]}`}
@@ -55,12 +55,12 @@ export function AgentBubbles() {
               )}
             </For>
             <Show when={agents().length > 5}>
-              <span class="w-9 h-9 rounded-full border-2 border-paper bg-paper-2 text-[11px] text-ink-2 flex items-center justify-center shadow">
+              <span class="w-9 h-9 rounded-full border-2 border-paper bg-paper-2 text-xs text-ink-2 flex items-center justify-center shadow">
                 +{agents().length - 5}
               </span>
             </Show>
             <Show when={running() > 0}>
-              <span class="mt-1 px-2 py-0.5 rounded-full bg-accent-soft text-accent text-[11px] shadow whitespace-nowrap">{running()} 在跑</span>
+              <span class="mt-1 px-2 py-0.5 rounded-full bg-accent-soft text-accent text-xs shadow whitespace-nowrap">{running()} 在跑</span>
             </Show>
           </div>
         </Show>
@@ -68,7 +68,7 @@ export function AgentBubbles() {
         {/* 展开态：放大的列表，点某一行进入 */}
         <Show when={open()}>
           <div class="w-[340px] max-h-[60vh] rounded-2xl border border-line bg-paper shadow-2xl overflow-hidden flex flex-col">
-            <div class="flex items-center px-3 py-2 border-b border-line text-[12px]">
+            <div class="flex items-center px-3 py-2 border-b border-line text-xs">
               <span class="font-medium">Agents</span>
               <span class="ml-2 text-ink-3">
                 {agents().length} 个 · {running()} 个在跑
@@ -81,7 +81,7 @@ export function AgentBubbles() {
                     class={`w-full text-left px-2.5 py-2 rounded-xl flex items-start gap-3 ${active() === a.agentId ? "bg-paper-3" : "hover:bg-paper-2"}`}
                     onClick={() => pick(a)}
                   >
-                    <span class="relative shrink-0 w-10 h-10 rounded-full bg-paper-3 text-[13px] font-medium flex items-center justify-center">
+                    <span class="relative shrink-0 w-10 h-10 rounded-full bg-paper-3 text-sm font-medium flex items-center justify-center">
                       {a.label.slice(0, 2)}
                       <span class={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-paper ${DOT[a.status]} ${a.status === "running" ? "animate-pulse" : ""}`} />
                     </span>
@@ -89,11 +89,11 @@ export function AgentBubbles() {
                       <span class="flex items-center gap-2">
                         <span class="font-medium">{a.label}</span>
                         <span class="flex-1" />
-                        <span class="text-[11px] text-ink-3">{STATUS[a.status]}</span>
+                        <span class="text-xs text-ink-3">{STATUS[a.status]}</span>
                       </span>
-                      <span class="block mt-0.5 text-[12px] text-ink-2 line-clamp-2">{a.task || "统筹全局，派单与汇总"}</span>
+                      <span class="block mt-0.5 text-xs text-ink-2 line-clamp-2">{a.task || "统筹全局，派单与汇总"}</span>
                       <Show when={a.status === "running" && a.statusText}>
-                        <span class="block mt-0.5 text-[11px] text-accent shimmer w-fit">{a.statusText}</span>
+                        <span class="block mt-0.5 text-xs text-accent shimmer w-fit">{a.statusText}</span>
                       </Show>
                     </span>
                   </button>

@@ -96,23 +96,23 @@ export function SearchPalette() {
           <span class="text-ink-3">⌕</span>
           <input
             ref={input}
-            class="flex-1 bg-transparent outline-none text-[15px]"
+            class="flex-1 bg-transparent outline-none text-lg"
             placeholder="搜人物、设定、线索、章节、正文…"
             value={q()}
             onInput={(e) => setQ(e.currentTarget.value)}
             onKeyDown={onKey}
           />
           <Show when={busy()}>
-            <span class="text-ink-3 text-[11px] shimmer">检索中</span>
+            <span class="text-ink-3 text-xs shimmer">检索中</span>
           </Show>
-          <kbd class="text-[10px] text-ink-3 border border-line rounded px-1">esc</kbd>
+          <kbd class="text-xs text-ink-3 border border-line rounded px-1">esc</kbd>
         </div>
         <div class="overflow-y-auto">
           <Show when={q().trim() && !busy() && hits().length === 0}>
             <div class="px-4 py-8 text-center text-ink-3">没有和「{q()}」相关的内容</div>
           </Show>
           <Show when={!q().trim()}>
-            <div class="px-4 py-8 text-center text-ink-3 text-[12px]">
+            <div class="px-4 py-8 text-center text-ink-3 text-xs">
               按相关度全文检索，不只是字面匹配。
               <br />
               ↑↓ 选择，↩ 打开，⌘P 随时呼出
@@ -121,7 +121,7 @@ export function SearchPalette() {
           <For each={grouped()}>
             {(g) => (
               <div class="py-1">
-                <div class="px-4 pt-2 pb-1 text-[11px] uppercase tracking-wider text-ink-3 flex items-center gap-2">
+                <div class="px-4 pt-2 pb-1 text-xs uppercase tracking-wider text-ink-3 flex items-center gap-2">
                   <span>{kindLabel(g.kind)}</span>
                   <span class="text-ink-3/70">{g.items.length}</span>
                   <span class="flex-1 border-t border-line" />
@@ -138,12 +138,12 @@ export function SearchPalette() {
                       >
                         <span class="flex items-center gap-2">
                           <span class="font-medium" innerHTML={highlight(h.title, q())} />
-                          <span class="font-mono text-[11px] text-ink-3">{h.id}</span>
+                          <span class="text-xs text-ink-3">{h.id}</span>
                           <Show when={h.section}>
-                            <span class="text-[11px] text-ink-3">§ {h.section}</span>
+                            <span class="text-xs text-ink-3">§ {h.section}</span>
                           </Show>
                         </span>
-                        <span class="text-[12px] text-ink-2 line-clamp-2 search-snippet" innerHTML={highlight(h.snippet || h.summary, q())} />
+                        <span class="text-xs text-ink-2 line-clamp-2 search-snippet" innerHTML={highlight(h.snippet || h.summary, q())} />
                       </button>
                     );
                   }}

@@ -52,7 +52,7 @@ export function Composer(props: { agentId?: string }) {
       <div class="rounded-2xl border border-line bg-paper-2 focus-within:border-accent transition-colors">
         <textarea
           ref={box}
-          class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-[13.5px] leading-relaxed"
+          class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm leading-relaxed"
           rows={2}
           placeholder={placeholder()}
           value={text()}
@@ -69,7 +69,7 @@ export function Composer(props: { agentId?: string }) {
           }}
         />
         <div class="flex items-center gap-2 px-3 pb-2">
-          <span class="text-[11px] text-ink-3">
+          <span class="text-xs text-ink-3">
             {state.models?.current ? `${state.models.current.provider} / ${state.models.current.id}` : "未选模型"}
             {state.models?.thinkingLevel && state.models.thinkingLevel !== "off" ? ` · 思考 ${state.models.thinkingLevel}` : ""}
           </span>

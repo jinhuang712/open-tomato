@@ -17,8 +17,8 @@ function Titlebar() {
       <Show when={state.project} fallback={<span class="font-serif text-ink-2">OpenTomato</span>}>
         {(p) => (
           <>
-            <span class="font-serif text-[15px]">{p().name}</span>
-            <span class="ml-2 text-ink-3 text-[11px] font-mono truncate max-w-[40%]">{p().root}</span>
+            <span class="font-serif text-lg">{p().name}</span>
+            <span class="ml-2 text-ink-3 text-xs truncate max-w-[40%]">{p().root}</span>
           </>
         )}
       </Show>
@@ -26,23 +26,23 @@ function Titlebar() {
       {/* 标题栏正中的搜索入口，⌘P 同效 */}
       <Show when={state.project}>
         <button
-          class="no-drag w-[360px] h-7 px-3 rounded-lg border border-line bg-paper/60 hover:bg-paper-3 text-ink-3 text-[12px] flex items-center gap-2"
+          class="no-drag w-[360px] h-7 px-3 rounded-lg border border-line bg-paper/60 hover:bg-paper-3 text-ink-3 text-xs flex items-center gap-2"
           onClick={() => setState("searchOpen", true)}
         >
           <span>⌕</span>
           <span class="flex-1 text-left">搜人物、设定、章节、正文…</span>
-          <kbd class="text-[10px] border border-line rounded px-1">⌘P</kbd>
+          <kbd class="text-xs border border-line rounded px-1">⌘P</kbd>
         </button>
       </Show>
       <span class="flex-1" />
-      <div class="no-drag flex items-center gap-1.5 text-[12px]">
+      <div class="no-drag flex items-center gap-1.5 text-xs">
         <Show when={state.approvals.length > 0}>
-          <span class="px-2 py-0.5 rounded-md bg-accent-soft text-accent">{state.approvals.length} 待审</span>
+          <span class="px-2 py-0.5 rounded-md bg-warn-soft text-warn">{state.approvals.length} 待审</span>
         </Show>
         <Show when={state.questions.length > 0}>
           <span class="px-2 py-0.5 rounded-md bg-warn-soft text-warn">{state.questions.length} 待答</span>
         </Show>
-        <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3 font-mono" onClick={() => setState("modelPickerOpen", true)}>
+        <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => setState("modelPickerOpen", true)}>
           {state.models?.current ? state.models.current.id : "选择模型"}
         </button>
         <Show when={state.project}>
@@ -66,7 +66,7 @@ function Toasts() {
     <div class="fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none">
       <For each={state.toasts}>
         {(t) => (
-          <div class={`px-3 py-2 rounded-lg shadow-lg text-[12px] max-w-[360px] selectable pointer-events-auto ${t.level === "error" ? "bg-danger text-white" : "bg-ink text-paper"}`}>
+          <div class={`px-3 py-2 rounded-lg shadow-lg text-xs max-w-[360px] selectable pointer-events-auto ${t.level === "error" ? "bg-danger text-white" : "bg-ink text-paper"}`}>
             {t.text}
           </div>
         )}

@@ -33,9 +33,9 @@ export function ModelPicker() {
       <div class="w-[820px] max-h-[80vh] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">
           <span class="font-medium">模型</span>
-          <span class="text-ink-3 text-[12px]">凭据与自定义 provider 沿用 pi：~/.pi/agent/auth.json · models.json</span>
+          <span class="text-ink-3 text-xs">凭据与自定义 provider 沿用 pi：~/.pi/agent/auth.json · models.json</span>
           <span class="flex-1" />
-          <button class="text-[12px] text-ink-2 hover:text-ink" onClick={() => void actions.refreshModels()}>
+          <button class="text-xs text-ink-2 hover:text-ink" onClick={() => void actions.refreshModels()}>
             刷新目录
           </button>
           <button class="text-ink-3 hover:text-ink px-1" onClick={() => setState("modelPickerOpen", false)}>
@@ -53,7 +53,7 @@ export function ModelPicker() {
                   <span class={`w-1.5 h-1.5 rounded-full ${p.configured ? "bg-ok" : "bg-line"}`} />
                   <span class="truncate">{p.name}</span>
                   <span class="flex-1" />
-                  <span class="text-[11px] text-ink-3">{p.modelCount}</span>
+                  <span class="text-xs text-ink-3">{p.modelCount}</span>
                 </button>
               )}
             </For>
@@ -64,14 +64,14 @@ export function ModelPicker() {
                 <div class="px-4 py-3 border-b border-line space-y-2">
                   <div class="flex items-center gap-2">
                     <span class="font-medium">{p().name}</span>
-                    <span class={`text-[11px] px-1.5 rounded ${p().configured ? "bg-ok-soft text-ok" : "bg-paper-3 text-ink-3"}`}>
+                    <span class={`text-xs px-1.5 rounded ${p().configured ? "bg-ok-soft text-ok" : "bg-paper-3 text-ink-3"}`}>
                       {p().configured ? "已配置" : "未配置"}
                     </span>
                   </div>
                   <div class="flex gap-2">
                     <input
                       type="password"
-                      class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent font-mono text-[12px]"
+                      class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent font-mono text-xs"
                       placeholder={`${p().id} API key（也可以用环境变量）`}
                       value={apiKey()}
                       onInput={(e) => setApiKey(e.currentTarget.value)}
@@ -98,7 +98,7 @@ export function ModelPicker() {
             </Show>
             <div class="px-4 py-2 border-b border-line">
               <input
-                class="w-full px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent text-[12px]"
+                class="w-full px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent text-xs"
                 placeholder="筛选模型…"
                 value={filter()}
                 onInput={(e) => setFilter(e.currentTarget.value)}
@@ -115,12 +115,12 @@ export function ModelPicker() {
                       title={m.available ? "" : "该提供方还没有可用凭据"}
                     >
                       <span class="truncate">{m.name}</span>
-                      <span class="font-mono text-[11px] text-ink-3 truncate">{m.id}</span>
+                      <span class="text-xs text-ink-3 truncate">{m.id}</span>
                       <span class="flex-1" />
                       <Show when={m.reasoning}>
-                        <span class="text-[10px] px-1 rounded bg-paper-3 text-ink-2">思考</span>
+                        <span class="text-xs px-1 rounded bg-paper-3 text-ink-2">思考</span>
                       </Show>
-                      <span class="text-[11px] text-ink-3 w-16 text-right">{Math.round(m.contextWindow / 1000)}k</span>
+                      <span class="text-xs text-ink-3 w-16 text-right">{Math.round(m.contextWindow / 1000)}k</span>
                     </button>
                   );
                 }}
@@ -131,7 +131,7 @@ export function ModelPicker() {
             </div>
             <Show when={currentModel()}>
               {(cm) => (
-                <div class="px-4 py-2.5 border-t border-line flex items-center gap-2 text-[12px]">
+                <div class="px-4 py-2.5 border-t border-line flex items-center gap-2 text-xs">
                   <span class="text-ink-2">当前：</span>
                   <span class="font-medium">{cm().name}</span>
                   <span class="flex-1" />

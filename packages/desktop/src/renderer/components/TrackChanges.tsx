@@ -150,8 +150,8 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
   return (
     <div class="selectable">
       <Show when={metaChanges().length > 0}>
-        <div class="mb-5 rounded-lg border border-line bg-paper-2 px-4 py-2.5 text-[12.5px]">
-          <div class="text-ink-3 text-[11px] mb-1.5">头信息</div>
+        <div class="mb-5 rounded-lg border border-line bg-paper-2 px-4 py-2.5 text-xs">
+          <div class="text-ink-3 text-xs mb-1.5">头信息</div>
           <For each={metaChanges()}>
             {(c) => (
               <div class="flex gap-3 py-0.5">
@@ -177,7 +177,7 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
         <div class="text-ink-3 text-center py-6">内容没有变化</div>
       </Show>
 
-      <div class="prose-zh tc-doc font-serif text-[15px]" innerHTML={html()} />
+      <div class="prose-zh tc-doc font-serif text-lg" innerHTML={html()} />
     </div>
   );
 }

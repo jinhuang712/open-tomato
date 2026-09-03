@@ -13,12 +13,12 @@ export function CapabilityDialog(props: { capability: CapabilityInfo }) {
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setState("capabilityDialog", null)}>
       <div class="w-[520px] rounded-2xl bg-paper border border-line shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div class="font-medium text-[15px] mb-1">{props.capability.label}</div>
-        <div class="text-ink-2 text-[12px] mb-4">{props.capability.description}</div>
+        <div class="font-medium text-lg mb-1">{props.capability.label}</div>
+        <div class="text-ink-2 text-xs mb-4">{props.capability.description}</div>
         <For each={props.capability.params}>
           {(p, i) => (
             <label class="block mb-3">
-              <div class="text-[12px] text-ink-2 mb-1">
+              <div class="text-xs text-ink-2 mb-1">
                 {p.label}
                 {p.required ? " *" : ""}
               </div>
@@ -37,7 +37,7 @@ export function CapabilityDialog(props: { capability: CapabilityInfo }) {
           <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-2" onClick={() => setState("capabilityDialog", null)}>
             取消
           </button>
-          <button class="px-3 py-1.5 rounded-lg bg-accent text-white font-medium disabled:opacity-40" disabled={!ready()} onClick={submit}>
+          <button class="px-3 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-40" disabled={!ready()} onClick={submit}>
             交给主编
           </button>
         </div>

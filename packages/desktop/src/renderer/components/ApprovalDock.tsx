@@ -19,18 +19,18 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
   return (
     <div class="mx-5 mb-2 rounded-xl border border-accent/40 bg-paper shadow-lg overflow-hidden">
       <div class="flex items-center gap-3 px-4 py-3">
-        <span class="w-2 h-2 rounded-full bg-accent shrink-0" />
+        <span class="w-2 h-2 rounded-full bg-warn shrink-0" />
         <span class="font-medium shrink-0">{agent()?.label ?? "agent"} 请求写入</span>
-        <DocLink kind={props.request.kind} id={props.request.docId} class="text-[12px]" />
+        <DocLink kind={props.request.kind} id={props.request.docId} class="text-xs" />
         <Show when={props.request.isNew}>
-          <span class="text-[11px] px-1.5 rounded bg-ok-soft text-ok">新建</span>
+          <span class="text-xs px-1.5 rounded bg-ok-soft text-ok">新建</span>
         </Show>
-        <span class="text-[12px] text-ink-3 shrink-0">
+        <span class="text-xs text-ink-3 shrink-0">
           <span class="text-ok">+{stats().add}</span> <span class="text-danger">−{stats().del}</span>
         </span>
         <span class="flex-1" />
         <button
-          class="px-3 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110"
+          class="px-3 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110"
           onClick={() => setState("reviewOpen", props.request.approvalId)}
         >
           审阅
@@ -39,7 +39,7 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
           直接批准
         </button>
         <Show when={state.approvals.length > 1}>
-          <span class="text-ink-3 text-[12px]">还有 {state.approvals.length - 1} 条</span>
+          <span class="text-ink-3 text-xs">还有 {state.approvals.length - 1} 条</span>
         </Show>
       </div>
     </div>

@@ -38,15 +38,15 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
         }}
       >
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">
-          <span class="w-2 h-2 rounded-full bg-accent" />
+          <span class="w-2 h-2 rounded-full bg-warn" />
           <span class="font-medium">{agent()?.label ?? "agent"} 请求写入</span>
-          <DocLink kind={props.request.kind} id={props.request.docId} class="text-[12px]" />
+          <DocLink kind={props.request.kind} id={props.request.docId} class="text-xs" />
           <Show when={props.request.isNew}>
-            <span class="text-[11px] px-1.5 rounded bg-ok-soft text-ok">新建</span>
+            <span class="text-xs px-1.5 rounded bg-ok-soft text-ok">新建</span>
           </Show>
           <span class="text-ink-2 truncate">{props.request.title}</span>
           <span class="flex-1" />
-          <div class="flex rounded-md border border-line overflow-hidden text-[12px]">
+          <div class="flex rounded-md border border-line overflow-hidden text-xs">
             <button class={`px-2.5 py-1 ${tab() === "review" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => setTab("review")}>
               审阅
             </button>
@@ -66,7 +66,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
         </div>
 
         <div class="flex items-center gap-2 px-5 py-3 border-t border-line bg-paper-2">
-          <span class="text-[11px] text-ink-3 flex items-center gap-3">
+          <span class="text-xs text-ink-3 flex items-center gap-3">
             <span>
               <ins class="tc-ins">新增</ins>
             </span>
@@ -76,7 +76,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </span>
           <span class="flex-1" />
           <Show when={remaining() > 0}>
-            <span class="text-ink-3 text-[12px] mr-2">还有 {remaining()} 条待审</span>
+            <span class="text-ink-3 text-xs mr-2">还有 {remaining()} 条待审</span>
           </Show>
           <Show
             when={rejecting()}
@@ -85,7 +85,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-3" onClick={() => setRejecting(true)}>
                   拒绝…
                 </button>
-                <button class="px-4 py-1.5 rounded-lg bg-accent text-white font-medium hover:brightness-110" onClick={approve}>
+                <button class="px-4 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110" onClick={approve}>
                   批准写入
                 </button>
               </>
@@ -96,7 +96,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 <For each={QUICK_REASONS}>
                   {(r) => (
                     <button
-                      class={`px-2 py-0.5 rounded border text-[11px] ${reason() === r ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3 hover:text-ink"}`}
+                      class={`px-2 py-0.5 rounded border text-xs ${reason() === r ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3 hover:text-ink"}`}
                       onClick={() => setReason(r)}
                     >
                       {r}

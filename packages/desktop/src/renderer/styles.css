@@ -5,25 +5,42 @@
   --font-mono: "SF Mono", Menlo, "JetBrains Mono", ui-monospace, monospace;
   --font-serif: "Songti SC", "Noto Serif CJK SC", Georgia, serif;
 
-  --color-paper: light-dark(#f6f4ef, #1c1b19);
-  --color-paper-2: light-dark(#eeebe3, #232220);
-  --color-paper-3: light-dark(#e4e0d5, #2c2a27);
-  --color-ink: light-dark(#26231f, #ece8df);
-  --color-ink-2: light-dark(#5c574f, #a8a298);
-  --color-ink-3: light-dark(#8f887c, #726c62);
-  --color-line: light-dark(#d9d4c8, #37342f);
-  --color-accent: light-dark(#c8472b, #e2664a);
-  --color-accent-soft: light-dark(#f7ddd5, #3d251f);
-  --color-ok: light-dark(#2f7d4a, #5fbf7f);
-  --color-ok-soft: light-dark(#d9efe0, #1f3527);
-  --color-warn: light-dark(#a86a11, #e0a54a);
-  --color-warn-soft: light-dark(#f7ead1, #3a2c14);
-  --color-danger: light-dark(#b3261e, #ef6a63);
-  --color-danger-soft: light-dark(#f9dbd9, #40201e);
-  --color-add: light-dark(#e2f3e6, #1c3324);
+  /* 中性冷灰底。paper 是页面底，paper-2 / paper-3 逐级抬起 */
+  --color-paper: light-dark(#f7f7f6, #131314);
+  --color-paper-2: light-dark(#f0f0ee, #18181a);
+  --color-paper-3: light-dark(#e6e6e3, #1f1f22);
+  --color-paper-4: light-dark(#dcdcd8, #27272b);
+  --color-ink: light-dark(#1c1c1e, #e8e8e6);
+  --color-ink-2: light-dark(#66666a, #9b9b9a);
+  --color-ink-3: light-dark(#9a9a9d, #66666a);
+  --color-line: light-dark(#e3e3e0, #2a2a2e);
+  --color-line-2: light-dark(#cfcfcb, #36363b);
+  /* accent 只标「正在运行 / 可交互」 */
+  --color-accent: light-dark(#3b6fb6, #8fb1e0);
+  --color-accent-soft: light-dark(#e2ebf7, #1f2a3a);
+  --color-ok: light-dark(#2f7d4a, #7fc79a);
+  --color-ok-soft: light-dark(#dff0e5, #1c2f24);
+  /* warn 只标「等你拍板」：待答、待审、有问题的文档 */
+  --color-warn: light-dark(#a8741a, #e0b35a);
+  --color-warn-soft: light-dark(#f7ecd4, #332a18);
+  --color-danger: light-dark(#b3261e, #e07f7a);
+  --color-danger-soft: light-dark(#f9dedc, #3a2321);
+  --color-add: light-dark(#e2f3e6, #1a2e21);
   --color-add-strong: light-dark(#b6e0c1, #2c5a3a);
-  --color-del: light-dark(#fbe1de, #3d2120);
+  --color-del: light-dark(#fbe1de, #362020);
   --color-del-strong: light-dark(#f1b8b2, #6b2f2b);
+
+  /* 字阶四档：12 辅助 · 13 界面与对话 · 15 稿件 · 20 标题 */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.5;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.65;
+  --text-base: 13px;
+  --text-base--line-height: 1.65;
+  --text-lg: 15px;
+  --text-lg--line-height: 1.75;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.35;
 }
 
 :root {
@@ -43,7 +60,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
@@ -220,7 +237,6 @@ mark {
   border: 1px solid var(--color-line);
   background: var(--color-paper-3);
   color: var(--color-ink);
-  font-family: var(--font-mono);
   font-size: 0.9em;
   line-height: 1.6;
   text-decoration: none;

@@ -15,7 +15,7 @@ export function Message(props: { message: UiMessage }) {
   if (stub() !== null) {
     return (
       <div class="flex justify-end px-5 py-1.5">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-paper-3 text-ink-2 text-[11.5px]">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-paper-3 text-ink-2 text-xs">
           <span class="text-ink-3">▶</span>
           {stub()}
         </span>
@@ -27,7 +27,7 @@ export function Message(props: { message: UiMessage }) {
       <div
         class={
           isUser()
-            ? "max-w-[78%] bg-accent-soft text-ink rounded-2xl rounded-br-md px-4 py-2 whitespace-pre-wrap selectable"
+            ? "max-w-[78%] bg-paper-3 text-ink rounded-xl px-4 py-2 whitespace-pre-wrap selectable"
             : "w-full min-w-0"
         }
       >

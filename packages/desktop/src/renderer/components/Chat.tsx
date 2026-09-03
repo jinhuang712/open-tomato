@@ -71,7 +71,7 @@ export function Chat(props: { agentId: string }) {
     <div class="relative flex flex-col h-full min-w-0">
       <AgentBubbles />
       <Show when={!isLead()}>
-        <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-[12px]">
+        <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-xs">
           <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
             ← 回到主编
           </button>
@@ -96,7 +96,7 @@ export function Chat(props: { agentId: string }) {
             <>
               <Message message={m} />
               <Show when={state.interruptedAfter[props.agentId] === m.id}>
-                <div class="flex items-center gap-3 px-5 py-3 text-[11px] text-warn select-none">
+                <div class="flex items-center gap-3 px-5 py-3 text-xs text-warn select-none">
                   <span class="flex-1 border-t border-dashed border-warn/50" />
                   <span>上次被打断了</span>
                   <span class="flex-1 border-t border-dashed border-warn/50" />
@@ -106,13 +106,13 @@ export function Chat(props: { agentId: string }) {
           )}
         </For>
         <Show when={agent()?.status === "running"}>
-          <div class="px-5 py-2 flex items-center gap-2 text-[12px]">
+          <div class="px-5 py-2 flex items-center gap-2 text-xs">
             <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             <span class="shimmer">{agent()?.statusText || `${agent()?.label} 正在理清思路`}</span>
           </div>
         </Show>
         <Show when={agent()?.status === "error" && agent()?.error}>
-          <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-[12px] selectable">{agent()?.error}</div>
+          <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable">{agent()?.error}</div>
         </Show>
         </div>
       </div>

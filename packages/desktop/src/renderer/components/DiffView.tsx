@@ -76,13 +76,13 @@ export function DiffView(props: { patch: string; style?: DiffStyle; showToggle?:
   }));
 
   return (
-    <div class="rounded-lg border border-line overflow-hidden text-[12px] font-mono">
+    <div class="rounded-lg border border-line overflow-hidden text-xs font-mono">
       <div class="flex items-center gap-3 px-3 py-1.5 bg-paper-2 border-b border-line font-sans text-ink-2">
         <span class="text-ok">+{stats().add}</span>
         <span class="text-danger">−{stats().del}</span>
         <span class="flex-1" />
         <Show when={props.showToggle ?? true}>
-          <div class="flex rounded-md border border-line overflow-hidden text-[11px]">
+          <div class="flex rounded-md border border-line overflow-hidden text-xs">
             <button
               class={`px-2 py-0.5 ${style() === "unified" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`}
               onClick={() => setStyle("unified")}

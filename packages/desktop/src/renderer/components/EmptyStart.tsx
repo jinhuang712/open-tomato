@@ -12,26 +12,26 @@ export function EmptyStart() {
   return (
     <div class="flex-1 flex items-center justify-center px-8 py-10">
       <div class="w-full max-w-[560px] text-center">
-        <div class="inline-block px-2 py-0.5 rounded-full bg-paper-3 text-ink-3 text-[11px] tracking-wider mb-3">{plan().stage}阶段</div>
-        <div class="font-serif text-[28px] leading-tight mb-2">{state.project?.name}</div>
+        <div class="inline-block px-2 py-0.5 rounded-full bg-paper-3 text-ink-3 text-xs tracking-wider mb-3">{plan().stage}阶段</div>
+        <div class="font-serif text-xl leading-tight mb-2">{state.project?.name}</div>
         <div class="text-ink-2 mb-7 leading-relaxed">{plan().line}</div>
 
         <Show when={disabled()}>
-          <div class="mb-4 px-3 py-2 rounded-lg bg-warn-soft text-warn text-[12px]">先在右上角选一个模型，下面的按钮才能点。</div>
+          <div class="mb-4 px-3 py-2 rounded-lg bg-warn-soft text-warn text-xs">先在右上角选一个模型，下面的按钮才能点。</div>
         </Show>
 
         <Show when={primary()}>
           {(c) => (
             <button
-              class="w-full text-left px-5 py-4 rounded-2xl bg-accent text-white shadow-lg hover:brightness-110 transition disabled:opacity-40 flex items-center gap-4"
+              class="w-full text-left px-5 py-4 rounded-2xl bg-ink text-paper font-medium hover:brightness-110 shadow-lg hover:brightness-110 transition disabled:opacity-40 flex items-center gap-4"
               disabled={disabled()}
               onClick={() => runStep(c())}
             >
               <span class="flex-1">
-                <span class="block text-[16px] font-medium">{c().title}</span>
-                <span class="block text-[12px] opacity-80 mt-0.5">{c().desc}</span>
+                <span class="block text-lg font-medium">{c().title}</span>
+                <span class="block text-xs opacity-80 mt-0.5">{c().desc}</span>
               </span>
-              <span class="text-xl opacity-80">→</span>
+              <span class="text-xl">→</span>
             </button>
           )}
         </Show>
@@ -44,14 +44,14 @@ export function EmptyStart() {
                 disabled={disabled()}
                 onClick={() => runStep(c)}
               >
-                <div class="font-medium text-[13px]">{c.title}</div>
-                <div class="text-[11.5px] text-ink-3 mt-0.5 leading-snug">{c.desc}</div>
+                <div class="font-medium text-sm">{c.title}</div>
+                <div class="text-xs text-ink-3 mt-0.5 leading-snug">{c.desc}</div>
               </button>
             )}
           </For>
         </div>
 
-        <div class="mt-6 text-[12px] text-ink-3">或者直接在下面和主编说话</div>
+        <div class="mt-6 text-xs text-ink-3">或者直接在下面和主编说话</div>
       </div>
     </div>
   );

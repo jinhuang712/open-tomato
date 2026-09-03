@@ -91,7 +91,7 @@ export function QuickActions(props: { hasHistory: boolean }) {
         <For each={quicks()}>
           {(q) => (
             <button
-              class="px-3 py-1 rounded-full border text-[12px] hover:border-accent hover:bg-accent-soft"
+              class="px-3 py-1 rounded-full border text-xs hover:border-accent hover:bg-accent-soft"
               classList={{
                 "border-accent/60 bg-accent-soft/50 font-medium": !!q.primary,
                 "border-line bg-paper-2": !q.primary,

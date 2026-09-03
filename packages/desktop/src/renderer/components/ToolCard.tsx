@@ -37,10 +37,10 @@ const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 function Summary(props: { part: ToolPart }) {
   const a = () => args(props.part);
   return (
-    <Switch fallback={<span class="text-ink-3 truncate font-mono">{summarize(props.part)}</span>}>
+    <Switch fallback={<span class="text-ink-3 truncate">{summarize(props.part)}</span>}>
       <Match when={props.part.name === "read_doc"}>
         <span class="flex items-center gap-1 min-w-0">
-          <DocLink kind={str(a().kind)} id={str(a().id)} class="text-[12px]" />
+          <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs" />
           <Show when={a().section}>
             <span class="text-ink-3 truncate">· {str(a().section)}</span>
           </Show>
@@ -79,12 +79,12 @@ function Output(props: { part: ToolPart }) {
       <Show
         when={!isError() && !preformatted()}
         fallback={
-          <pre class={`font-mono whitespace-pre-wrap break-words text-[12px] max-h-72 overflow-auto ${isError() ? "text-danger" : "text-ink-2"}`}>
+          <pre class={`font-mono whitespace-pre-wrap break-words text-xs max-h-72 overflow-auto ${isError() ? "text-danger" : "text-ink-2"}`}>
             {raw()}
           </pre>
         }
       >
-        <div class="prose-zh text-ink-2 text-[12.5px] max-h-72 overflow-auto" innerHTML={renderMarkdown(raw())} />
+        <div class="prose-zh text-ink-2 text-xs max-h-72 overflow-auto" innerHTML={renderMarkdown(raw())} />
       </Show>
     </Show>
   );
@@ -97,7 +97,7 @@ function AskCard(props: { part: ToolPart }) {
   const options = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]).map(optionLabel) : []);
   const answer = () => props.part.output.replace(/^作者回答：/, "");
   return (
-    <div class="my-1.5 rounded-lg border border-warn/40 bg-warn-soft/30 text-[12.5px] overflow-hidden">
+    <div class="my-1.5 rounded-lg border border-warn/40 bg-warn-soft/30 text-xs overflow-hidden">
       <div class="px-3 pt-2 pb-1 flex items-start gap-2">
         <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-warn shrink-0" />
         <div class="prose-zh flex-1" innerHTML={renderMarkdown(str(a().question))} />
@@ -106,7 +106,7 @@ function AskCard(props: { part: ToolPart }) {
         <div class="px-3 pb-1.5 pl-6 flex flex-wrap gap-1">
           <For each={options()}>
             {(o) => (
-              <span class={`px-1.5 py-0.5 rounded border text-[11px] ${o === answer() ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3"}`}>{o}</span>
+              <span class={`px-1.5 py-0.5 rounded border text-xs ${o === answer() ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3"}`}>{o}</span>
             )}
           </For>
         </div>
@@ -130,10 +130,10 @@ function WriteCard(props: { part: ToolPart }) {
   const running = () => props.part.status === "running";
   const rejected = () => props.part.output.startsWith("用户拒绝");
   return (
-    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-[12.5px] px-3 py-1.5 flex items-center gap-2">
+    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-xs px-3 py-1.5 flex items-center gap-2">
       <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
       <span class={`font-medium ${running() ? "shimmer" : ""}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
-      <DocLink kind={str(a().kind)} id={str(a().id)} class="text-[12px]" />
+      <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs" />
       <Show when={rejected()}>
         <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。按原因修改.*$/, "")}</span>
       </Show>
@@ -146,7 +146,7 @@ function SpawnCard(props: { part: ToolPart; open: boolean; toggle: () => void })
   const tasks = () => (Array.isArray(args(props.part).tasks) ? (args(props.part).tasks as Array<{ role: string; task: string }>) : []);
   const running = () => props.part.status === "running";
   return (
-    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-[12.5px] overflow-hidden">
+    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-xs overflow-hidden">
       <button class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-paper-3" onClick={props.toggle}>
         <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
         <span class={`font-medium ${running() ? "shimmer" : ""}`}>{running() ? "子 agent 在干活" : "子 agent 已回传"}</span>
@@ -158,13 +158,13 @@ function SpawnCard(props: { part: ToolPart; open: boolean; toggle: () => void })
           <For each={tasks()}>
             {(t) => (
               <div class="mt-2">
-                <div class="text-ink-3 text-[11px] mb-0.5">任务书 · {ROLE_LABELS[t.role] ?? t.role}</div>
+                <div class="text-ink-3 text-xs mb-0.5">任务书 · {ROLE_LABELS[t.role] ?? t.role}</div>
                 <div class="text-ink-2 whitespace-pre-wrap">{t.task}</div>
               </div>
             )}
           </For>
           <Show when={props.part.output}>
-            <div class="text-ink-3 text-[11px] mt-2 mb-0.5">回传</div>
+            <div class="text-ink-3 text-xs mt-2 mb-0.5">回传</div>
             <Output part={props.part} />
           </Show>
         </div>
@@ -181,7 +181,7 @@ export function ToolCard(props: { part: ToolPart }) {
   return (
     <Switch
       fallback={
-        <div class="my-1 rounded-lg border border-line bg-paper-2 text-[12px] overflow-hidden">
+        <div class="my-1 rounded-lg border border-line bg-paper-2 text-xs overflow-hidden">
           <button class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-paper-3" onClick={() => setOpen(!open())}>
             <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
             <span class={`font-medium ${running() ? "shimmer" : "text-ink"}`}>{label()}</span>
