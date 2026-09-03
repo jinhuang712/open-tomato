@@ -22,15 +22,14 @@ describe("ProjectStore", () => {
     expect(await ProjectStore.exists(root)).toBe(true);
     const briefs = await store.list("brief");
     expect(briefs.map((b) => b.path)).toEqual(["简介.md"]);
-    expect(briefs[0]!.progress).toEqual({ filled: 0, total: 7 });
     expect(await store.list("rules")).toEqual([]);
   });
 
-  test("简介是单例：任何 id 都落到 简介.md，填了几段就数几段", async () => {
+  test("简介是单例：任何 id 都落到 简介.md", async () => {
     expect(store.relPath("brief", "随便")).toBe("简介.md");
-    await store.write("brief", "", "---\ntitle: 简介\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n\n有了\n\n## 书名\n\n待定\n");
-    const [b] = await store.list("brief");
-    expect(b!.progress).toEqual({ filled: 1, total: 2 });
+    await store.write("brief", "", "---\ntitle: 简介\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n\n有了\n");
+    const briefs = await store.list("brief");
+    expect(briefs.map((b) => b.path)).toEqual(["简介.md"]);
   });
 
   test("守则不传 id 自动编号", async () => {
@@ -63,7 +62,6 @@ describe("ProjectStore", () => {
     const [brief] = await s.list("brief");
     expect(brief!.path).toBe("简介.md");
     expect(brief!.title).toBe("简介");
-    expect(brief!.progress).toEqual({ filled: 1, total: 1 });
     const rules = await s.list("rules");
     expect(rules.map((r) => [r.id, r.title, r.extra.level, r.extra.scope])).toEqual([
       ["001", "主角不能死", "必须", "全局"],

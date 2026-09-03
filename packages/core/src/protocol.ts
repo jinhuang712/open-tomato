@@ -36,8 +36,6 @@ export interface DocHeader {
   status: string;
   /** 非通用字段原样透传 */
   extra: Record<string, unknown>;
-  /** 单例文档的填写进度：已填段 / 总段 */
-  progress?: { filled: number; total: number };
 }
 
 export interface DocContent extends DocHeader {

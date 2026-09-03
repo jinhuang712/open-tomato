@@ -261,11 +261,6 @@ export class ProjectStore {
       status: asString(status, "draft"),
       extra,
     };
-    if (DOC_KINDS[kind].singleton) {
-      const sections = splitSections(parseFrontmatter(raw).body).filter((s) => s.heading);
-      const filled = sections.filter((s) => s.content.trim() !== "" && s.content.trim() !== "待定" && !s.content.includes(PLACEHOLDER)).length;
-      header.progress = { filled, total: sections.length };
-    }
     return header;
   }
 }
