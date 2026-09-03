@@ -17,10 +17,10 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
   });
 
   return (
-    <div class="mx-5 mb-2 rounded-xl border border-accent/40 bg-paper shadow-lg overflow-hidden">
-      <div class="flex items-center gap-3 px-4 py-3">
+    <div class="mx-5 mb-2 rounded-lg bg-warn-soft border border-warn/25 overflow-hidden">
+      <div class="flex items-center gap-3 px-4 h-11">
         <span class="w-2 h-2 rounded-full bg-warn shrink-0" />
-        <span class="font-medium shrink-0">{agent()?.label ?? "agent"} 请求写入</span>
+        <span class="shrink-0">{agent()?.label ?? "agent"} 要写入</span>
         <DocLink kind={props.request.kind} id={props.request.docId} class="text-xs" />
         <Show when={props.request.isNew}>
           <span class="text-xs px-1.5 rounded bg-ok-soft text-ok">新建</span>
@@ -30,12 +30,12 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
         </span>
         <span class="flex-1" />
         <button
-          class="px-3 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110"
+          class="h-7 px-3 rounded-md bg-warn text-paper text-xs font-medium hover:brightness-110"
           onClick={() => setState("reviewOpen", props.request.approvalId)}
         >
           审阅
         </button>
-        <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-2" onClick={() => void actions.approve(props.request.approvalId)} title="不看了，直接写">
+        <button class="h-7 px-3 rounded-md text-xs text-ink-2 hover:text-ink" onClick={() => void actions.approve(props.request.approvalId)} title="不看了，直接写">
           直接批准
         </button>
         <Show when={state.approvals.length > 1}>

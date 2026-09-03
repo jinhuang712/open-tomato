@@ -97,25 +97,24 @@ function AskCard(props: { part: ToolPart }) {
   const options = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]).map(optionLabel) : []);
   const answer = () => props.part.output.replace(/^作者回答：/, "");
   return (
-    <div class="my-1.5 rounded-lg border border-warn/40 bg-warn-soft/30 text-xs overflow-hidden">
-      <div class="px-3 pt-2 pb-1 flex items-start gap-2">
-        <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-warn shrink-0" />
+    <div class="my-2 rounded-lg border border-line bg-paper-2 text-sm overflow-hidden">
+      <div class="px-4 pt-3 pb-1 flex items-start gap-2">
         <div class="prose-zh flex-1" innerHTML={renderMarkdown(str(a().question))} />
       </div>
       <Show when={options().length > 0}>
-        <div class="px-3 pb-1.5 pl-6 flex flex-wrap gap-1">
+        <div class="px-4 pb-2 flex flex-wrap gap-1.5">
           <For each={options()}>
             {(o) => (
-              <span class={`px-1.5 py-0.5 rounded border text-xs ${o === answer() ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3"}`}>{o}</span>
+              <span class={`h-6.5 px-2.5 rounded-md border text-xs flex items-center ${o === answer() ? "border-ink-2 bg-paper-3 text-ink" : "border-line-2 text-ink-3"}`}>{o}</span>
             )}
           </For>
         </div>
       </Show>
       <Show
         when={props.part.status !== "running"}
-        fallback={<div class="px-3 pb-2 pl-6 text-ink-3 shimmer w-fit">等你回答…</div>}
+        fallback={<div class="px-4 pb-3 text-ink-3 shimmer w-fit">等你回答…</div>}
       >
-        <div class="px-3 pb-2 pl-6 flex gap-2 selectable">
+        <div class="px-4 pb-3 flex gap-2.5 selectable">
           <span class="text-ink-3 shrink-0">答</span>
           <span class={props.part.status === "error" ? "text-danger" : "text-ink"}>{answer()}</span>
         </div>
@@ -130,9 +129,9 @@ function WriteCard(props: { part: ToolPart }) {
   const running = () => props.part.status === "running";
   const rejected = () => props.part.output.startsWith("用户拒绝");
   return (
-    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-xs px-3 py-1.5 flex items-center gap-2">
-      <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-      <span class={`font-medium ${running() ? "shimmer" : ""}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
+    <div class={`my-1 h-7 flex items-center gap-2 text-xs ${running() ? "px-3 rounded-md bg-warn-soft text-warn" : "text-ink-3"}`}>
+      <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
+      <span class={running() ? "font-medium" : "text-ink-2"}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
       <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs" />
       <Show when={rejected()}>
         <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。按原因修改.*$/, "")}</span>
@@ -146,15 +145,15 @@ function SpawnCard(props: { part: ToolPart; open: boolean; toggle: () => void })
   const tasks = () => (Array.isArray(args(props.part).tasks) ? (args(props.part).tasks as Array<{ role: string; task: string }>) : []);
   const running = () => props.part.status === "running";
   return (
-    <div class="my-1.5 rounded-lg border border-line bg-paper-2 text-xs overflow-hidden">
-      <button class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-paper-3" onClick={props.toggle}>
+    <div class="my-1 text-xs">
+      <button class="w-full h-7 flex items-center gap-2 text-left text-ink-3 hover:text-ink-2" onClick={props.toggle}>
         <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-        <span class={`font-medium ${running() ? "shimmer" : ""}`}>{running() ? "子 agent 在干活" : "子 agent 已回传"}</span>
+        <span class={running() ? "shimmer" : "text-ink-2"}>{running() ? "子 agent 在干活" : "子 agent 已回传"}</span>
         <span class="text-ink-3 truncate flex-1">{tasks().map((t) => ROLE_LABELS[t.role] ?? t.role).join(" · ")}</span>
         <span class="text-ink-3">{props.open ? "▾" : "▸"}</span>
       </button>
       <Show when={props.open}>
-        <div class="px-3 pb-2 border-t border-line space-y-2 selectable">
+        <div class="mt-1 px-4 py-2 rounded-lg bg-paper-2 space-y-2 selectable text-sm">
           <For each={tasks()}>
             {(t) => (
               <div class="mt-2">
@@ -181,17 +180,17 @@ export function ToolCard(props: { part: ToolPart }) {
   return (
     <Switch
       fallback={
-        <div class="my-1 rounded-lg border border-line bg-paper-2 text-xs overflow-hidden">
-          <button class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-paper-3" onClick={() => setOpen(!open())}>
+        <div class="my-0.5 text-xs">
+          <button class="w-full h-6.5 flex items-center gap-2 text-left text-ink-3 hover:text-ink-2" onClick={() => setOpen(!open())}>
             <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-accent" : props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-            <span class={`font-medium ${running() ? "shimmer" : "text-ink"}`}>{label()}</span>
+            <span class={running() ? "shimmer" : "text-ink-2"}>{label()}</span>
             <span class="flex-1 min-w-0 flex">
               <Summary part={props.part} />
             </span>
             <span class="text-ink-3">{open() ? "▾" : "▸"}</span>
           </button>
           <Show when={open()}>
-            <div class="px-3 pt-1.5 pb-2 border-t border-line selectable">
+            <div class="mt-1 px-4 py-2 rounded-lg bg-paper-2 selectable">
               <Output part={props.part} />
             </div>
           </Show>

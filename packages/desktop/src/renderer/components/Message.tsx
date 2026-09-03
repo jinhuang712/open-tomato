@@ -15,7 +15,7 @@ export function Message(props: { message: UiMessage }) {
   if (stub() !== null) {
     return (
       <div class="flex justify-end px-5 py-1.5">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-paper-3 text-ink-2 text-xs">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-paper-3 text-ink-2 text-xs">
           <span class="text-ink-3">▶</span>
           {stub()}
         </span>

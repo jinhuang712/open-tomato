@@ -12,8 +12,7 @@ export function EmptyStart() {
   return (
     <div class="flex-1 flex items-center justify-center px-8 py-10">
       <div class="w-full max-w-[560px] text-center">
-        <div class="inline-block px-2 py-0.5 rounded-full bg-paper-3 text-ink-3 text-xs tracking-wider mb-3">{plan().stage}阶段</div>
-        <div class="font-serif text-xl leading-tight mb-2">{state.project?.name}</div>
+        <div class="text-xl mb-2">{state.project?.name}</div>
         <div class="text-ink-2 mb-7 leading-relaxed">{plan().line}</div>
 
         <Show when={disabled()}>
@@ -23,15 +22,14 @@ export function EmptyStart() {
         <Show when={primary()}>
           {(c) => (
             <button
-              class="w-full text-left px-5 py-4 rounded-2xl bg-ink text-paper font-medium hover:brightness-110 shadow-lg hover:brightness-110 transition disabled:opacity-40 flex items-center gap-4"
+              class="w-full text-left px-5 py-3.5 rounded-lg bg-ink text-paper hover:brightness-110 transition disabled:opacity-40 flex items-center gap-4"
               disabled={disabled()}
               onClick={() => runStep(c())}
             >
               <span class="flex-1">
-                <span class="block text-lg font-medium">{c().title}</span>
-                <span class="block text-xs opacity-80 mt-0.5">{c().desc}</span>
+                <span class="block text-sm font-medium">{c().title}</span>
+                <span class="block text-xs opacity-70 mt-0.5">{c().desc}</span>
               </span>
-              <span class="text-xl">→</span>
             </button>
           )}
         </Show>
@@ -40,7 +38,7 @@ export function EmptyStart() {
           <For each={secondary()}>
             {(c) => (
               <button
-                class="text-left px-3.5 py-3 rounded-xl border border-line bg-paper-2 hover:border-accent hover:bg-accent-soft/40 transition-colors disabled:opacity-40"
+                class="text-left px-3.5 py-3 rounded-lg border border-line hover:border-ink-3 transition-colors disabled:opacity-40"
                 disabled={disabled()}
                 onClick={() => runStep(c)}
               >

@@ -5,24 +5,24 @@ export function Welcome() {
   return (
     <div class="h-full flex items-center justify-center">
       <div class="w-[560px]">
-        <div class="font-serif text-xl mb-1">OpenTomato</div>
+        <div class="text-xl mb-1">OpenTomato</div>
         <div class="text-ink-2 mb-8">从一句话到一本书。每一次落笔，你先看 diff 再点头。</div>
 
         <div class="flex gap-2 mb-8">
-          <button class="px-4 py-2 rounded-xl bg-ink text-paper font-medium hover:brightness-110" onClick={() => void actions.newProject()}>
+          <button class="px-4 py-2 rounded-lg bg-ink text-paper font-medium hover:brightness-110" onClick={() => void actions.newProject()}>
             新建项目
           </button>
-          <button class="px-4 py-2 rounded-xl border border-line hover:bg-paper-2" onClick={() => void actions.openProject()}>
+          <button class="px-4 py-2 rounded-lg border border-line hover:bg-paper-2" onClick={() => void actions.openProject()}>
             打开项目…
           </button>
           <span class="flex-1" />
-          <button class="px-4 py-2 rounded-xl border border-line hover:bg-paper-2" onClick={() => setState("modelPickerOpen", true)}>
+          <button class="px-4 py-2 rounded-lg text-ink-2 hover:bg-paper-2" onClick={() => setState("modelPickerOpen", true)}>
             {state.models?.current ? `${state.models.current.provider} / ${state.models.current.id}` : "配置模型"}
           </button>
         </div>
 
         <Show when={state.recent.length > 0}>
-          <div class="text-xs uppercase tracking-wider text-ink-3 mb-2">最近</div>
+          <div class="text-xs text-ink-3 mb-2">最近打开</div>
           <div class="space-y-1">
             <For each={state.recent}>
               {(r) => (

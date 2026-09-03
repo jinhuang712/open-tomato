@@ -37,7 +37,7 @@ export function Composer(props: { agentId?: string }) {
     if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊…（⌘↩ 发送，比如挑一个候选让它往下孵化）`;
     if (!isLead()) return `给${agent()?.label ?? "子 agent"}插话…（⌘↩ 发送，它会在当前步骤后处理）`;
-    return "和主编说话…（⌘↩ 发送，运行中发送会插话）";
+    return "和主编说话";
   };
 
   const send = () => {
@@ -49,10 +49,10 @@ export function Composer(props: { agentId?: string }) {
 
   return (
     <div class="px-5 pb-4 pt-1">
-      <div class="rounded-2xl border border-line bg-paper-2 focus-within:border-accent transition-colors">
+      <div class="rounded-xl border border-line-2 bg-paper-2 focus-within:border-ink-3 transition-colors">
         <textarea
           ref={box}
-          class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm leading-relaxed"
+          class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm placeholder:text-ink-3"
           rows={2}
           placeholder={placeholder()}
           value={text()}
@@ -69,14 +69,11 @@ export function Composer(props: { agentId?: string }) {
           }}
         />
         <div class="flex items-center gap-2 px-3 pb-2">
-          <span class="text-xs text-ink-3">
-            {state.models?.current ? `${state.models.current.provider} / ${state.models.current.id}` : "未选模型"}
-            {state.models?.thinkingLevel && state.models.thinkingLevel !== "off" ? ` · 思考 ${state.models.thinkingLevel}` : ""}
-          </span>
+          <span class="text-xs text-ink-3">{state.models?.thinkingLevel && state.models.thinkingLevel !== "off" ? `思考 ${state.models.thinkingLevel}` : ""}</span>
           <span class="flex-1" />
           <Show when={busy()}>
             <button
-              class="px-3 py-1 rounded-lg border border-line text-ink-2 hover:text-ink hover:border-accent"
+              class="h-7 px-3 rounded-md text-xs text-ink-2 hover:text-ink hover:bg-paper-3"
               onClick={() => void actions.pause(agentId())}
               title="收尾当前这步，总结进度，然后停下来问你想怎么调整"
             >
@@ -84,9 +81,10 @@ export function Composer(props: { agentId?: string }) {
             </button>
           </Show>
           <button
-            class="px-3 py-1 rounded-lg bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-40"
+            class="h-7 px-3 rounded-md bg-ink text-paper text-xs font-medium hover:brightness-110 disabled:opacity-30"
             disabled={!text().trim() || disabled()}
             onClick={send}
+            title="⌘↩"
           >
             {busy() ? "插话" : "发送"}
           </button>

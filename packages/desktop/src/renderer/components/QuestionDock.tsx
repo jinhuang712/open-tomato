@@ -58,8 +58,8 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   const pick = (o: QuestionOption) => void actions.answer(props.request.questionId, answerOf(o));
 
   return (
-    <div class="mx-5 mb-2 rounded-xl border border-warn/40 bg-paper shadow-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-4 py-2 bg-warn-soft/60 border-b border-line">
+    <div class="mx-5 mb-2 rounded-lg border border-line-2 bg-paper-2 overflow-hidden">
+      <div class="flex items-center gap-2 px-4 h-9 border-b border-line text-xs">
         <span class="w-2 h-2 rounded-full bg-warn" />
         <span class="font-medium">{agent()?.label ?? "agent"} 想问你</span>
       </div>
@@ -72,7 +72,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             <For each={props.request.options}>
               {(opt) => (
                 <button
-                  class="px-3 py-1.5 rounded-lg border border-line bg-paper-2 hover:border-accent hover:bg-accent-soft text-left"
+                  class="min-h-7 px-3 py-1 rounded-md border border-line-2 hover:border-ink-3 hover:text-ink text-left"
                   onClick={() => pick(opt)}
                 >
                   {optionLabel(opt)}
@@ -107,7 +107,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       <Show when={props.request.allowFreeText}>
         <div class="flex gap-2 px-4 pb-3">
           <textarea
-            class="flex-1 px-3 py-1.5 rounded-lg border border-line bg-paper-2 outline-none focus:border-accent resize-none"
+            class="flex-1 px-3 py-1.5 rounded-md border border-line-2 bg-paper outline-none focus:border-ink-3 resize-none placeholder:text-ink-3"
             rows={2}
             placeholder={
               long()
@@ -128,7 +128,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
               }
             }}
           />
-          <button class="px-3 rounded-lg bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-40" disabled={!text().trim()} onClick={submit}>
+          <button class="px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
             回答
           </button>
         </div>
@@ -143,7 +143,7 @@ function EscapeButtons(props: { request: QuestionRequest }) {
     <For each={escapesFor(props.request)}>
       {(e) => (
         <button
-          class="px-3 py-1.5 rounded-lg border border-dashed border-line text-ink-2 hover:border-accent hover:text-ink text-left"
+          class="min-h-7 px-3 py-1 rounded-md border border-dashed border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink text-left"
           title={e.hint}
           onClick={() => void actions.answer(props.request.questionId, e.answer)}
         >
