@@ -5,7 +5,7 @@ import { actions, state } from "../state";
 const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
 /**
- * 在场的角色：对话流最上面的一行小字，和消息同一列宽，跟着内容一起滚。
+ * 在场的角色：钉在对话区顶部的一行，不随消息滚动，内容和消息同一列宽。
  * 主编永远第一个，后面是子 agent（新的在前）。点名字进它的会话。
  * 只有主编一个人时不显示，没什么可切的。
  */
@@ -19,7 +19,8 @@ export function AgentStrip() {
 
   return (
     <Show when={agents().length > 1}>
-      <div class="flex items-center gap-4 px-5 pt-2 pb-4 text-xs text-ink-2 overflow-hidden">
+      <div class="shrink-0 border-b border-line">
+      <div class="max-w-[760px] mx-auto flex items-center gap-4 px-5 h-9 text-xs text-ink-2 overflow-hidden">
         <For each={agents()}>
           {(a) => (
             <button
@@ -47,6 +48,7 @@ export function AgentStrip() {
         </For>
         <span class="flex-1" />
         <span class="text-ink-3 shrink-0">{agents().length} 位在场</span>
+      </div>
       </div>
     </Show>
   );

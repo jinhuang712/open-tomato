@@ -83,9 +83,9 @@ export function Chat(props: { agentId: string }) {
           </span>
         </div>
       </Show>
+      <AgentStrip />
       <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
         <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
-        <AgentStrip />
         <Show when={messages().length === 0}>
           <Show when={isLead()} fallback={<div class="h-full flex items-center justify-center text-ink-3">子 agent 还没有输出</div>}>
             <EmptyStart />
