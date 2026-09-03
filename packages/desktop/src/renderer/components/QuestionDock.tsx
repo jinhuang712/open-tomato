@@ -1,5 +1,5 @@
 import { hasLongOptions, optionLabel, optionText, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
@@ -41,6 +41,12 @@ function draftLabel(o: QuestionOption, i: number): string {
   return typeof o === "string" ? `写法${ORDINALS[i] ?? i + 1}` : o.label;
 }
 
+/** 折叠态的一行摘要：取问题正文首行，抹掉 markdown 记号 */
+function summarize(text: string): string {
+  const line = text.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  return line.replace(/^[#>\-*\s]+/, "").replace(/[*`_]/g, "");
+}
+
 /** 回给模型的答案：有 label 的回 label，纯字串回全文 */
 function answerOf(o: QuestionOption): string {
   return optionLabel(o);
@@ -48,6 +54,12 @@ function answerOf(o: QuestionOption): string {
 
 export function QuestionDock(props: { request: QuestionRequest }) {
   const [text, setText] = createSignal("");
+  const [open, setOpen] = createSignal(true);
+  // 换了一个问题就重新展开，别让上一个问题的收起状态盖住新问题
+  createEffect(() => {
+    props.request.questionId;
+    setOpen(true);
+  });
   const agent = () => state.agents[props.request.agentId];
   const long = () => hasLongOptions(props.request.options);
   const submit = () => {
@@ -59,10 +71,23 @@ export function QuestionDock(props: { request: QuestionRequest }) {
 
   return (
     <div class="mx-5 mb-2 rounded-lg border border-line-2 bg-paper-2 overflow-hidden">
-      <div class="flex items-center gap-2 px-4 h-9 border-b border-line text-xs">
-        <span class="w-2 h-2 rounded-full bg-warn" />
-        <span class="font-medium">{agent()?.label ?? "agent"} 想问你</span>
-      </div>
+      <button
+        class="w-full flex items-center gap-2 px-4 h-9 text-xs text-left hover:bg-paper"
+        classList={{ "border-b border-line": open() }}
+        onClick={() => setOpen(!open())}
+        title={open() ? "收起" : "展开"}
+      >
+        <span class="w-2 h-2 rounded-full bg-warn shrink-0" />
+        <span class="font-medium shrink-0">{agent()?.label ?? "agent"} 想问你</span>
+        <Show when={!open()}>
+          <span class="flex-1 min-w-0 truncate text-ink-3">{summarize(props.request.text)}</span>
+        </Show>
+        <span class="ml-auto shrink-0 text-ink-3 transition-transform" classList={{ "rotate-90": open() }}>
+          ›
+        </span>
+      </button>
+
+      <Show when={open()}>
       <div class="px-4 py-3 prose-zh" innerHTML={renderMarkdown(props.request.text)} />
 
       <Show
@@ -132,6 +157,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             回答
           </button>
         </div>
+      </Show>
       </Show>
     </div>
   );
