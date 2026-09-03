@@ -1,9 +1,10 @@
 import { createSignal, onCleanup, Show } from "solid-js";
+import { AgentBadge } from "./AgentBadge";
 import { actions, setState, state } from "../state";
 
 /**
- * 顶栏只放高频入口：书名（低频操作收进它的菜单）· 搜索 · 等你拍板 · 模型。
- * 拍板徽章把待答和待审合成一个数，点进主编会话处理。
+ * 顶栏只放高频入口：书名（低频操作收进它的菜单）· 搜索 · 等你拍板 · 子 agent · 模型。
+ * 拍板徽章把待答和待审合成一个数，点进主编会话处理。子 agent 徽章常驻，跑着的和出错的一眼可见。
  */
 export function Titlebar() {
   const pending = () => state.questions.length + state.approvals.length;
@@ -30,6 +31,7 @@ export function Titlebar() {
             {pending()} 项等你拍板
           </button>
         </Show>
+        <AgentBadge />
         <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3 flex items-center gap-1.5" onClick={() => setState("modelPickerOpen", true)}>
           <span>{state.models?.current ? state.models.current.id : "选择模型"}</span>
           <Show when={state.models?.thinkingLevel && state.models.thinkingLevel !== "off"}>
