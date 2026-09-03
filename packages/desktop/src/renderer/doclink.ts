@@ -89,8 +89,12 @@ export function linkifyDocRefs(html: string): string {
         return `<a class="doc-link" data-doc="${escapeHtml(`${kind}/${id}`)}" title="打开 ${shown}">${shown}</a>`;
       });
     })
-    .join("");
+    .join("")
+    .replace(WRAPPED_LINK, "$1");
 }
+
+/** 芯片自己就是可点的块，外面再套一层「」显得多余 */
+const WRAPPED_LINK = /[「『“"]\s*(<a class="doc-link"[^>]*>[^<]*<\/a>)\s*[」』”"]/g;
 
 /** 老会话里还会出现英文守则 id，点开时映射到中文 */
 export function resolveLegacyId(kind: DocKindId, id: string): string {
