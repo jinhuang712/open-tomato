@@ -50,11 +50,11 @@ export function Sidebar() {
         onClick={() => actions.openDoc(d.kind, d.id)}
         title={issue()?.message ?? d.summary}
       >
-        <Show when={d.kind === "rules" && d.extra.level === "必须"}>
-          <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-ink-2" title="必须" />
-        </Show>
         <span class="truncate">{d.title}</span>
         <span class="flex-1" />
+        <Show when={d.kind === "rules" && d.extra.level === "必须"}>
+          <span class="shrink-0 text-[10px] leading-none px-1 py-0.5 rounded bg-paper-3 text-ink-3">必须</span>
+        </Show>
         <Show when={issue()}>
           {(i) => <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${i().level === "error" ? "bg-danger" : "bg-warn"}`} />}
         </Show>
