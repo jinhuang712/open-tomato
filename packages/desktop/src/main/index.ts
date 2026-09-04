@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
 import type { AppInfo } from "../preload/bridge-types";
@@ -159,6 +160,36 @@ ipcMain.handle(
     logsDir: app.getPath("logs"),
   }),
 );
+
+ipcMain.handle("dialog:pickTextFiles", async () => {
+  if (!mainWindow) return [];
+  const r = await dialog.showOpenDialog(mainWindow, {
+    title: "添加附件",
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "文本", extensions: ["md", "markdown", "txt"] }],
+    buttonLabel: "添加",
+  });
+  if (r.canceled) return [];
+  return Promise.all(r.filePaths.map(async (path) => ({ name: basename(path), content: await readFile(path, "utf8") })));
+});
+
+/** 渲染层 paste 事件拿不到 Finder 复制的文件时兜底：翻系统剪贴板里带文件路径的格式（file URL、uri-list、macOS 的文件名 plist） */
+ipcMain.handle("clipboard:readTextFiles", async () => {
+  const paths = new Set<string>();
+  for (const item of await clipboard.read()) {
+    for (const type of item.types) {
+      if (!/file-url|uri-list|NSFilenamesPboardType/i.test(type)) continue;
+      const payload = await item.getType(type);
+      const text = payload instanceof Blob ? await payload.text() : "";
+      for (const m of text.matchAll(/<string>(.*?)<\/string>/g)) paths.add(m[1]!);
+      for (const line of text.split(/\r?\n/)) {
+        if (line.startsWith("file://")) paths.add(fileURLToPath(line.trim()));
+      }
+    }
+  }
+  const ok = [...paths].filter((p) => /\.(md|markdown|txt)$/i.test(p));
+  return Promise.all(ok.map(async (path) => ({ name: basename(path), content: await readFile(path, "utf8") })));
+});
 
 ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { defaultName: string; content: string }) => {
   if (!mainWindow) return null;

@@ -32,6 +32,10 @@ export interface Bridge {
   onMenu(listener: (command: MenuCommand) => void): () => void;
   pickFolder(options: { title: string; create: boolean }): Promise<string | null>;
   openPath(path: string): Promise<void>;
+  /** 弹打开对话框选若干文本文件（md / txt），读出内容；用户取消返回空数组 */
+  pickTextFiles(): Promise<{ name: string; content: string }[]>;
+  /** 读系统剪贴板里 Finder 复制的文本文件（md / txt）；没有返回空数组 */
+  readClipboardTextFiles(): Promise<{ name: string; content: string }[]>;
   /** 弹保存对话框写一个 markdown 文件，返回落盘路径；用户取消返回 null */
   saveTextFile(options: { defaultName: string; content: string }): Promise<string | null>;
   /** 写系统剪贴板 */

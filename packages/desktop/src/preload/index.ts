@@ -17,6 +17,8 @@ const bridge: Bridge = {
   },
   pickFolder: (options) => ipcRenderer.invoke("dialog:pickFolder", options),
   openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
+  pickTextFiles: () => ipcRenderer.invoke("dialog:pickTextFiles"),
+  readClipboardTextFiles: () => ipcRenderer.invoke("clipboard:readTextFiles"),
   saveTextFile: (options) => ipcRenderer.invoke("dialog:saveText", options),
   copyText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
   trashProject: (root) => ipcRenderer.invoke("shell:trashProject", root),

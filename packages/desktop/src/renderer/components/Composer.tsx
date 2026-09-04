@@ -1,17 +1,73 @@
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { autoGrow } from "../autogrow";
+import { bridge } from "../bridge";
 import { actions, setState, state } from "../state";
+
+interface Attachment {
+  id: string;
+  name: string;
+  content: string;
+}
+
+/** 只收纯文本稿件；超过这个尺寸的文件基本不是给主编读的 */
+const ATTACHMENT_MAX_BYTES = 2 * 1024 * 1024;
+const isTextFile = (f: File) => /\.(md|markdown|txt)$/i.test(f.name) || f.type.startsWith("text/");
+
+async function readFiles(files: Iterable<File>): Promise<{ name: string; content: string }[]> {
+  const out: { name: string; content: string }[] = [];
+  for (const f of files) {
+    if (!isTextFile(f) || f.size > ATTACHMENT_MAX_BYTES) continue;
+    out.push({ name: f.name, content: await f.text() });
+  }
+  return out;
+}
+
+/** 附件按 markdown 围栏拼进消息末尾，主编一眼看出哪段是作者说的、哪段是带来的材料 */
+export function inlineAttachments(atts: { name: string; content: string }[]): string[] {
+  return atts.map((a) => `附件「${a.name}」：\n\n\`\`\`\`markdown\n${a.content.trim()}\n\`\`\`\``);
+}
 
 /**
  * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上（符号取自 shared/keymap）：
  * 插话在当前这步工具结束后就送到；排队等这一轮跑完再送；暂停让它收尾停下来问你；停立刻掐断。
  * 还没送到的消息列在输入框上方，可以一键撤回到输入框里改。
  * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
+ * 附件（md / txt）三条路进来：按钮选文件、拖进输入框、Finder 里 ⌘C 后在框里 ⌘V；发送时全文内联到消息末尾。
  */
 export function Composer(props: { agentId?: string }) {
   const [text, setText] = createSignal("");
+  const [attachments, setAttachments] = createSignal<Attachment[]>([]);
+  const [dragging, setDragging] = createSignal(false);
   let box: HTMLTextAreaElement | undefined;
+
+  const addAttachments = (files: { name: string; content: string }[]) => {
+    if (files.length === 0) return;
+    setAttachments((prev) => [...prev, ...files.map((f) => ({ ...f, id: crypto.randomUUID() }))]);
+    box?.focus();
+  };
+  const dropAttachment = (id: string) => setAttachments((as) => as.filter((a) => a.id !== id));
+  const pickFiles = async () => addAttachments(await bridge.pickTextFiles());
+  const onDrop = async (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer?.files.length) addAttachments(await readFiles(e.dataTransfer.files));
+  };
+  // Finder 复制的文件 Chromium 多半放在 clipboardData.files 里；拿不到就让主进程去读系统剪贴板
+  const onPaste = async (e: ClipboardEvent) => {
+    const files = e.clipboardData?.files;
+    if (files?.length) {
+      e.preventDefault();
+      addAttachments(await readFiles(files));
+      return;
+    }
+    if (e.clipboardData?.getData("text/plain")) return;
+    const fromClipboard = await bridge.readClipboardTextFiles();
+    if (fromClipboard.length) {
+      e.preventDefault();
+      addAttachments(fromClipboard);
+    }
+  };
 
   // 快捷按钮预填：接过来、光标放末尾、清掉草稿
   createEffect(() => {
@@ -59,16 +115,18 @@ export function Composer(props: { agentId?: string }) {
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊，比如挑一个候选让它往下孵化`;
     if (busy()) return isLead() ? "主编在忙。插话它这步做完就看，排队等它这轮跑完" : `${agent()?.label ?? "子 agent"}在忙。插话它这步做完就看，排队等它这轮跑完`;
     if (quotes().length) return "对这段说点什么";
+    if (attachments().length) return "这些材料想让主编怎么用";
     return "和主编说话";
   };
 
   // 引用按 markdown 引用块排在正文前面，主编一眼看出作者在对哪段说话
-  const canSend = () => Boolean(text().trim()) || quotes().length > 0;
+  const canSend = () => Boolean(text().trim()) || quotes().length > 0 || attachments().length > 0;
   const submit = (deliverAs: "steer" | "followUp") => {
     if (!canSend() || disabled()) return;
     const blocks = quotes().map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
-    const t = [...blocks, text().trim()].filter(Boolean).join("\n\n");
+    const t = [...blocks, text().trim(), ...inlineAttachments(attachments())].filter(Boolean).join("\n\n");
     setText("");
+    setAttachments([]);
     setState("composerQuotes", []);
     void actions.send(t, agentId(), deliverAs);
   };
@@ -92,7 +150,17 @@ export function Composer(props: { agentId?: string }) {
           </button>
         </div>
       </Show>
-      <div class="rounded-xl border border-line-2 bg-paper-2 focus-within:border-ink-3 transition-colors">
+      <div
+        class="rounded-xl border bg-paper-2 focus-within:border-ink-3 transition-colors"
+        classList={{ "border-line-2": !dragging(), "border-ink-3 border-dashed": dragging() }}
+        onDragOver={(e) => {
+          if (disabled() || !e.dataTransfer?.types.includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => void onDrop(e)}
+      >
         <Show when={isLead() && quotes().length > 0}>
           <div class="flex flex-col gap-1.5 px-3 pt-3">
             <For each={quotes()}>
@@ -114,8 +182,23 @@ export function Composer(props: { agentId?: string }) {
             </For>
           </div>
         </Show>
+        <Show when={attachments().length > 0}>
+          <div class="flex flex-wrap gap-1.5 px-3 pt-3">
+            <For each={attachments()}>
+              {(a) => (
+                <span class="group inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-md border border-line-2 bg-paper text-xs text-ink-2" title={`${a.content.length} 字`}>
+                  <span class="max-w-[14rem] truncate">{a.name}</span>
+                  <button class="w-4 h-4 rounded text-ink-3 hover:text-ink hover:bg-paper-3" title="去掉这个附件" onClick={() => dropAttachment(a.id)}>
+                    ×
+                  </button>
+                </span>
+              )}
+            </For>
+          </div>
+        </Show>
         <textarea
           ref={box}
+          onPaste={(e) => void onPaste(e)}
           class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm placeholder:text-ink-3"
           rows={2}
           placeholder={placeholder()}
@@ -139,6 +222,14 @@ export function Composer(props: { agentId?: string }) {
           }}
         />
         <div class="flex items-center gap-1.5 px-3 pb-2">
+          <button
+            class="h-7 px-2 rounded-md text-xs text-ink-3 hover:text-ink hover:bg-paper-3 disabled:opacity-30"
+            disabled={disabled()}
+            title="添加 md / txt 文件作为附件，也可以直接拖进来或 ⌘V 粘贴 Finder 里复制的文件"
+            onClick={() => void pickFiles()}
+          >
+            ＋ 附件
+          </button>
           <span class="flex-1" />
           <Show when={busy()}>
             <ActionButton label="停" keys={keyHint("composer.stop")} tone="danger" onClick={() => void actions.stop(agentId())} title="立刻掐断正在跑的模型调用和工具，写了一半的东西不落盘" />
