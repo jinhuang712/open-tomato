@@ -38,7 +38,7 @@ export function ModelPicker() {
 
   return (
     <div class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] bg-black/30" onClick={close}>
-      <div class="w-[520px] max-h-[70vh] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div class="w-[620px] max-h-[70vh] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">
           <span class="font-medium">模型</span>
           <span class="text-ink-3 text-xs">只列已配好凭据的</span>
