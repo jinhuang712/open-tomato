@@ -1,9 +1,9 @@
 import type { CheckIssue, DocHeader, DocKindId } from "../protocol.js";
 import { asStringArray } from "./frontmatter.js";
-import { DOC_KINDS } from "./kinds.js";
+import { DOC_KINDS, PLACEHOLDER, requiredFieldsOf } from "./kinds.js";
 import type { ProjectStore } from "./store.js";
 
-export const PLACEHOLDER = "待填";
+export { PLACEHOLDER };
 
 /**
  * 机械对账。只报不拦：
@@ -23,8 +23,8 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     issues.push({ level, kind, id: h?.id ?? null, path: h?.path ?? null, message });
 
   for (const [kind, headers] of byKind) {
-    const required = DOC_KINDS[kind].requiredFields;
     for (const h of headers) {
+      const required = requiredFieldsOf(kind, { title: h.title, summary: h.summary, status: h.status, ...h.extra });
       if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填");
       if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填");
       for (const f of required) {
