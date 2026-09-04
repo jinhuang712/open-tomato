@@ -8,6 +8,7 @@ import windowStateKeeper from "electron-window-state";
 import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
 import { installMenu } from "./menu";
+import { watchZoom } from "./zoom";
 import { inheritShellProxyEnv } from "./shell-env";
 
 const kernel = new KernelHost();
@@ -65,6 +66,7 @@ function createWindow() {
     },
   });
   state.manage(win);
+  watchZoom(win);
   win.once("ready-to-show", () => win.show());
   // ⌘W 只收起窗口，App 留在 Dock，点图标再回来；确认过退出的路径直接放行
   win.on("close", (e) => {

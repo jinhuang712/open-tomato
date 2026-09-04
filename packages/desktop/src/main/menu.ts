@@ -1,9 +1,14 @@
 import { app, type BrowserWindow, Menu, type MenuItemConstructorOptions, shell } from "electron";
 import type { MenuCommand } from "../preload/bridge-types";
 import { binding } from "../shared/keymap";
+import { adjustZoom, resetZoom } from "./zoom";
 
 export function installMenu(getWindow: () => BrowserWindow | null) {
   const send = (command: MenuCommand) => () => getWindow()?.webContents.send("menu:command", command);
+  const withWindow = (fn: (win: BrowserWindow) => void) => {
+    const win = getWindow();
+    if (win) fn(win);
+  };
   // 带快捷键的菜单项：按键从 keymap 单源取，菜单栏和设置页展示的永远是同一份
   const item = (id: string, label: string): MenuItemConstructorOptions => {
     const b = binding(id);
@@ -62,9 +67,10 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         { role: "reload", label: "重新载入" },
         { role: "toggleDevTools", label: "开发者工具" },
         { type: "separator" },
-        { role: "resetZoom", label: "实际大小" },
-        { role: "zoomIn", label: "放大" },
-        { role: "zoomOut", label: "缩小" },
+        // 不用内置 zoom role：内置的会盖掉随窗口自动算出的基准倍率，这里改成在基准上叠加档位
+        { label: "实际大小", accelerator: "CmdOrCtrl+0", click: () => withWindow(resetZoom) },
+        { label: "放大", accelerator: "CmdOrCtrl+=", click: () => withWindow((w) => adjustZoom(w, 1)) },
+        { label: "缩小", accelerator: "CmdOrCtrl+-", click: () => withWindow((w) => adjustZoom(w, -1)) },
         { type: "separator" },
         { role: "togglefullscreen", label: "全屏" },
       ],
