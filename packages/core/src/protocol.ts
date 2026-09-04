@@ -15,6 +15,10 @@ export type DocKindId =
   | "brief"
   | "rules";
 
+/** 线索卡 type 的取值。主线：贯穿全书的那一条；支线：有头有尾、服务主线的副线；主题：不靠事件推进的意义线；小故事：几章内自成一体的独立段落 */
+export const THREAD_TYPES = ["主线", "支线", "主题", "小故事"] as const;
+export type ThreadType = (typeof THREAD_TYPES)[number];
+
 export interface DocKindInfo {
   id: DocKindId;
   label: string;

@@ -1,3 +1,4 @@
+import { THREAD_TYPES } from "../protocol.js";
 import type { DocKindId, DocKindInfo } from "../protocol.js";
 
 type Frontmatter = Record<string, unknown>;
@@ -95,8 +96,6 @@ function defineKind(def: KindDef): DocKind {
 }
 
 const CHARACTER_TIERS = ["主角", "关键对手", "重要配角", "一般配角"] as const;
-/** 主线：贯穿全书的那一条；支线：有头有尾、服务主线的副线；主题：不靠事件推进的意义线；小故事：几章内自成一体的独立段落 */
-export const THREAD_TYPES = ["主线", "支线", "主题", "小故事"] as const;
 const speaksMuch = (fm: Frontmatter) => fm.tier === "主角" || fm.tier === "关键对手";
 
 export const DOC_KINDS: Record<DocKindId, DocKind> = {
