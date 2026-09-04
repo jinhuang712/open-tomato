@@ -1,5 +1,15 @@
+import { readFileSync } from "node:fs";
 import { PROSE_REJECT_WORDS } from "../protocol.js";
 import type { RoleId, RoleInfo } from "../protocol.js";
+
+/**
+ * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
+ * 手册是工艺知识，跟哪本书无关；这本书的偏好走守则。作者不改手册，改手册是改代码仓。
+ * 读者评审没有手册，只要人设。
+ */
+export function reviewGuide(name: "文编" | "运营" | "校对"): string {
+  return readFileSync(new URL(`../../guides/评审-${name}.md`, import.meta.url), "utf8").trim();
+}
 
 export interface RoleDef extends RoleInfo {
   canSpawn: boolean;
@@ -12,7 +22,9 @@ export interface RoleDef extends RoleInfo {
 /** 评审对照意图，不对照通用标准：先读章纲，第一项检查是章纲承诺的做到了没有 */
 const REVIEW_INTENT = `## 先读章纲
 
-read_doc 章纲/<章号> 再读正文。第一项检查是章纲承诺的做到了没有：本章目标达到没有、场景序列里的选择发生没有、信息控制里说隐藏的有没有说漏、章末钩子落在写的那个上没有。没做到的记 must，这比任何通用标准都靠前。`;
+read_doc 章纲/<章号> 再读正文。第一项检查是章纲承诺的做到了没有：本章目标达到没有、场景序列里的选择发生没有、信息控制里说隐藏的有没有说漏、章末钩子落在写的那个上没有。没做到的记 must，这比任何通用标准都靠前。
+
+然后 list_docs kind=守则，读 scope 和你这一路相关的条目。守则是作者定的，报违反时引它的标题；作者在守则里说了的，压过你的通用判断。`;
 
 /** 评审的杂活自己做：结论落审稿记录，回主编的只是一句话。写手返修和下一章开写时读记录，不靠主编转述 */
 const REVIEW_SAVE = `- 清单不要写在回复里：用 save_review 落盘，每条填 level（must / suggest）、where（引原文前 10 字）、issue、fix
@@ -262,18 +274,10 @@ ${PROJECT_LAYOUT}
 
 ${REVIEW_INTENT}
 
-## 你看什么
+${reviewGuide("运营")}
 
-- 开头 300 字有没有让人往下翻的理由
-- 本章有没有至少一个情绪爽点（期待兑现 / 反转 / 打脸 / 获得），落在哪一段
-- 章末钩子强度：是问题、是危机、还是只是停了
-- 节奏：有没有连续两段以上没推进任何事的段落
-- 拿不准这个题材当前市场的套路和读者期待，用 web_search 查一两条同类作品的评价或榜单再下结论，不要凭印象说「这类书都这么写」
+## 交付
 
-## 交付格式
-
-- 结论（一句话，能不能留住读者）
-- 问题最多 6 条，issue 写问题、fix 写建议；掉追读的记 must
 - 不要夸，不要总结优点
 ${REVIEW_SAVE}`,
   },
@@ -315,25 +319,16 @@ ${REVIEW_SAVE}`,
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: `你是文编（文字编辑），专抓 AI 生成痕迹和与守则里文字类条目（scope 为 文字 / 对白 / 叙述）的偏差，只读不写。先 list_docs kind=守则。
+    systemPrompt: `你是文编（文字编辑），专抓 AI 生成痕迹和与守则里文字类条目的偏差，只读不写。
 
 ${PROJECT_LAYOUT}
 
 ${REVIEW_INTENT}
 
-## 你抓什么
+${reviewGuide("文编")}
 
-- 段末点题、解释情绪、总结式收尾
-- 排比堆砌、三连形容词、“仿佛 / 宛如 / 犹如”高频
-- 对白后面紧跟心理说明
-- 万能过渡句（“与此同时”“而此刻”“不知过了多久”）
-- 人物说话方式和人物卡「语音签名」不符
-- 违反守则文字类条目的地方，指出是哪一条
+## 交付
 
-## 交付格式
-
-- 机器味总评：轻 / 中 / 重
-- 问题最多 8 条，where 引原句、issue 写问题类型、fix 给改法示例；违反守则必须条目的记 must
 - 只报问题，不夸
 ${REVIEW_SAVE}`,
   },
@@ -352,22 +347,11 @@ ${PROJECT_LAYOUT}
 
 ${REVIEW_INTENT}
 
-## 你核什么
+${reviewGuide("校对")}
 
-- 正文出现的人物、地点、物品、规则，在对应卡片里有没有，描述是否一致
-- 章纲 threads 指向的每条线索：读它的「起点 / 终点 / 推进阶段」，正文有没有真让这条线往终点走了一步；只是提到没推进的，报出来
-- 时间线：与前一章末尾和里程碑的先后关系是否成立
-- 称呼、身份、能力边界是否和人物卡一致
+## 交付
 
-## 工作方式
-
-先 run_check 拿机械对账结果，再只精读可疑处对应的卡片，不要通读所有卡。
-
-## 交付格式
-
-- 每条冲突：where 引正文位置、issue 写「卡片 / 章纲位置 → 冲突内容」、fix 写建议改哪边
-- 事实冲突记 must，表述不一致记 suggest
-- 没有冲突就明确说没有，也落一条空清单的记录
+- 每条冲突：issue 写「卡片 / 章纲位置 → 冲突内容」、fix 写建议改哪边
 ${REVIEW_SAVE}`,
   },
 

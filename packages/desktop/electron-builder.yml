@@ -12,6 +12,8 @@ extraResources:
     to: core/dist
   - from: ../core/package.json
     to: core/package.json
+  - from: ../core/guides
+    to: core/guides
 asar: true
 npmRebuild: false
 mac:
