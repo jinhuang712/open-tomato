@@ -308,6 +308,8 @@ export interface RequestMap {
   "chat.send": { params: { text: string; agentId?: string; deliverAs?: "steer" | "followUp" }; result: null };
   /** 把还没送到的排队消息全部撤回，原文交还给输入框 */
   "chat.clearQueue": { params: { agentId?: string }; result: { steering: string[]; followUp: string[] } };
+  /** 这个 agent 的会话记录 jsonl 落盘路径；子 agent 只在内存、或主编还没写过第一条时返回 null */
+  "chat.sessionFile": { params: { agentId?: string }; result: string | null };
   /** 立刻中止：掐断正在跑的模型调用和工具，agent 回到空闲。输入框的「停」按钮和内核关项目 / 新会话 / reset 都走这条 */
   "chat.abort": { params: { agentId?: string }; result: null };
   /** 优雅暂停：让 agent 不再开新工具，收尾总结；主编会接着用 ask_user 问作者想怎么调整 */

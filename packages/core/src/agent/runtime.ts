@@ -206,6 +206,10 @@ export class Kernel {
         const q = live.session.clearQueue();
         return { steering: [...q.steering], followUp: [...q.followUp] };
       },
+      "chat.sessionFile": async ({ agentId }) => {
+        const live = this.agents.get(agentId ?? LEAD_ID);
+        return live?.session.sessionFile ?? null;
+      },
       "chat.pause": async ({ agentId }) => {
         const id = agentId ?? LEAD_ID;
         const live = this.agents.get(id);

@@ -16,6 +16,7 @@ const bridge: Bridge = {
   pickFolder: (options) => ipcRenderer.invoke("dialog:pickFolder", options),
   openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
   saveTextFile: (options) => ipcRenderer.invoke("dialog:saveText", options),
+  copyText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
   platform: process.platform,
   initialProject: process.env.OPENTOMATO_OPEN_PROJECT ?? null,
 };

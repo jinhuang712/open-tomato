@@ -444,6 +444,20 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
+  async copyTranscriptPath(agentId?: string) {
+    const id = agentId ?? (state.view.type === "chat" ? state.view.agentId : "lead");
+    try {
+      const file = await bridge.request("chat.sessionFile", { agentId: id });
+      if (!file) {
+        toast(id === "lead" ? "主编还没写过一条消息，会话记录尚未落盘" : "子 agent 的会话只在内存里，没有落盘文件", "error");
+        return;
+      }
+      await bridge.copyText(file);
+      toast(`已复制路径：${file}`);
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   openDoc(kind: DocKindId, id: string) {
     setState("view", { type: "doc", kind, id });
   },

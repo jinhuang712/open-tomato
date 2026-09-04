@@ -29,6 +29,7 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         { label: "一致性机检", accelerator: "CmdOrCtrl+Shift+K", click: send("check.run") },
         { type: "separator" },
         { label: "导出当前会话…", accelerator: "CmdOrCtrl+E", click: send("chat.export") },
+        { label: "复制会话记录路径", accelerator: "CmdOrCtrl+Shift+E", click: send("chat.copyPath") },
         { type: "separator" },
         { role: "close", label: "关闭窗口" },
       ],

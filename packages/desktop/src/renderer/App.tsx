@@ -55,6 +55,9 @@ export function App() {
         case "chat.export":
           if (state.project) void actions.exportChat();
           break;
+        case "chat.copyPath":
+          if (state.project) void actions.copyTranscriptPath();
+          break;
       }
     });
     // 渲染层刷新过（HMR / 重新载入）时内核里可能还挂着项目和正在跑的 agent，

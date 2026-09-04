@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
 import { KernelHost } from "./kernel";
 import { installMenu } from "./menu";
@@ -120,6 +120,8 @@ ipcMain.handle("dialog:pickFolder", async (_e, { title, create }: { title: strin
   });
   return r.canceled ? null : (r.filePaths[0] ?? null);
 });
+
+ipcMain.handle("clipboard:writeText", (_e, text: string) => clipboard.writeText(text));
 
 ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
 

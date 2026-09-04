@@ -66,6 +66,7 @@ function BookMenu(props: { name: string }) {
           <MenuItem label="新会话" hint="⌘⇧N" onClick={() => run(actions.newChat)} />
           <MenuItem label="重新机检" onClick={() => run(actions.runCheck)} />
           <MenuItem label="导出会话" hint="⌘E" onClick={() => run(actions.exportChat)} />
+          <MenuItem label="复制会话记录路径" hint="⌘⇧E" onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
           <MenuItem label="打开别的项目" onClick={() => run(() => actions.openProject())} />
           <MenuItem label="关闭项目" onClick={() => run(actions.closeProject)} />
