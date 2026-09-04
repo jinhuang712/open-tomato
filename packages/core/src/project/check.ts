@@ -171,7 +171,9 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     if (hs.length > 1) push("error", null, `里程碑 order=${o} 重复：${hs.map((h) => h.id).join("、")}`, "milestones");
   }
 
-  return issues;
+  // 作者说过「这笔账不欠」的材料（有 defer 批且没被推翻），建议改一律闭嘴；必须修照报，那是坏掉不是欠账
+  const deferred = await store.records.deferredDocs();
+  return issues.filter((i) => i.level === "error" || !i.kind || !i.id || !deferred.has(`${i.kind}/${i.id}`));
 }
 
 function checkSequence(nums: number[], report: (msg: string) => void, label: string) {

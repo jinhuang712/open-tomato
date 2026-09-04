@@ -124,6 +124,24 @@ export class ProjectRecords {
     return names.filter((n) => n.endsWith(".jsonl")).map((n) => n.slice(0, -".jsonl".length));
   }
 
+  /**
+   * 作者说过「不欠」的材料：最后一条 defer / overrule 里是 defer 的。
+   * 返回 "kind/id" 集合，机检用它闭嘴，主编用它不催。
+   */
+  async deferredDocs(): Promise<Set<string>> {
+    const out = new Set<string>();
+    const root = path.join(this.markerDir, MARKS_DIR);
+    const kinds = await fs.readdir(root).catch(() => [] as string[]);
+    for (const kind of kinds) {
+      for (const id of await this.markedIds(kind as DocKindId)) {
+        const marks = await this.marks(kind as DocKindId, id);
+        const last = [...marks].reverse().find((m) => m.type === "defer" || m.type === "overrule");
+        if (last?.type === "defer") out.add(`${kind}/${id}`);
+      }
+    }
+    return out;
+  }
+
   // ───────────── 审稿记录 ─────────────
 
   reviewPath(chapter: string, role: RoleId): string {
