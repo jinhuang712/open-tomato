@@ -1,8 +1,10 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../protocol.js";
+import { chapterRange, ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../protocol.js";
 import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../protocol.js";
+import { PLACEHOLDER } from "../project/check.js";
 import { applyEdits } from "../project/edits.js";
+import { asStringArray, pickSection } from "../project/frontmatter.js";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind, templateNotes } from "../project/kinds.js";
 import { contentHash } from "../project/records.js";
@@ -356,6 +358,63 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     );
   }
 
+  /** 批是作者对材料说过的话的记录：写手开写前读上一章的，知道作者退回过什么、亲手改过什么 */
+  tools.push(
+    defineTool({
+      name: "read_marks",
+      label: "读作者的批",
+      description: "读一份材料上作者的批：退回时选的词和说的话、放行、亲手改过的地方。写手写第 N 章前读第 N-1 章正文的批，同一句话作者不用说两遍。",
+      parameters: Type.Object({ kind: KIND_SCHEMA, id: Type.String({ description: "文档 id，章号可以直接给数字" }) }),
+      execute: async (_id, params) => {
+        const kind = assertKind(params.kind);
+        const nid = DOC_KINDS[kind].normalizeId(params.id);
+        const marks = await store.records.marks(kind, nid);
+        if (marks.length === 0) return text(`${zhDir(kind)}/${nid} 上作者还没批过什么。`);
+        const lines: string[] = [];
+        for (const m of marks) {
+          const when = m.at.slice(0, 16).replace("T", " ");
+          if (m.type === "reject") lines.push(`- ${when} 退回：${[m.word, m.text].filter(Boolean).join("，")}`);
+          else if (m.type === "approve") lines.push(`- ${when} 放行`);
+          else if (m.type === "edit") lines.push(`- ${when} 作者亲手改了：\n${(m.patch ?? "").split("\n").filter((l) => /^[+-][^+-]/.test(l)).slice(0, 24).map((l) => `    ${l}`).join("\n")}`);
+          else if (m.type === "defer") lines.push(`- ${when} 作者说不欠：${m.text ?? ""}`);
+          else if (m.type === "overrule") lines.push(`- ${when} 作者收回了之前的「不欠」：${m.text ?? ""}`);
+          else lines.push(`- ${when} ${m.type}：${[m.word, m.text].filter(Boolean).join("，")}`);
+        }
+        return text(lines.join("\n"));
+      },
+    }),
+  );
+
+  /** 节奏在卷里才看得见：每章多长、推了几条线、有没有钩子，连续几章同一形状作者不用读就知道哪里平了 */
+  tools.push(
+    defineTool({
+      name: "volume_rhythm",
+      label: "看一卷的节奏",
+      description: "列出一卷每章的字数、推进的线索、章末有没有钩子。卷末盘点先看这个，连续几章同一形状就是节奏问题。",
+      parameters: Type.Object({ volume: Type.String({ description: "卷号，直接给数字" }) }),
+      execute: async (_id, params) => {
+        const vid = DOC_KINDS.volumes.normalizeId(params.volume);
+        const vol = await store.read("volumes", vid);
+        if (!vol) throw new Error(`卷纲/${vid} 不存在`);
+        const range = chapterRange(vol.extra.chapters);
+        if (!range) return text(`卷纲/${vid} 的 chapters 字段没写成「1-30」这种区间，算不出节奏。`);
+        const rows: string[] = ["| 章 | 字数 | 线索 | 钩子 | 一句话 |", "|---|---|---|---|---|"];
+        for (let no = range[0]; no <= range[1]; no++) {
+          const id = DOC_KINDS.chapters.normalizeId(String(no));
+          const outline = await store.read("chapters", id);
+          const ms = await store.read("manuscript", id);
+          if (!outline && !ms) continue;
+          const words = ms ? (Number(ms.extra.words) > 0 ? Number(ms.extra.words) : ms.body.replace(/\s/g, "").length) : 0;
+          const threads = outline ? asStringArray(outline.extra.threads) : [];
+          const hook = outline ? (pickSection(outline.body, "章末钩子") ?? "").trim() : "";
+          const hookMark = !outline ? "无章纲" : !hook || hook.includes(PLACEHOLDER) ? "空" : "有";
+          rows.push(`| ${no} | ${ms ? words : "未写"} | ${threads.join("、") || "无"} | ${hookMark} | ${(ms?.summary ?? outline?.summary ?? "").slice(0, 30)} |`);
+        }
+        return text(rows.join("\n"));
+      },
+    }),
+  );
+
   /** 审稿记录是模型之间的公共记录：评审写、写手返修读、主编汇总读，作者不读 */
   tools.push(
     defineTool({
@@ -448,6 +507,32 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
             signal,
           );
           return text(`作者回答：${answer}`);
+        },
+      }),
+    );
+  }
+
+  if (perms.canSpawn) {
+    /** 作者说「这笔账不欠」：唯一允许主编代作者写的批。机检对这份材料的建议改随之闭嘴，直到作者收回 */
+    tools.push(
+      defineTool({
+        name: "settle",
+        label: "记下作者说不欠",
+        description:
+          "作者明确说某份材料的账不欠了（「这条线故意沉两卷」「这个坑留白不填」）就记一条；作者改主意说又欠了就 reopen。只在作者明确说了之后用，不要自己判断。记了之后机检对它的建议改不再报，必须修照报。",
+        parameters: Type.Object({
+          kind: KIND_SCHEMA,
+          id: Type.String({ description: "文档 id" }),
+          mode: Type.Union([Type.Literal("defer"), Type.Literal("reopen")], { description: "defer 不欠 / reopen 又欠了" }),
+          text: Type.String({ description: "作者的原话" }),
+        }),
+        execute: async (_id, params) => {
+          const kind = assertKind(params.kind);
+          const nid = DOC_KINDS[kind].normalizeId(params.id);
+          if (!(await store.read(kind, nid))) throw new Error(`${zhDir(kind)}/${nid} 不存在`);
+          await store.records.appendMark({ kind, id: nid, type: params.mode === "defer" ? "defer" : "overrule", by: "director", text: params.text });
+          await ctx.docsChanged();
+          return text(params.mode === "defer" ? `记下了：${zhDir(kind)}/${nid} 不欠，机检对它的建议改不再报。` : `记下了：${zhDir(kind)}/${nid} 重新算欠账。`);
         },
       }),
     );

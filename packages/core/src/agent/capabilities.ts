@@ -97,7 +97,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派编剧盘点第 ${p(params, "volume")} 卷。
 
-要求：编剧读 卷纲/${p(params, "volume")}、本卷每章正文的 summary（list_docs kind=正文 就够，不通读正文）、本卷章纲 threads 指向的每张线索卡。对每张涉及的线索卡 edit_doc 回写：stage 改成现在推进到哪；「推进阶段」段追加本卷发生的关键节点；「钩子」段里本卷已经兑现的悬念标成「已兑现（第 N 章）」，新埋的补进去。线索卡只改这三处，起点 / 终点不动。
+要求：编剧先 volume_rhythm 看这卷每章的字数、线索、钩子，连续几章同一形状的地方要在汇报里点出来；再读 卷纲/${p(params, "volume")}、本卷每章正文的 summary（list_docs kind=正文 就够，不通读正文）、本卷章纲 threads 指向的每张线索卡。对每张涉及的线索卡 edit_doc 回写：stage 改成现在推进到哪；「推进阶段」段追加本卷发生的关键节点；「钩子」段里本卷已经兑现的悬念标成「已兑现（第 N 章）」，新埋的补进去。线索卡只改这三处，起点 / 终点不动。
 盘点完向我汇报：哪些线索动了、哪些线索整卷没推进、哪些坑还没填。然后 ask_user 问下一步：排下一卷卷纲 / 先补没推进的线索 / 停一下。`,
   },
 };
