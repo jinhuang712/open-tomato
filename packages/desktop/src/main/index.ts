@@ -130,9 +130,14 @@ ipcMain.handle("clipboard:writeText", (_e, text: string) => clipboard.writeText(
 
 ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
 
-ipcMain.handle("shell:trashProject", async (_e, root: string) => {
+ipcMain.handle("dialog:confirm", (_e, options: { message: string; detail: string; okLabel: string }) =>
+  confirmAction(mainWindow, options.message, options.detail, options.okLabel),
+);
+
+ipcMain.handle("shell:trashProject", async (_e, root: string, options: { withCloud?: boolean } = {}) => {
   const name = root.split("/").filter(Boolean).pop() ?? root;
-  const ok = await confirmAction(mainWindow, `删除项目「${name}」？`, `整个文件夹会移到废纸篓，可从废纸篓找回。\n${root}`, "移到废纸篓");
+  const cloudNote = options.withCloud ? "云端的快照也会一起删掉，删了找不回。" : "";
+  const ok = await confirmAction(mainWindow, `删除项目「${name}」？`, `整个文件夹会移到废纸篓，可从废纸篓找回。${cloudNote}\n${root}`, "移到废纸篓");
   if (!ok) return false;
   await shell.trashItem(root);
   return true;

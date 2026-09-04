@@ -448,11 +448,19 @@ export const actions = {
     setState("closePromptOpen", false);
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
-  /** 先弹确认，再把文件夹移到废纸篓并从最近列表摘掉 */
+  /**
+   * 先弹确认，再把文件夹移到废纸篓并从最近列表摘掉。配了云端就连云端快照一起删：
+   * 云端删失败只提示、不拦本地删除（云端那份还在，不算丢数据）。删云端要读项目名，所以放在移到废纸篓之前。
+   */
   async deleteProject(root: string) {
+    const withCloud = state.cloud?.configured === true;
     try {
-      if (!(await bridge.trashProject(root))) return;
+      if (!(await bridge.trashProject(root, { withCloud }))) return;
+      if (withCloud) {
+        await bridge.request("cloud.remove", { root }).catch((e) => toast(`云端快照没删掉：${errText(e)}`, "error"));
+      }
       await actions.forgetProject(root);
+      if (withCloud) void actions.refreshCloud();
     } catch (e) {
       toast(errText(e), "error");
     }
@@ -679,6 +687,24 @@ export const actions = {
       toast("已断开云端存储，本机凭据已删除");
     } catch (e) {
       toast(errText(e), "error");
+    }
+  },
+  /** 清空云端所有项目快照，凭据保留。原生确认框问过才动手 */
+  async wipeCloud() {
+    const ok = await bridge.confirm({
+      message: "清空云端存储？",
+      detail: "云端所有项目的快照（含历史版本）都会删掉，本机文件不受影响。当前打开的项目下次同步时会重新传上去。",
+      okLabel: "清空",
+    });
+    if (!ok) return false;
+    try {
+      const { removed } = await bridge.request("cloud.wipe", {});
+      toast(removed === 0 ? "云端本来就是空的" : `已清空云端，删了 ${removed} 个项目的快照`);
+      void actions.refreshCloud();
+      return true;
+    } catch (e) {
+      toast(errText(e), "error");
+      return false;
     }
   },
   /**

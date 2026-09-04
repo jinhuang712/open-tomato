@@ -40,8 +40,10 @@ export interface Bridge {
   saveTextFile(options: { defaultName: string; content: string }): Promise<string | null>;
   /** 写系统剪贴板 */
   copyText(text: string): Promise<void>;
-  /** 弹确认框后把项目文件夹移到系统废纸篓；用户取消返回 false */
-  trashProject(root: string): Promise<boolean>;
+  /** 弹确认框后把项目文件夹移到系统废纸篓；withCloud 时文案说明云端快照一并删。用户取消返回 false */
+  trashProject(root: string, options?: { withCloud?: boolean }): Promise<boolean>;
+  /** 原生确认框；用户取消返回 false */
+  confirm(options: { message: string; detail: string; okLabel: string }): Promise<boolean>;
   platform: string;
   /** 开发钩子：OPENTOMATO_OPEN_PROJECT 指定启动即打开的项目 */
   initialProject: string | null;

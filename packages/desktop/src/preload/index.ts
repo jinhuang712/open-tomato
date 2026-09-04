@@ -21,7 +21,8 @@ const bridge: Bridge = {
   readClipboardTextFiles: () => ipcRenderer.invoke("clipboard:readTextFiles"),
   saveTextFile: (options) => ipcRenderer.invoke("dialog:saveText", options),
   copyText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
-  trashProject: (root) => ipcRenderer.invoke("shell:trashProject", root),
+  trashProject: (root, options) => ipcRenderer.invoke("shell:trashProject", root, options),
+  confirm: (options) => ipcRenderer.invoke("dialog:confirm", options),
   platform: process.platform,
   initialProject: process.env.OPENTOMATO_OPEN_PROJECT ?? null,
 };

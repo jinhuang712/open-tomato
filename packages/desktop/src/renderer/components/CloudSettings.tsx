@@ -13,6 +13,7 @@ export function CloudSettings() {
   const [key, setKey] = createSignal("");
   const [phase, setPhase] = createSignal<"idle" | "verifying" | "ok" | "error">("idle");
   const [error, setError] = createSignal<string | null>(null);
+  const [wiping, setWiping] = createSignal(false);
 
   const close = () => setState("cloudSettingsOpen", false);
   const canSubmit = () => url().trim().length > 0 && key().trim().length > 0 && phase() !== "verifying";
@@ -94,6 +95,17 @@ export function CloudSettings() {
           </Show>
           <span class="flex-1" />
           <Show when={configured()}>
+            <button
+              class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-danger hover:bg-danger-soft disabled:opacity-40"
+              title="删掉云端所有项目快照，凭据保留"
+              disabled={wiping()}
+              onClick={() => {
+                setWiping(true);
+                void actions.wipeCloud().finally(() => setWiping(false));
+              }}
+            >
+              {wiping() ? "清空中…" : "清空云端…"}
+            </button>
             <button class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-danger hover:bg-danger-soft" onClick={() => void actions.clearCloud().then(close)}>
               断开
             </button>
