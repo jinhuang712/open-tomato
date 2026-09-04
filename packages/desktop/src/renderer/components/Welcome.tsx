@@ -26,10 +26,19 @@ export function Welcome() {
           <div class="space-y-1">
             <For each={state.recent}>
               {(r) => (
-                <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-paper-2 flex items-center gap-3" onClick={() => void actions.openProject(r)}>
-                  <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
-                  <span class="text-ink-3 text-xs truncate">{r}</span>
-                </button>
+                <div class="group flex items-center rounded-lg hover:bg-paper-2">
+                  <button class="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-3" onClick={() => void actions.openProject(r)}>
+                    <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
+                    <span class="text-ink-3 text-xs truncate">{r}</span>
+                  </button>
+                  <button
+                    class="mr-2 px-2 py-1 rounded text-xs text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink hover:bg-paper"
+                    title="从最近列表移除（不删文件）"
+                    onClick={() => void actions.forgetProject(r)}
+                  >
+                    移除
+                  </button>
+                </div>
               )}
             </For>
           </div>

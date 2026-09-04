@@ -338,6 +338,14 @@ export const actions = {
   async closeProject() {
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
+  async forgetProject(root: string) {
+    try {
+      await bridge.request("project.forget", { root });
+      setState("recent", (list) => list.filter((r) => r !== root));
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   async send(text: string, agentId?: string, deliverAs: "steer" | "followUp" = "steer") {
     const t = text.trim();
     if (!t) return;
