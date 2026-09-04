@@ -80,29 +80,29 @@ export function CloudSettings() {
 
         <div class="flex items-center gap-2.5 px-5 py-3 border-t border-line text-xs">
           <Show when={phase() === "verifying"}>
-            <SpinnerIcon class="text-accent" />
-            <span class="text-accent">正在连接，顺手建 bucket…</span>
+            <SpinnerIcon class="text-accent shrink-0" />
+            <span class="text-accent truncate">正在连接，顺手建 bucket…</span>
           </Show>
           <Show when={phase() === "ok"}>
-            <span class="w-1.5 h-1.5 rounded-full bg-ok" />
-            <span class="text-ok">已连接 · {bucket() || "projects"}</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
+            <span class="text-ok truncate">已连接 · {bucket() || "projects"}</span>
           </Show>
           <Show when={phase() === "error"}>
-            <span class="text-danger selectable">{error()}</span>
+            <span class="text-danger selectable truncate" title={error() ?? undefined}>{error()}</span>
           </Show>
           <Show when={phase() === "idle" && configured()}>
-            <CloudIcon class="text-ok" />
-            <span class="text-ink-2">
+            <CloudIcon class="text-ok shrink-0" />
+            <span class="text-ink-2 truncate" title={`${state.cloud?.url} / ${state.cloud?.bucket}`}>
               已连接 · {state.cloud?.url?.replace(/^https?:\/\//, "")} / {state.cloud?.bucket}
             </span>
           </Show>
           <span class="flex-1" />
           <Show when={configured()}>
-            <button class="px-3 py-1.5 rounded-lg text-danger hover:bg-danger-soft" onClick={() => void actions.clearCloud().then(close)}>
+            <button class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-danger hover:bg-danger-soft" onClick={() => void actions.clearCloud().then(close)}>
               断开
             </button>
           </Show>
-          <button class="px-3.5 py-1.5 rounded-lg bg-ink text-paper font-medium disabled:opacity-40" disabled={!canSubmit()} onClick={() => void submit()}>
+          <button class="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg bg-ink text-paper font-medium disabled:opacity-40" disabled={!canSubmit()} onClick={() => void submit()}>
             {phase() === "verifying" ? "连接中…" : configured() ? "重新连接" : "连接并保存"}
           </button>
         </div>
