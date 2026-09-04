@@ -20,10 +20,10 @@ export function CloudProjects() {
         when={configured()}
         fallback={
           <button
-            class="text-xs text-ink-3 hover:text-ink flex items-center gap-1.5"
+            class="text-ink-2 hover:text-ink flex items-center gap-2"
             onClick={() => setState("cloudSettingsOpen", true)}
           >
-            <CloudIcon size={14} class="shrink-0" />
+            <CloudIcon size={18} class="shrink-0" />
             在另一台机器上接着写？连接 Supabase →
           </button>
         }
