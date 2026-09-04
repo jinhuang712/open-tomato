@@ -47,7 +47,7 @@ export function ModelSettings() {
         </button>
       </div>
       <div class="flex flex-1 min-h-0">
-        <div class="w-[200px] shrink-0 border-r border-line overflow-y-auto py-2">
+        <div class="w-[190px] shrink-0 border-r border-line overflow-y-auto py-2">
           <For each={providers()}>
             {(p) => (
               <button
@@ -112,7 +112,7 @@ export function ModelSettings() {
                     <span class="text-xs text-ink-3 truncate">{m.id}</span>
                     <span class="flex-1" />
                     <Show when={m.reasoning}>
-                      <span class="text-xs px-1 rounded bg-paper-3 text-ink-2">思考</span>
+                      <span class="text-xs px-1 rounded bg-paper-3 text-ink-2 shrink-0 whitespace-nowrap">思考</span>
                     </Show>
                     <span class="text-xs text-ink-3 w-16 text-right">{Math.round(m.contextWindow / 1000)}k</span>
                   </button>
@@ -125,12 +125,12 @@ export function ModelSettings() {
           </div>
           <Show when={currentModel()}>
             {(cm) => (
-              <div class="px-4 py-2.5 border-t border-line flex items-center gap-2 text-xs">
-                <span class="text-ink-2">当前：</span>
-                <span class="font-medium">{cm().name}</span>
+              <div class="px-4 py-2.5 border-t border-line flex items-center gap-2 text-xs whitespace-nowrap">
+                <span class="text-ink-2 shrink-0">当前：</span>
+                <span class="font-medium truncate">{cm().name}</span>
                 <span class="flex-1" />
                 <Show when={cm().reasoning}>
-                  <span class="text-ink-3">思考强度</span>
+                  <span class="text-ink-3 shrink-0">思考强度</span>
                   <ThinkingLevelPicker value={models()?.thinkingLevel ?? "off"} onPick={(lv) => void actions.selectModel(cm().provider, cm().id, lv)} />
                 </Show>
               </div>
@@ -144,7 +144,7 @@ export function ModelSettings() {
 
 export function ThinkingLevelPicker(props: { value: ThinkingLevel; onPick: (lv: ThinkingLevel) => void }) {
   return (
-    <div class="flex rounded-md border border-line overflow-hidden">
+    <div class="flex rounded-md border border-line overflow-hidden shrink-0">
       <For each={LEVELS}>
         {(lv) => (
           <button class={`px-2 py-0.5 ${props.value === lv ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => props.onPick(lv)}>

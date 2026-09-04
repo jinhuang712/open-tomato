@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -137,10 +138,19 @@ ipcMain.handle("shell:trashProject", async (_e, root: string) => {
 
 ipcMain.handle("shell:showInFolder", (_e, path: string) => shell.showItemInFolder(path));
 
+// 开发态 app.getVersion() 给的是 Electron 自己的版本，统一从 package.json 读
+function appVersion(): string {
+  try {
+    return (JSON.parse(readFileSync(join(app.getAppPath(), "package.json"), "utf8")) as { version: string }).version;
+  } catch {
+    return app.getVersion();
+  }
+}
+
 ipcMain.handle(
   "app:info",
   (): AppInfo => ({
-    version: app.getVersion(),
+    version: appVersion(),
     electron: process.versions.electron ?? "",
     chrome: process.versions.chrome ?? "",
     node: process.versions.node ?? "",

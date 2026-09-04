@@ -28,7 +28,7 @@ export function Settings() {
 
   return (
     <div class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] bg-black/30" onClick={close}>
-      <div class="w-[820px] h-[min(640px,80vh)] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div class="w-[900px] h-[min(640px,80vh)] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">
           <span class="font-medium">设置</span>
           <span class="flex-1" />
@@ -37,7 +37,7 @@ export function Settings() {
           </button>
         </div>
         <div class="flex flex-1 min-h-0">
-          <div class="w-[180px] shrink-0 border-r border-line py-2 px-2">
+          <div class="w-[160px] shrink-0 border-r border-line py-2 px-2">
             <For each={TABS}>
               {(t) => (
                 <button
@@ -174,16 +174,22 @@ function StoragePane() {
               <PathRow label="API key" path={`${i().piAgentDir}/auth.json`} />
               <PathRow label="自定义 provider" path={`${i().piAgentDir}/models.json`} />
             </Section>
-            <Section title="当前项目" hint={state.project ? "随项目进 git，项目级设置优先于全局" : "还没打开项目"}>
-              <Show when={state.project}>
-                {(p) => (
-                  <>
-                    <PathRow label="项目根目录" path={p().root} />
-                    <PathRow label="项目设置" note="模型与思考档" path={`${p().root}/.opentomato/settings.json`} />
-                  </>
-                )}
-              </Show>
-            </Section>
+            <Show
+              when={state.project}
+              fallback={
+                <div class="px-6 text-xs">
+                  <span class="font-medium text-ink-2">当前项目</span>
+                  <span class="text-ink-3 ml-2">还没打开项目</span>
+                </div>
+              }
+            >
+              {(p) => (
+                <Section title="当前项目" hint="随项目进 git，项目级设置优先于全局">
+                  <PathRow label="项目根目录" path={p().root} />
+                  <PathRow label="项目设置" note="模型与思考档" path={`${p().root}/.opentomato/settings.json`} />
+                </Section>
+              )}
+            </Show>
           </>
         )}
       </Show>
