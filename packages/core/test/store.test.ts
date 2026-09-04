@@ -289,3 +289,21 @@ describe("会话目录", () => {
     expect(await migrateLegacySessions(path.join(root, "nope"), root)).toBe(0);
   });
 });
+
+describe("agents.json 并发写", () => {
+  test("同一毫秒并发 saveAgentRecord 不报 ENOENT，且一条不丢", async () => {
+    const recs = Array.from({ length: 8 }, (_, i) => ({
+      agentId: `a${i}`,
+      parentId: "director",
+      role: "designer" as const,
+      label: "策划",
+      task: `任务${i}`,
+      mode: "propose" as const,
+    }));
+    await Promise.all(recs.map((r) => store.saveAgentRecord(r)));
+    const ids = (await store.agentRecords()).map((r) => r.agentId).sort();
+    expect(ids).toEqual(recs.map((r) => r.agentId).sort());
+    const leftovers = (await fs.readdir(path.join(root, ".opentomato", "sessions"))).filter((f) => f.endsWith(".tmp"));
+    expect(leftovers).toEqual([]);
+  });
+});

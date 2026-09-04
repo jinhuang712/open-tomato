@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createTwoFilesPatch } from "diff";
@@ -13,9 +14,13 @@ const MARKER_FILE = "project.json";
 const PROJECT_FORMAT = 1;
 /** 项目内会话目录（相对 .opentomato/），主编会话 jsonl 落这里；子目录按角色分 */
 const SESSIONS_DIR = "sessions";
-/** 先写同目录临时文件再 rename 覆盖：写一半崩掉不会留下半截正文 */
+/**
+ * 先写同目录临时文件再 rename 覆盖：写一半崩掉不会留下半截正文。
+ * 临时名带随机段：同进程同一毫秒并发写同一个文件时（并发 spawn 多个子 agent 写索引）不会共用一个 tmp，
+ * 否则第二个 rename 会 ENOENT，catch 里的 rm 还会误删别人的 tmp。
+ */
 async function writeAtomic(abs: string, content: string) {
-  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.${process.pid}.${Date.now()}.tmp`);
+  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.${process.pid}.${randomUUID()}.tmp`);
   try {
     await fs.writeFile(tmp, content, "utf8");
     await fs.rename(tmp, abs);
@@ -112,16 +117,25 @@ export class ProjectStore {
     }
   }
 
+  /** 索引是「读全表→改→写」，并发时后写会覆盖前写；用一条 Promise 链把改动串起来 */
+  private agentIndexQueue: Promise<unknown> = Promise.resolve();
+
+  private updateAgentRecords(fn: (recs: AgentRecord[]) => AgentRecord[]): Promise<void> {
+    const run = this.agentIndexQueue.then(async () => {
+      await this.writeAgentRecords(fn(await this.agentRecords()));
+    });
+    this.agentIndexQueue = run.catch(() => {});
+    return run;
+  }
+
   /** 新建或更新一条（按 agentId 覆盖） */
   async saveAgentRecord(rec: AgentRecord): Promise<void> {
-    const rest = (await this.agentRecords()).filter((r) => r.agentId !== rec.agentId);
-    await this.writeAgentRecords([...rest, rec]);
+    await this.updateAgentRecords((recs) => [...recs.filter((r) => r.agentId !== rec.agentId), rec]);
   }
 
   /** 退役：删索引项，连会话目录一起删 */
   async dropAgentRecord(agentId: string): Promise<void> {
-    const rest = (await this.agentRecords()).filter((r) => r.agentId !== agentId);
-    await this.writeAgentRecords(rest);
+    await this.updateAgentRecords((recs) => recs.filter((r) => r.agentId !== agentId));
     await fs.rm(this.agentSessionDir(agentId), { recursive: true, force: true });
   }
 
