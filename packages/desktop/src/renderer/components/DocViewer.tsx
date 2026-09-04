@@ -43,7 +43,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         await refetch();
         const latest = doc();
         if (latest) setBase(latest.raw);
-        toast("这篇在你编辑期间被改过（可能是 agent 刚写入），已载入最新：把你的修改合进去再存", "error");
+        toast("这篇在你编辑期间被改过（可能是 agent 刚写入）。再点保存将覆盖对方版本；要合并先复制你的改动，取消后对照最新版重改", "error");
       } else {
         toast(msg, "error");
       }

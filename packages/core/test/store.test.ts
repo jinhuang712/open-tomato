@@ -155,6 +155,16 @@ describe("runCheck", () => {
     expect(issues.some((i) => i.message.includes("断档：2"))).toBe(true);
   });
 
+  test("断档文案：单缺口只写一个数字，不叠床（章纲断档：2）", async () => {
+    const mk = (n: string) => `---\ntitle: c${n}\nsummary: s\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\n---\n\n## 本章目标\n\nx\n`;
+    await store.write("volumes", "1", "---\ntitle: v\nsummary: s\nkeywords: []\nstatus: draft\nchapters: 1-3\n---\n\nx\n");
+    await store.write("chapters", "1", mk("1"));
+    await store.write("chapters", "3", mk("3"));
+    const issues = await runCheck(store);
+    const hit = issues.find((i) => i.message.includes("断档"));
+    expect(hit?.message).toBe("章纲断档：2");
+  });
+
   test("残留待填", async () => {
     await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n待填\n");
     const issues = await runCheck(store);

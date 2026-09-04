@@ -288,14 +288,16 @@ export class Kernel {
 
   private async disposeAgents() {
     this.gate.rejectAll("会话已重建");
-    for (const a of this.agents.values()) {
-      // 先给渲染层一个终态：它据此撤掉这个 agent 的问答/待审 dock，不会留下永远"运行中"的幽灵
-      this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : "done");
+    const lives = [...this.agents.values()];
+    // 先发终态（渲染层据此撤掉这个 agent 的问答/待审 dock），再摘表：
+    // abort 会让旧 run 报错，滞后回调因认不出旧 live 全被吞，不会污染新会话
+    for (const a of lives) this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : "done");
+    for (const a of lives) a.unsubscribe();
+    this.agents.clear();
+    for (const a of lives) {
       await a.session.abort().catch(() => {});
-      a.unsubscribe();
       a.session.dispose();
     }
-    this.agents.clear();
   }
 
   private async emitDocsChanged() {
@@ -418,6 +420,8 @@ export class Kernel {
     if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
     const run = live.session.isStreaming ? live.session.prompt(text, { streamingBehavior: deliverAs }) : live.session.prompt(text);
     run.catch((e: unknown) => {
+      // 旧 run 在退场后才报错（dispose 时的 abort）：新会话的门不归它管，直接吞掉
+      if (this.agents.get(agentId) !== live) return;
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
       // run 死了，它挂着的问答/待审再也没人能答，一并拒掉，别留幽灵 pending
@@ -539,6 +543,8 @@ export class Kernel {
   // ───────────────────────── 事件转发 ─────────────────────────
 
   private setStatus(live: LiveAgent, status: AgentStatus, error: string | null = null) {
+    // 只认对象不认 id：已退场（摘表 / 被同 id 新会话替换）的旧 live 发不出事件，防幽灵状态
+    if (this.agents.get(live.info.agentId) !== live) return;
     if (live.info.status === status && live.info.error === error) return;
     live.info.status = status;
     live.info.error = error;

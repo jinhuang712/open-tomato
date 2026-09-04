@@ -101,7 +101,8 @@ function checkSequence(nums: number[], report: (msg: string) => void, label: str
   for (let i = 1; i < valid.length; i++) {
     const prev = valid[i - 1]!;
     const cur = valid[i]!;
-    if (cur - prev > 1) gaps.push(`${prev + 1}-${cur - 1}`);
+    // 单缺口只写一个数字（缺第 2 章报「2」不报「2-2」）
+    if (cur - prev > 1) gaps.push(prev + 2 === cur ? String(prev + 1) : `${prev + 1}-${cur - 1}`);
   }
-  if (gaps.length > 0) report(`${label}章号断档：${gaps.join("、")}`);
+  if (gaps.length > 0) report(`${label}断档：${gaps.join("、")}`);
 }
