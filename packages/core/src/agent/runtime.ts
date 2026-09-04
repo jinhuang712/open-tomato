@@ -311,7 +311,7 @@ export class Kernel {
       },
       "chat.new": async () => {
         this.requireStore();
-        await this.disposeAgents();
+        await this.disposeAgents(true);
         await this.createLead("new");
         return null;
       },
@@ -401,7 +401,7 @@ export class Kernel {
     if (!this.store) return;
     this.stopCloudTimer();
     this.cloudSynced = null;
-    await this.disposeAgents();
+    await this.disposeAgents(false);
     this.store = null;
     this.index = null;
     this.models.unbindProject();
@@ -481,9 +481,16 @@ export class Kernel {
     this.cloudTimer = null;
   }
 
-  private async disposeAgents() {
+  /**
+   * 释放内存里的全部会话。retire=true 是主编开新会话：子 agent 一并退役，索引和会话目录删掉；
+   * retire=false 是关项目 / 退出应用：只释放，索引留着，下次打开按索引接回。
+   */
+  private async disposeAgents(retire: boolean) {
     this.gate.rejectAll("会话已重建");
     const lives = [...this.agents.values()];
+    if (retire && this.store) {
+      for (const a of lives) if (a.info.agentId !== LEAD_ID) await this.store.dropAgentRecord(a.info.agentId);
+    }
     // 先发终态（渲染层据此撤掉这个 agent 的问答/待审 dock），再摘表：
     // abort 会让旧 run 报错，滞后回调因认不出旧 live 全被吞，不会污染新会话
     for (const a of lives) this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : "done");
@@ -608,13 +615,45 @@ export class Kernel {
       session,
       tools,
     );
+    this.replayHistory(LEAD_ID, session);
+    this.setStatus(live, "idle");
+    if (mode === "continue") await this.restoreChildren();
+  }
+
+  /** 会话里已有的消息回放给渲染层 */
+  private replayHistory(agentId: string, session: AgentSession) {
     const raws = session.messages as unknown[];
     this.emit({
       type: "agent.event",
-      agentId: LEAD_ID,
+      agentId,
       event: { type: "history", messages: normalizeHistory(raws), interrupted: wasInterrupted(raws) },
     });
-    this.setStatus(live, "idle");
+  }
+
+  /**
+   * 按索引把上次留下的子 agent 接回来：同一个 agentId、同一份会话文件、同一个派单方式。
+   * 接回来的都是 done：重启后没有人在跑，主编要续就 continue。接不回的（目录没了）从索引里删。
+   */
+  private async restoreChildren() {
+    const store = this.requireStore();
+    for (const rec of await store.agentRecords()) {
+      if (!(rec.role in ROLES) || rec.role === LEAD_ID) {
+        await store.dropAgentRecord(rec.agentId);
+        continue;
+      }
+      try {
+        const { session, tools } = await this.buildSession(rec.role, rec.agentId, SessionManager.continueRecent(store.info.root, store.agentSessionDir(rec.agentId)));
+        const live = this.register(
+          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: "done", error: null, statusText: "" },
+          session,
+          tools,
+        );
+        this.setMode(live, rec.mode);
+        this.replayHistory(rec.agentId, session);
+      } catch {
+        await store.dropAgentRecord(rec.agentId);
+      }
+    }
   }
 
   private requireLive(agentId: string): LiveAgent {
@@ -706,7 +745,8 @@ export class Kernel {
     const store = this.requireStore();
     const def = ROLES[task.role];
     const agentId = randomUUID();
-    const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.inMemory(store.info.root));
+    // 子 agent 会话和主编一样落在项目里：作者可能在候选悬着时关掉应用去休息，重开后主编还能续派它
+    const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
     const live = this.register(
       { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
       session,
@@ -714,6 +754,7 @@ export class Kernel {
     );
     const mode = task.mode ?? "commit";
     this.setMode(live, mode);
+    await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
     const slot: DispatchSlot = { agentId, role: task.role, label: def.label, task: task.task, status: "running", error: null };
     slots.push(slot);
     const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
@@ -730,7 +771,12 @@ export class Kernel {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
-    if (mode) this.setMode(live, mode);
+    if (mode && mode !== live.mode) {
+      this.setMode(live, mode);
+      const store = this.requireStore();
+      const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
+      if (rec) await store.saveAgentRecord({ ...rec, mode });
+    }
     const prefix = mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
     const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
     const roster = this.roster([slot], onProgress);

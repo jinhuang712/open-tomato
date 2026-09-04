@@ -184,3 +184,38 @@ describe("收件箱：跑着的时候排队，轮末一并送", () => {
     expect(calls.at(-1)).toEqual(["排着", undefined]);
   });
 });
+
+describe("子 agent 会话落盘", () => {
+  const rec = { agentId: "child-9", parentId: "director", role: "designer" as const, label: "策划", task: "出三个主角方向", mode: "propose" as const };
+
+  test("关项目只释放内存，索引留着；重开项目按索引接回同一个 agentId，派单方式不变，状态是 done", async () => {
+    const store = (kernel as any).requireStore();
+    await store.saveAgentRecord(rec);
+    await kernel.handle("project.close", {});
+    expect(await fs.readFile(path.join(root, ".opentomato", "sessions", "agents.json"), "utf8")).toContain("child-9");
+
+    events.length = 0;
+    await kernel.handle("project.open", { root });
+    const spawned = events.filter((e) => e.type === "agent.spawned") as Array<{ type: "agent.spawned"; agent: { agentId: string; role: string; status: string; task: string } }>;
+    const child = spawned.find((e) => e.agent.agentId === "child-9");
+    expect(child?.agent.role).toBe("designer");
+    expect(child?.agent.status).toBe("done");
+    expect(child?.agent.task).toBe("出三个主角方向");
+    expect((kernel as any).agents.get("child-9").mode).toBe("propose");
+    expect(events.some((e) => e.type === "agent.event" && e.agentId === "child-9" && e.event.type === "history")).toBe(true);
+  });
+
+  test("主编开新会话时子 agent 退役：索引清空，会话目录删掉", async () => {
+    const store = (kernel as any).requireStore();
+    await store.saveAgentRecord(rec);
+    await fs.mkdir(store.agentSessionDir("child-9"), { recursive: true });
+    await kernel.handle("project.close", {});
+    await kernel.handle("project.open", { root });
+    expect((kernel as any).agents.has("child-9")).toBe(true);
+
+    await kernel.handle("chat.new", {});
+    expect(await store.agentRecords()).toEqual([]);
+    expect(await fs.stat(store.agentSessionDir("child-9")).catch(() => null)).toBeNull();
+    expect((kernel as any).agents.has("child-9")).toBe(false);
+  });
+});

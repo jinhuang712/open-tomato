@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createTwoFilesPatch } from "diff";
-import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
+import type { DocContent, DocHeader, DocKindId, ProjectInfo, RoleId } from "../protocol.js";
 import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, stringifyFrontmatter, frontmatterProblem } from "./frontmatter.js";
 import { PLACEHOLDER } from "./check.js";
 import { BRIEF_SEED_BODY, DOC_KIND_IDS, DOC_KINDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
@@ -33,6 +33,23 @@ export class StaleWriteError extends Error {
 }
 
 const LEAD_SESSIONS_DIR = path.join(SESSIONS_DIR, "lead");
+/** 子 agent 会话：每个 agent 一个目录 sessions/agents/<agentId>/，索引在 sessions/agents.json */
+const AGENT_SESSIONS_DIR = path.join(SESSIONS_DIR, "agents");
+const AGENT_INDEX_FILE = path.join(SESSIONS_DIR, "agents.json");
+
+/**
+ * 子 agent 的身份与派单方式。会话内容在 pi 的 jsonl 里，这里只记 jsonl 记不了的：
+ * 它是谁、替谁干活、干的什么、现在是候选还是落盘阶段。重开项目按这份索引把会话接回来。
+ * 收件箱、暂停这类跑着时的瞬态不记：重启后没有人在跑。
+ */
+export interface AgentRecord {
+  agentId: string;
+  parentId: string;
+  role: RoleId;
+  label: string;
+  task: string;
+  mode: "propose" | "commit";
+}
 /** .opentomato/.gitignore：会话记录大且噪音多，不进 git；project.json 等保留 */
 const MARKER_GITIGNORE = `${SESSIONS_DIR}/\n`;
 
@@ -75,6 +92,42 @@ export class ProjectStore {
 
   get leadSessionsDir(): string {
     return ProjectStore.leadSessionsDir(this.info.root);
+  }
+
+  /** 某个子 agent 会话 jsonl 的目录：<root>/.opentomato/sessions/agents/<agentId> */
+  agentSessionDir(agentId: string): string {
+    return path.join(this.info.root, MARKER_DIR, AGENT_SESSIONS_DIR, agentId);
+  }
+
+  private get agentIndexPath(): string {
+    return path.join(this.info.root, MARKER_DIR, AGENT_INDEX_FILE);
+  }
+
+  async agentRecords(): Promise<AgentRecord[]> {
+    try {
+      const raw = JSON.parse(await fs.readFile(this.agentIndexPath, "utf8")) as unknown;
+      return Array.isArray(raw) ? (raw as AgentRecord[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** 新建或更新一条（按 agentId 覆盖） */
+  async saveAgentRecord(rec: AgentRecord): Promise<void> {
+    const rest = (await this.agentRecords()).filter((r) => r.agentId !== rec.agentId);
+    await this.writeAgentRecords([...rest, rec]);
+  }
+
+  /** 退役：删索引项，连会话目录一起删 */
+  async dropAgentRecord(agentId: string): Promise<void> {
+    const rest = (await this.agentRecords()).filter((r) => r.agentId !== agentId);
+    await this.writeAgentRecords(rest);
+    await fs.rm(this.agentSessionDir(agentId), { recursive: true, force: true });
+  }
+
+  private async writeAgentRecords(recs: AgentRecord[]): Promise<void> {
+    await fs.mkdir(path.dirname(this.agentIndexPath), { recursive: true });
+    await writeAtomic(this.agentIndexPath, `${JSON.stringify(recs, null, 2)}\n`);
   }
 
   static async exists(root: string): Promise<boolean> {
