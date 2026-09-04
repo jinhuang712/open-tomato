@@ -83,6 +83,20 @@ interface LiveAgent {
   mode: SpawnMode;
   /** 这个角色的全部工具名；propose 时用它算出剥掉写工具后的列表，commit 时恢复 */
   tools: string[];
+  /** 收件箱：它跑着的时候作者发的话与批注，等这轮结束一并送进去。没人有权打断它手上那一件，除了作者点「插入」 */
+  inbox: InboxEntry[];
+  /** 已插入、还在 pi 的插话队列里等下一个工具边界的消息，界面上标「已插入」 */
+  steering: string[];
+  /** 作者按了暂停：这轮结束后收件箱先不送，作者再开口才送 */
+  hold: boolean;
+  /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
+  flushRest: boolean;
+}
+
+interface InboxEntry {
+  id: string;
+  label: string;
+  text: string;
 }
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
@@ -240,14 +254,39 @@ export class Kernel {
         return state;
       },
       "chat.send": async ({ text, agentId, deliverAs }) => {
-        this.sendTo(agentId ?? LEAD_ID, text, deliverAs ?? "steer");
+        const live = this.requireLive(agentId ?? LEAD_ID);
+        this.authorActed(live);
+        const how = deliverAs ?? "steer";
+        // 排队的不进 pi 的队列，进我们自己的收件箱：能单条插入、能撤回，轮末一并送
+        if (how === "followUp" && live.session.isStreaming) {
+          const stub = STUB_PATTERN.exec(text);
+          live.inbox.push({ id: randomUUID(), label: stub ? stub[1]!.trim() : "排队", text });
+          this.emitQueue(live);
+          return null;
+        }
+        this.sendTo(live.info.agentId, text, how);
+        return null;
+      },
+      "chat.insert": async ({ agentId, id }) => {
+        const live = this.requireLive(agentId ?? LEAD_ID);
+        const at = live.inbox.findIndex((e) => e.id === id);
+        if (at < 0) return null;
+        const [entry] = live.inbox.splice(at, 1);
+        this.authorActed(live);
+        this.sendTo(live.info.agentId, entry!.text, "steer");
+        this.emitQueue(live);
         return null;
       },
       "chat.clearQueue": async ({ agentId }) => {
         const live = this.agents.get(agentId ?? LEAD_ID);
-        if (!live) return { steering: [], followUp: [] };
+        if (!live) return { texts: [] };
         const q = live.session.clearQueue();
-        return { steering: [...q.steering], followUp: [...q.followUp] };
+        const texts = [...q.steering, ...q.followUp, ...live.inbox.map((e) => e.text)];
+        live.inbox = [];
+        live.steering = [];
+        live.flushRest = false;
+        this.emitQueue(live);
+        return { texts };
       },
       "chat.sessionFile": async ({ agentId }) => {
         const live = this.agents.get(agentId ?? LEAD_ID);
@@ -258,6 +297,8 @@ export class Kernel {
         const live = this.agents.get(id);
         if (!live) throw new Error("这个 agent 已经不在了");
         if (live.info.status !== "running") return null;
+        // 暂停有两层意思：让它收尾这一步，以及这轮结束后别去取收件箱。作者再开口两者都解除
+        live.hold = true;
         const text = stubPrompt("暂停", live.info.role === "director" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD);
         // steer 会插在当前这步工具结束之后，正在写的东西不会被掐断
         live.session.prompt(text, { streamingBehavior: "steer" }).catch(() => {});
@@ -286,6 +327,7 @@ export class Kernel {
       },
       "roles.list": async () => roleInfos(),
       "approval.reply": async ({ approvalId, decision, reason }) => {
+        this.authorActed(this.agents.get(LEAD_ID));
         if (!this.gate.resolveApproval(approvalId, { decision, reason: reason ?? "" })) {
           // 已经不在了（被中止 / 重复点），也让 UI 撤掉
           this.emit({ type: "approval.resolved", approvalId, decision });
@@ -293,6 +335,7 @@ export class Kernel {
         return null;
       },
       "question.reply": async ({ questionId, answer }) => {
+        this.authorActed(this.agents.get(LEAD_ID));
         if (!this.gate.resolveQuestion(questionId, answer)) this.emit({ type: "question.resolved", questionId });
         return null;
       },
@@ -545,7 +588,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit" };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -574,9 +617,47 @@ export class Kernel {
     this.setStatus(live, "idle");
   }
 
-  private sendTo(agentId: string, text: string, deliverAs: "steer" | "followUp" = "steer") {
+  private requireLive(agentId: string): LiveAgent {
     const live = this.agents.get(agentId);
     if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
+    return live;
+  }
+
+  /** 作者说话、批稿、答题、插入都算开口：暂停解除，这轮结束后收件箱照常送 */
+  private authorActed(live: LiveAgent | undefined) {
+    if (live) live.hold = false;
+  }
+
+  /** 收件箱与已插入的一起给界面：作者要看到自己的话在哪儿等着 */
+  private emitQueue(live: LiveAgent) {
+    this.send(live, {
+      type: "queue_update",
+      items: [
+        ...live.steering.map((t, i) => ({ id: `steer-${i}`, label: "已插入", text: t, inserted: true })),
+        ...live.inbox.map((e) => ({ ...e, inserted: false })),
+      ],
+    });
+  }
+
+  /**
+   * 轮末取件：收件箱非空且没被暂停，就把第一条送进去开新一轮，其余等 agent_start 后插进去。
+   * 分两步是因为 pi 一次只接一条直发，其余得等它跑起来再 steer。
+   * agent_end 发出时 run 可能还没完全收尾，等一拍再送；sendTo 看 isStreaming 自己决定直发还是排到 pi 的队列。
+   */
+  private flushInbox(live: LiveAgent) {
+    if (live.hold || live.inbox.length === 0) return;
+    setTimeout(() => {
+      if (this.agents.get(live.info.agentId) !== live || live.hold) return;
+      const first = live.inbox.shift();
+      if (!first) return;
+      live.flushRest = live.inbox.length > 0;
+      this.sendTo(live.info.agentId, first.text, "followUp");
+      this.emitQueue(live);
+    }, 0);
+  }
+
+  private sendTo(agentId: string, text: string, deliverAs: "steer" | "followUp" = "steer") {
+    const live = this.requireLive(agentId);
     const run = live.session.isStreaming ? live.session.prompt(text, { streamingBehavior: deliverAs }) : live.session.prompt(text);
     run.catch((e: unknown) => {
       // 旧 run 在退场后才报错（dispose 时的 abort）：新会话的门不归它管，直接吞掉
@@ -736,18 +817,22 @@ export class Kernel {
     switch (ev.type) {
       case "agent_start":
         this.setStatus(live, "running");
+        // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
+        if (live.flushRest) {
+          live.flushRest = false;
+          for (const e of live.inbox.splice(0)) live.session.prompt(e.text, { streamingBehavior: "steer" }).catch(() => {});
+          this.emitQueue(live);
+        }
         return;
       case "agent_end":
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
+        this.flushInbox(live);
         return;
       case "queue_update":
-        this.send(live, {
-          type: "queue_update",
-          steering: [...((ev.steering as readonly string[] | undefined) ?? [])],
-          followUp: [...((ev.followUp as readonly string[] | undefined) ?? [])],
-        });
+        live.steering = [...((ev.steering as readonly string[] | undefined) ?? [])];
+        this.emitQueue(live);
         return;
       case "message_start": {
         const msg = normalizeMessage(ev.message);

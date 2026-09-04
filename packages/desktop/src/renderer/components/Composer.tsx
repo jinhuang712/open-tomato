@@ -26,9 +26,9 @@ async function readFiles(files: Iterable<File>): Promise<{ name: string; content
 }
 
 /**
- * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上（符号取自 shared/keymap）：
- * 插话在当前这步工具结束后就送到；排队等这一轮跑完再送；暂停让它收尾停下来问你；停立刻掐断。
- * 还没送到的消息列在输入框上方，可以一键撤回到输入框里改。
+ * 输入框。agent 空闲时是「发送」；跑着的时候是「排队」：进它的收件箱，这轮做完一并看，没人打断它手上那一件。
+ * 排队里的每一条列在输入框上方，等不了的点「插入」，当前这步工具结束后就送到；也能全部撤回到输入框里改。
+ * 暂停 / 停止在会话区顶上，不在这儿。
  * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
  * 附件（md / txt）三条路进来：按钮选文件、拖进输入框、Finder 里 ⌘C 后在框里 ⌘V；发送时全文内联到消息末尾。
  */
@@ -103,14 +103,13 @@ export function Composer(props: { agentId?: string }) {
   const resting = () => !isLead() && agent()?.status === "done";
   const noModel = () => !state.models?.current;
   const disabled = () => noModel() || gone();
-  const queue = () => state.queues[agentId()] ?? { steering: [], followUp: [] };
-  const pending = () => [...queue().steering.map((t) => ({ kind: "插话", text: t })), ...queue().followUp.map((t) => ({ kind: "排队", text: t }))];
+  const pending = () => state.queues[agentId()] ?? [];
 
   const placeholder = () => {
     if (noModel()) return "先在右上角选一个模型并填 API key";
     if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊，比如挑一个候选让它往下孵化`;
-    if (busy()) return isLead() ? "主编在忙。插话它这步做完就看，排队等它这轮跑完" : `${agent()?.label ?? "子 agent"}在忙。插话它这步做完就看，排队等它这轮跑完`;
+    if (busy()) return `${isLead() ? "主编" : (agent()?.label ?? "子 agent")}在忙。发出去先排队，它这轮做完一并看；等不了就在上面点「插入」`;
     if (quotes().length) return "对这段说点什么";
     if (attachments().length) return "这些材料想让主编怎么用";
     return "和主编说话";
@@ -141,9 +140,18 @@ export function Composer(props: { agentId?: string }) {
           <div class="flex-1 min-w-0 space-y-1">
             <For each={pending()}>
               {(m) => (
-                <div class="flex items-baseline gap-2 min-w-0">
-                  <span class="shrink-0 text-ink-3">{m.kind}</span>
-                  <span class="truncate text-ink-2">{m.text}</span>
+                <div class="group flex items-baseline gap-2 min-w-0">
+                  <span class={`shrink-0 ${m.inserted ? "text-accent" : "text-ink-3"}`}>{m.label}</span>
+                  <span class="flex-1 truncate text-ink-2">{m.text.replace(/^⟦stub:[^⟧]*⟧\n?/, "")}</span>
+                  <Show when={!m.inserted}>
+                    <button
+                      class="shrink-0 text-ink-3 hover:text-ink opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      title="等不了它这轮做完：当前这步工具结束后就送到"
+                      onClick={() => void actions.insertQueued(m.id, agentId())}
+                    >
+                      插入
+                    </button>
+                  </Show>
                 </div>
               )}
             </For>
@@ -231,10 +239,11 @@ export function Composer(props: { agentId?: string }) {
             if (!mod) return;
             if (e.key === "Enter") {
               e.preventDefault();
-              submit(e.shiftKey && busy() ? "followUp" : "steer");
+              // 跑着时默认排队；⇧ 是插话
+              submit(busy() && !e.shiftKey ? "followUp" : "steer");
             } else if ((e.key === "." || e.key === ">") && busy()) {
               e.preventDefault();
-              if (e.shiftKey) void actions.stop(agentId());
+              if (e.shiftKey || state.pausePending[agentId()]) void actions.stop(agentId());
               else void actions.pause(agentId());
             }
           }}
@@ -249,25 +258,13 @@ export function Composer(props: { agentId?: string }) {
             ＋ 附件
           </button>
           <span class="flex-1" />
-          <Show when={busy()}>
-            <ActionButton label="停" keys={keyHint("composer.stop")} tone="danger" onClick={() => void actions.stop(agentId())} title="立刻掐断正在跑的模型调用和工具，写了一半的东西不落盘" />
-            <ActionButton label="暂停" keys={keyHint("composer.pause")} tone="quiet" onClick={() => void actions.pause(agentId())} title="收尾当前这步，总结进度，然后停下来问你想怎么调整" />
-            <ActionButton
-              label="排队"
-              keys={keyHint("composer.followUp")}
-              tone="quiet"
-              disabled={!canSend() || disabled()}
-              onClick={() => submit("followUp")}
-              title="等这一轮完全跑完再送到，不打扰它手上的活"
-            />
-          </Show>
           <ActionButton
-            label={busy() ? "插话" : "发送"}
+            label={busy() ? "排队" : "发送"}
             keys={keyHint("composer.send")}
             tone="primary"
             disabled={!canSend() || disabled()}
-            onClick={() => submit("steer")}
-            title={busy() ? "当前这步工具结束后就送到，它会马上看" : undefined}
+            onClick={() => submit(busy() ? "followUp" : "steer")}
+            title={busy() ? `进它的收件箱，这轮做完一并看；${keyHint("composer.insert")} 直接插话` : undefined}
           />
         </div>
       </div>

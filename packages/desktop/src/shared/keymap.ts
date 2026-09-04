@@ -38,9 +38,9 @@ export const KEYMAP: KeyBinding[] = [
   { id: "settings.open", label: "设置", scope: "global", keys: ["CmdOrCtrl+,"], menuCommand: "settings.open" },
   { id: "search.open", label: "搜索", scope: "global", keys: ["CmdOrCtrl+K", "CmdOrCtrl+P"], note: "已打开项目时" },
 
-  { id: "composer.send", label: "发送 / 插话", scope: "editor", keys: ["CmdOrCtrl+Enter"], note: "agent 跑着时是插话，当前这步工具结束后送到" },
-  { id: "composer.followUp", label: "排队", scope: "editor", keys: ["CmdOrCtrl+Shift+Enter"], note: "等这一轮完全跑完再送到" },
-  { id: "composer.pause", label: "暂停", scope: "editor", keys: ["CmdOrCtrl+."], note: "agent 跑着时" },
+  { id: "composer.send", label: "发送 / 排队", scope: "editor", keys: ["CmdOrCtrl+Enter"], note: "agent 跑着时排队，它这轮做完一并看；排队里每条都能点「插入」" },
+  { id: "composer.insert", label: "插话", scope: "editor", keys: ["CmdOrCtrl+Shift+Enter"], note: "agent 跑着时不排队，当前这步工具结束后就送到" },
+  { id: "composer.pause", label: "暂停 / 停止", scope: "editor", keys: ["CmdOrCtrl+."], note: "第一次让它收尾这一步停下来，再按一次立刻掐断" },
   { id: "composer.stop", label: "停止", scope: "editor", keys: ["CmdOrCtrl+Shift+."], note: "agent 跑着时，立刻掐断" },
 
   { id: "review.approve", label: "审阅通过", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "审阅弹窗" },

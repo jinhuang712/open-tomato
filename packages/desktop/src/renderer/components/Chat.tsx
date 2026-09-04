@@ -77,9 +77,29 @@ export function Chat(props: { agentId: string }) {
     ),
   );
 
+  // 暂停两级：第一下让它收尾这一步停下来问你，第二下立刻掐断。挂在会话区，不在输入框
+  const running = () => agent()?.status === "running";
+  const pausePending = () => Boolean(state.pausePending[props.agentId]);
+
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
+      <Show when={running() || pausePending()}>
+        <div class="shrink-0 flex justify-end px-5 pt-2">
+          <button
+            class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border"
+            classList={{
+              "border-line text-ink-2 hover:text-ink hover:bg-paper-3": !pausePending(),
+              "border-danger/40 text-danger hover:bg-danger-soft": pausePending(),
+            }}
+            title={pausePending() ? "正在收尾。再按一次立刻掐断，写了一半的东西不落盘" : "收尾当前这步，停下来问你想怎么调整"}
+            onClick={() => void (pausePending() ? actions.stop(props.agentId) : actions.pause(props.agentId))}
+          >
+            <span>{pausePending() ? "■" : "❙❙"}</span>
+            {pausePending() ? "停止" : "暂停"}
+          </button>
+        </div>
+      </Show>
       <Show when={isLead()}>
         <QuotePill within={() => scroller} />
       </Show>

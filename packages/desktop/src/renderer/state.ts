@@ -15,6 +15,7 @@ import type {
   ModelsState,
   ProjectInfo,
   QuestionRequest,
+  QueueItem,
   UiMessage,
   UiPart,
 } from "@opentomato/core/protocol";
@@ -77,7 +78,10 @@ export interface State {
   /** agentId → 上次被打断时的最后一条消息 id，UI 在它后面画分隔线 */
   interruptedAfter: Record<string, string>;
   /** agentId → 还没送到的消息：插话的和排队的 */
-  queues: Record<string, { steering: string[]; followUp: string[] }>;
+  /** 每个 agent 还没送到的消息：排队的与已插入的 */
+  queues: Record<string, QueueItem[]>;
+  /** 作者按过一次「暂停」还没停下来：再按一次就是「停止」 */
+  pausePending: Record<string, boolean>;
   approvals: ApprovalRequest[];
   questions: QuestionRequest[];
   issues: CheckIssue[] | null;
@@ -132,6 +136,7 @@ const initial: State = {
   transcripts: {},
   interruptedAfter: {},
   queues: {},
+  pausePending: {},
   approvals: [],
   questions: [],
   issues: null,
@@ -197,6 +202,7 @@ export function applyEvent(ev: KernelEvent) {
         // 上个内核的排队消息与待审弹窗已经失效，重开项目时必须清；
         // composerDraft / composerQuotes 刻意保留：内核崩溃后会自动重开同一项目，不能丢用户未发送的文字
         queues: {},
+        pausePending: {},
         reviewOpen: null,
         reviewFocus: null,
         annotations: [],
@@ -210,7 +216,7 @@ export function applyEvent(ev: KernelEvent) {
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
-      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, reviewFocus: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
+      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, pausePending: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, reviewFocus: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
       // 回到欢迎页，云端列表重新拉一遍：刚关掉的项目可能刚同步过
       void actions.refreshCloud();
       return;
@@ -246,6 +252,7 @@ export function applyEvent(ev: KernelEvent) {
             a.error = ev.error;
             if (ev.status !== "running") {
               a.statusText = "";
+              delete s.pausePending[ev.agentId];
               // agent 停了，它挂着的待答 / 待审不可能再有人接，一并撤掉
               s.questions = s.questions.filter((q) => q.agentId !== ev.agentId);
               s.approvals = s.approvals.filter((x) => x.agentId !== ev.agentId);
@@ -314,7 +321,7 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
           return;
         }
         case "queue_update": {
-          s.queues[agentId] = { steering: ev.steering, followUp: ev.followUp };
+          s.queues[agentId] = ev.items;
           return;
         }
         case "message_start":
@@ -470,7 +477,16 @@ export const actions = {
     const t = text.trim();
     if (!t) return;
     try {
+      setState("pausePending", agentId ?? "director", false);
       await bridge.request("chat.send", { text: t, deliverAs, ...(agentId && agentId !== "director" ? { agentId } : {}) });
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /** 排队里的某一条等不了了，插进当前这轮 */
+  async insertQueued(id: string, agentId?: string) {
+    try {
+      await bridge.request("chat.insert", { id, ...(agentId && agentId !== "director" ? { agentId } : {}) });
     } catch (e) {
       toast(errText(e), "error");
     }
@@ -479,6 +495,7 @@ export const actions = {
   async stop(agentId?: string) {
     const id = agentId ?? "director";
     try {
+      setState("pausePending", id, false);
       await bridge.request("chat.abort", id !== "director" ? { agentId: id } : {});
       const last = state.transcripts[id]?.at(-1);
       if (last) setState("interruptedAfter", id, last.id);
@@ -491,17 +508,17 @@ export const actions = {
   async recallQueue(agentId?: string) {
     try {
       const q = await bridge.request("chat.clearQueue", agentId && agentId !== "director" ? { agentId } : {});
-      const texts = [...q.steering, ...q.followUp];
-      setState("queues", agentId ?? "director", { steering: [], followUp: [] });
-      if (texts.length > 0) setState("composerDraft", texts.join("\n\n"));
+      setState("queues", agentId ?? "director", []);
+      if (q.texts.length > 0) setState("composerDraft", q.texts.join("\n\n"));
     } catch (e) {
       toast(errText(e), "error");
     }
   },
   async pause(agentId?: string) {
     try {
+      setState("pausePending", agentId ?? "director", true);
       await bridge.request("chat.pause", agentId && agentId !== "director" ? { agentId } : {});
-      toast("已请求暂停，agent 会收尾后停下来问你");
+      toast("已请求暂停，它收尾这一步就停下来问你；再按一次是立刻停止");
     } catch (e) {
       toast(errText(e), "error");
     }
