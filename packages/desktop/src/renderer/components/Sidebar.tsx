@@ -6,7 +6,7 @@ const ORDER: DocKindId[] = ["brief", "rules", "world", "characters", "threads", 
 
 /**
  * 边栏是这本书的骨架：各类材料按创作顺序排，空的类别灰显不展开。
- * 简介是单例，一行就是那份文档，不显示计数；其余类别右侧是卡片数。守则一条一卡，「必须」排在「尽量」前面。
+ * 简介是单例，一行就是那份文档，不显示计数；其余类别右侧是卡片数。守则一条一卡，「必须」排在「尽量」前面；里程碑按 order 排，没填 order 的垫底。
  * 机检结果只在有问题的文档旁点一个点，不另占地方；机检由内核在文档变动后自动跑，没有手动入口。
  */
 export function Sidebar() {
@@ -14,7 +14,15 @@ export function Sidebar() {
   const toggle = (k: string) => setCollapsed((c) => ({ ...c, [k]: !c[k] }));
   const docsOf = (k: DocKindId) => {
     const docs = state.docs.filter((d) => d.kind === k);
-    return k === "rules" ? [...docs].sort((a, b) => Number(b.extra.level === "必须") - Number(a.extra.level === "必须")) : docs;
+    if (k === "rules") return [...docs].sort((a, b) => Number(b.extra.level === "必须") - Number(a.extra.level === "必须"));
+    if (k === "milestones") {
+      const orderOf = (d: (typeof docs)[number]) => {
+        const n = Number(d.extra.order);
+        return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+      };
+      return [...docs].sort((a, b) => orderOf(a) - orderOf(b));
+    }
+    return docs;
   };
   const kindOf = (k: DocKindId) => state.kinds.find((x) => x.id === k);
   const kindLabel = (k: DocKindId) => kindOf(k)?.label ?? k;
