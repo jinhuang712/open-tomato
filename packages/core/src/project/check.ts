@@ -11,7 +11,7 @@ export const DEFERRED = "待定";
  * 机械对账。只报不拦：
  * - frontmatter 缺必填字段 / 仍是「待填」/ 枚举字段填了范围外的值
  * - 正文残留「待填」；段落只写了「待定」；缺必填段（按 frontmatter 条件算）
- * - 章纲引用的人物 / 线索 / 卷不存在
+ * - 章纲引用的人物 / 线索 / 卷不存在；里程碑引用的线索不存在
  * - 正文没有对应章纲
  * - 章号 / 里程碑 order 断档或重复
  */
@@ -82,6 +82,13 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     if (v !== undefined && v !== null && v !== "" && v !== PLACEHOLDER) {
       const nid = DOC_KINDS.volumes.normalizeId(String(v));
       if (!volumes.has(nid)) push("error", h, `引用了不存在的卷纲「${String(v)}」`);
+    }
+  }
+
+  for (const h of byKind.get("milestones") ?? []) {
+    for (const t of asStringArray(h.extra.threads)) {
+      const nid = DOC_KINDS.threads.normalizeId(t);
+      if (!threads.has(nid)) push("error", h, `引用了不存在的线索卡「${t}」`);
     }
   }
 

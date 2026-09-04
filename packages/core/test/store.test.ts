@@ -196,6 +196,13 @@ describe("runCheck", () => {
     expect(of("ok")).toEqual([]);
   });
 
+  test("里程碑引用不存在的线索报 error", async () => {
+    await store.write("threads", "复仇", "---\ntitle: 复仇\nsummary: s\nkeywords: []\nstatus: draft\ntype: 主线\n---\n\n## 起点\n\nx\n\n## 终点\n\nx\n");
+    await store.write("milestones", "m1", "---\ntitle: 灭门\nsummary: s\nkeywords: []\nstatus: draft\norder: 1\nthreads: [复仇, 幽灵]\n---\n\n## 发生什么\n\nx\n\n## 之后不可逆的变化\n\nx\n");
+    const issues = await runCheck(store);
+    expect(issues.filter((i) => i.kind === "milestones").map((i) => i.message)).toEqual(["引用了不存在的线索卡「幽灵」"]);
+  });
+
   test("残留待填", async () => {
     await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n待填\n");
     const issues = await runCheck(store);
