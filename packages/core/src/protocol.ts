@@ -74,6 +74,8 @@ export interface CheckIssue {
   id: string | null;
   path: string | null;
   message: string;
+  /** 一句能直接发给 lead 的修补请求；界面预填进输入框，作者确认后再发。没有就只展示，不给按钮 */
+  fix?: string;
 }
 
 // ───────────────────────── 模型 ─────────────────────────

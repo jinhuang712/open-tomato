@@ -173,6 +173,8 @@ describe("runCheck", () => {
     const of = (id: string) => issues.filter((i) => i.kind === "characters" && i.id === id).map((i) => i.message);
     expect(of("lead")).toEqual(["缺必填段：语音签名"]);
     expect(of("extra")).toEqual([]);
+    const lead = issues.find((i) => i.kind === "characters" && i.id === "lead");
+    expect(lead?.fix).toBe("人物「甲」还缺「语音签名」段，帮我补上");
   });
 
   test("段落只写了「待定」报 warning，点名段", async () => {

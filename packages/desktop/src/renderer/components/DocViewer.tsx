@@ -3,7 +3,7 @@ import type { DocContent, DocKindId } from "@opentomato/core/protocol";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { bridge } from "../bridge";
 import { renderMarkdown } from "../markdown";
-import { actions, errText, state, toast } from "../state";
+import { actions, errText, setState, state, toast } from "../state";
 
 export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [doc, { refetch }] = createResource(
@@ -16,6 +16,11 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [base, setBase] = createSignal<string | null>(null);
   const kindLabel = () => state.kinds.find((k) => k.id === props.kind)?.label ?? props.kind;
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
+  /** 机检给的修补请求：切到对话、预填进输入框，发不发由作者定 */
+  const fixInChat = (text: string) => {
+    actions.openChat("lead");
+    setState("composerDraft", text);
+  };
 
   createEffect(
     on(
@@ -92,8 +97,16 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         <div class="px-5 py-2 bg-warn-soft/50 border-b border-line text-xs space-y-0.5">
           <For each={issues()}>
             {(i) => (
-              <div class={i.level === "error" ? "text-danger" : "text-warn"}>
-                {ISSUE_LEVEL_LABEL[i.level]}：{i.message}
+              <div class={`flex items-baseline gap-2 ${i.level === "error" ? "text-danger" : "text-warn"}`}>
+                <span class="shrink-0 opacity-80">{ISSUE_LEVEL_LABEL[i.level]}</span>
+                <span class="flex-1 min-w-0">{i.message}</span>
+                <Show when={i.fix}>
+                  {(fix) => (
+                    <button class="shrink-0 underline underline-offset-2 hover:text-ink" title="跳到对话，把这句填进输入框，你确认后再发" onClick={() => fixInChat(fix())}>
+                      去对话里补 →
+                    </button>
+                  )}
+                </Show>
               </div>
             )}
           </For>

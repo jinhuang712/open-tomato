@@ -21,31 +21,40 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   for (const k of Object.keys(DOC_KINDS) as DocKindId[]) byKind.set(k, await store.list(k));
 
   const ids = (k: DocKindId) => new Set((byKind.get(k) ?? []).map((h) => h.id));
-  const push = (level: CheckIssue["level"], h: DocHeader | null, message: string, kind: DocKindId | null = h?.kind ?? null) =>
-    issues.push({ level, kind, id: h?.id ?? null, path: h?.path ?? null, message });
+  const push = (level: CheckIssue["level"], h: DocHeader | null, message: string, kind: DocKindId | null = h?.kind ?? null, fix?: string) =>
+    issues.push({ level, kind, id: h?.id ?? null, path: h?.path ?? null, message, ...(fix ? { fix } : {}) });
+  /** 修补请求里指这篇文档的叫法：「人物卡「陈默」」 */
+  const ref = (kind: DocKindId, h: DocHeader) => `${DOC_KINDS[kind].label}「${h.title.trim() || h.id}」`;
 
   for (const [kind, headers] of byKind) {
     for (const h of headers) {
       const fm = { title: h.title, summary: h.summary, status: h.status, ...h.extra };
       const required = requiredFieldsOf(kind, fm);
-      if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填");
-      if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填");
-      for (const f of required) {
+      if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填", kind, `${DOC_KINDS[kind].label}「${h.id}」还没起名，帮我定一个 title`);
+      if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填", kind, `${ref(kind, h)}的 summary 还没写，帮我补一句`);
+      const missingFields = required.filter((f) => {
         const v = h.extra[f];
-        if (v === undefined || v === null || v === "" || v === PLACEHOLDER) push("error", h, `缺必填字段 ${f}`);
-      }
+        return v === undefined || v === null || v === "" || v === PLACEHOLDER;
+      });
+      for (const f of missingFields) push("error", h, `缺必填字段 ${f}`, kind, `${ref(kind, h)}缺字段 ${f}，帮我补上`);
       const doc = await store.read(kind, h.id);
       if (!doc) continue;
       if (doc.body.includes(PLACEHOLDER)) {
         const count = doc.body.split(PLACEHOLDER).length - 1;
-        push(kind === "manuscript" ? "error" : "warning", h, `正文残留 ${count} 处「${PLACEHOLDER}」`);
+        push(kind === "manuscript" ? "error" : "warning", h, `正文残留 ${count} 处「${PLACEHOLDER}」`, kind, `${ref(kind, h)}正文里还有 ${count} 处「${PLACEHOLDER}」，帮我逐处补成正式内容`);
       }
       // 「待定」不是内容：没想好的段不该出现，先放一放的决定记在 frontmatter open 里
       const deferred = splitSections(doc.body).filter((s) => s.heading !== "" && s.content.startsWith(DEFERRED));
-      if (deferred.length > 0) push("warning", h, `段落只写了「${DEFERRED}」：${deferred.map((s) => s.heading).join("、")}，没想好就删掉这一段`);
+      if (deferred.length > 0) {
+        const names = deferred.map((s) => s.heading).join("、");
+        push("warning", h, `段落只写了「${DEFERRED}」：${names}，没想好就删掉这一段`, kind, `${ref(kind, h)}的「${names}」段只写了「${DEFERRED}」，我们把它定下来`);
+      }
       const present = new Set(doc.sections);
       const missing = requiredSectionsOf(kind, fm).filter((s) => !present.has(s.name));
-      if (missing.length > 0) push("warning", h, `缺必填段：${missing.map((s) => s.name).join("、")}`);
+      if (missing.length > 0) {
+        const names = missing.map((s) => s.name).join("、");
+        push("warning", h, `缺必填段：${names}`, kind, `${ref(kind, h)}还缺「${names}」段，帮我补上`);
+      }
     }
   }
 
