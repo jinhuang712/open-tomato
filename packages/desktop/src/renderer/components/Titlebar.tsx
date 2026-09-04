@@ -12,23 +12,29 @@ import { actions, setState, state } from "../state";
 export function Titlebar() {
   const pending = () => state.questions.length + state.approvals.length;
   return (
-    <div class="drag relative h-11 shrink-0 flex items-center pl-[84px] pr-3 gap-3 border-b border-line">
-      <Show when={state.project} fallback={<span class="text-ink-2">OpenTomato</span>}>
-        {(p) => <BookMenu name={p().name} />}
-      </Show>
-      <span class="flex-1" />
-      {/* 对边栏右侧的主区居中（边栏 232px，偏半个边栏宽），和对话列对齐 */}
-      <Show when={state.project}>
-        <button
-          class="no-drag absolute left-[calc(50%+116px)] -translate-x-1/2 w-[320px] h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
-          onClick={() => setState("searchOpen", true)}
-        >
-          <SearchIcon />
-          <span class="flex-1 text-left">搜人物、设定、章节、正文</span>
-          <kbd class="font-sans text-xs text-ink-3 border border-line-2 rounded px-1 leading-4">{keyHint("search.open")}</kbd>
-        </button>
-      </Show>
-      <div class="no-drag flex items-center gap-1 text-xs">
+    // 三列网格：两侧等宽，中间是「边栏宽的占位 + 搜索框」，搜索框因此正对边栏右侧的正文列中心。
+    // 空间不够时占位先缩、再缩搜索框，两侧内容永远不会被压住；一侧太宽时中间整体挪开而不是重叠。
+    <div class="drag relative h-11 shrink-0 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center pl-[84px] pr-3 gap-3 border-b border-line">
+      <div class="flex items-center min-w-0">
+        <Show when={state.project} fallback={<span class="text-ink-2 shrink-0">OpenTomato</span>}>
+          {(p) => <BookMenu name={p().name} />}
+        </Show>
+      </div>
+      <div class="flex items-center min-w-0">
+        <Show when={state.project}>
+          {/* 占位 = 边栏 232 − 顶栏左右内边距差 (84 − 12)，这样搜索框中心正好落在 50% + 116px */}
+          <span class="w-[160px] shrink-[999]" />
+          <button
+            class="no-drag w-[320px] min-w-0 shrink h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
+            onClick={() => setState("searchOpen", true)}
+          >
+            <SearchIcon />
+            <span class="flex-1 text-left truncate">搜人物、设定、章节、正文</span>
+            <kbd class="font-sans text-xs text-ink-3 border border-line-2 rounded px-1 leading-4 shrink-0">{keyHint("search.open")}</kbd>
+          </button>
+        </Show>
+      </div>
+      <div class="no-drag flex items-center justify-end gap-1 text-xs min-w-0">
         <Show when={pending() > 0}>
           <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110" onClick={() => actions.openChat("director")}>
             {pending()} 项等你拍板
@@ -63,9 +69,9 @@ function BookMenu(props: { name: string }) {
     void fn();
   };
   return (
-    <div ref={root} class="no-drag relative">
-      <button class="h-6.5 px-2 -ml-2 rounded-md flex items-center gap-1 font-medium hover:bg-paper-3" onClick={() => setOpen(!open())}>
-        {props.name}
+    <div ref={root} class="no-drag relative shrink min-w-0 max-w-full">
+      <button class="h-6.5 px-2 -ml-2 max-w-full rounded-md flex items-center gap-1 font-medium hover:bg-paper-3" onClick={() => setOpen(!open())}>
+        <span class="truncate">{props.name}</span>
         <ChevronIcon />
       </button>
       <Show when={open()}>
@@ -114,7 +120,7 @@ function SearchIcon() {
 
 function ChevronIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-ink-3">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-ink-3 shrink-0">
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
