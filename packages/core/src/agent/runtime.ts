@@ -107,6 +107,8 @@ export class Kernel {
   private cloudConfig: CloudConfig | null = null;
   private cloudTimer: ReturnType<typeof setInterval> | null = null;
   private cloudBusy = false;
+  /** 当前项目本地内容是否已在云端：null = 未知（没配云端 / 还没比对） */
+  private cloudSynced: boolean | null = null;
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
 
@@ -295,11 +297,16 @@ export class Kernel {
         this.stopCloudTimer();
         return this.cloudStatus();
       },
-      "cloud.list": async () => this.requireCloud().list(),
+      "cloud.list": async () =>
+        this.requireCloud().listWithLocals(this.models.recentProjects, async (root) =>
+          (await ProjectStore.exists(root)) ? (await ProjectStore.open(root)).info.name : null,
+        ),
       "cloud.check": async () => this.requireCloud().check(this.requireStore().info),
       "cloud.upload": async ({ force }) => this.cloudUpload(force === true),
-      "cloud.download": async ({ slug, dest }) => {
-        const { root } = await this.requireCloud().download(slug, dest);
+      "cloud.download": async ({ slug, dest, replace }) => {
+        // 覆盖的目标可能正是当前项目：先关掉，agent 不能在被替换的目录上继续写
+        if (replace && this.store && path.resolve(this.store.info.root) === path.resolve(dest)) await this.closeProject();
+        const { root } = await this.requireCloud().download(slug, dest, { replace: replace === true });
         const store = await ProjectStore.open(root);
         await this.closeProject();
         this.store = store;
@@ -328,11 +335,13 @@ export class Kernel {
     await this.refreshCheck();
     await this.createLead(mode);
     this.startCloudTimer();
+    void this.cloudRecheck();
   }
 
   private async closeProject() {
     if (!this.store) return;
     this.stopCloudTimer();
+    this.cloudSynced = null;
     await this.disposeAgents();
     this.store = null;
     this.index = null;
@@ -362,17 +371,40 @@ export class Kernel {
     const cloud = this.requireCloud();
     if (this.cloudBusy) throw new Error("上一次同步还没结束");
     this.cloudBusy = true;
-    this.emit({ type: "cloud.sync", phase: "uploading", message: null, last: null });
+    this.emit({ type: "cloud.sync", phase: "uploading", message: null, last: null, synced: this.cloudSynced });
     try {
       const last = await cloud.upload(info, { force });
-      this.emit({ type: "cloud.sync", phase: "idle", message: null, last });
+      this.cloudSynced = true;
+      this.emit({ type: "cloud.sync", phase: "idle", message: null, last, synced: true });
       return last;
     } catch (e) {
-      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null });
+      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null, synced: this.cloudSynced });
       throw e;
     } finally {
       this.cloudBusy = false;
     }
+  }
+
+  /** 项目打开时和云端比一次，之后靴子落地就靠 markCloudDirty */
+  private async cloudRecheck() {
+    if (!this.store || !this.cloudConfig) return;
+    const store = this.store;
+    try {
+      const check = await new CloudSync(this.cloudConfig).check(store.info);
+      if (this.store !== store) return;
+      this.cloudSynced = check.synced;
+      this.emit({ type: "cloud.sync", phase: "idle", message: null, last: check.remote, synced: check.synced });
+    } catch (e) {
+      if (this.store !== store) return;
+      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null, synced: null });
+    }
+  }
+
+  /** 文档落盘 / 会话有新内容：本地肯定比云端新了 */
+  private markCloudDirty() {
+    if (!this.store || !this.cloudConfig || this.cloudSynced === false) return;
+    this.cloudSynced = false;
+    this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
   }
 
   /** 项目打开且配好云端时，每 CLOUD_SYNC_INTERVAL_MS 静默同步一次；内容没变不会真的上传 */
@@ -408,6 +440,7 @@ export class Kernel {
   private async emitDocsChanged(): Promise<CheckIssue[]> {
     if (!this.store) return [];
     this.index = null;
+    this.markCloudDirty();
     this.emit({ type: "docs.changed", docs: await this.store.listAll() });
     return this.refreshCheck();
   }
@@ -689,6 +722,8 @@ export class Kernel {
         return;
       case "agent_end":
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
+        // 会话 jsonl 又长了一截，和云端快照对不上了
+        this.markCloudDirty();
         return;
       case "queue_update":
         this.send(live, {

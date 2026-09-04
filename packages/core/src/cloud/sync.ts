@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
-import type { CloudCheck, CloudProject, ProjectInfo } from "../protocol.js";
+import path from "node:path";
+import type { CloudCheck, CloudProject, CloudProjectRow, ProjectInfo } from "../protocol.js";
 import type { CloudConfig } from "./config.js";
-import { fingerprint, pack, unpack } from "./snapshot.js";
+import { fingerprint, listSnapshotFiles, pack, unpack } from "./snapshot.js";
 import { SupabaseStorage, type FetchLike } from "./storage.js";
 
 /**
@@ -56,6 +57,32 @@ export class CloudSync {
     return out;
   }
 
+  /**
+   * 云端列表按项目名对上本机项目：readLocalName 给出某个本地根目录的项目名（不是项目返回 null）。
+   * 对上的再算指纹判断本机是不是最新。
+   */
+  async listWithLocals(localRoots: string[], readLocalName: (root: string) => Promise<string | null>): Promise<CloudProjectRow[]> {
+    const remote = await this.list();
+    const byName = new Map<string, string>();
+    for (const root of localRoots) {
+      const name = await readLocalName(root).catch(() => null);
+      if (name && !byName.has(name)) byName.set(name, root);
+    }
+    const rows: CloudProjectRow[] = [];
+    for (const r of remote) {
+      const root = byName.get(r.name);
+      if (!root) {
+        rows.push({ ...r, local: null });
+        continue;
+      }
+      const synced = await fingerprint(root)
+        .then((fp) => fp === r.fingerprint)
+        .catch(() => false);
+      rows.push({ ...r, local: { root, synced } });
+    }
+    return rows;
+  }
+
   /** 本地与云端是否一致；云端没有则 remote 为 null */
   async check(info: ProjectInfo): Promise<CloudCheck> {
     const slug = projectSlug(info.name);
@@ -96,14 +123,16 @@ export class CloudSync {
 
   /**
    * 下载并解到 dest。dest 不存在会建；已存在则要求为空目录，否则报错让调用方选别处。
+   * replace 为 true 时允许 dest 是已有项目：先清掉快照会覆盖范围内的文件（.git 等不动）再解。
    * 返回项目根（就是 dest）。
    */
-  async download(slug: string, dest: string): Promise<{ root: string; project: CloudProject }> {
+  async download(slug: string, dest: string, opts: { replace?: boolean } = {}): Promise<{ root: string; project: CloudProject }> {
     const manifest = await this.readManifest(slug);
     if (!manifest) throw new Error("云端没有这个项目的快照");
     const bytes = await this.storage.download(`${slug}/latest.tar.gz`);
     if (!bytes) throw new Error("云端快照文件缺失，请重新上传一次");
-    await ensureEmptyDir(dest);
+    if (opts.replace) await clearSnapshotFiles(dest);
+    else await ensureEmptyDir(dest);
     await unpack(bytes, dest);
     return { root: dest, project: toProject(slug, manifest) };
   }
@@ -138,6 +167,17 @@ export class CloudSync {
 
 function toProject(slug: string, m: Manifest): CloudProject {
   return { slug, name: m.name, uploadedAt: m.uploadedAt, size: m.size, host: m.host, fingerprint: m.fingerprint };
+}
+
+/** 删掉快照会包含的那些文件（与 pack 同一套过滤），.git 与忽略项保留；空目录顺手清掉 */
+async function clearSnapshotFiles(root: string) {
+  await fs.mkdir(root, { recursive: true });
+  const files = await listSnapshotFiles(root);
+  for (const f of files) await fs.rm(path.join(root, f.rel), { force: true });
+  const dirs = new Set(files.map((f) => path.dirname(f.rel)).filter((d) => d !== "."));
+  for (const d of [...dirs].sort((a, b) => b.length - a.length)) {
+    await fs.rmdir(path.join(root, d)).catch(() => {});
+  }
 }
 
 async function ensureEmptyDir(dir: string) {

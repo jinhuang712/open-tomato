@@ -190,3 +190,37 @@ describe("cloud sync", () => {
     expect([...fake.objects.keys()].filter((k) => k.includes("/history/"))).toHaveLength(5);
   });
 });
+
+describe("cloud sync · 本机关系与覆盖", () => {
+  test("listWithLocals 按名字对上本机项目并给出是否最新", async () => {
+    const root = path.join(dir, "book");
+    await seedProject(root);
+    const fake = fakeSupabase();
+    const cloud = new CloudSync(config, fake.fetchImpl);
+    await cloud.upload({ root, name: "测试", createdAt: "" });
+    const other = path.join(dir, "other");
+    await seedProject(other);
+    await cloud.upload({ root: other, name: "别的", createdAt: "" });
+    await fs.writeFile(path.join(other, "人物", "主角.md"), "改了");
+
+    const names: Record<string, string> = { [root]: "测试", [other]: "别的" };
+    const rows = await cloud.listWithLocals([root, other, path.join(dir, "nope")], async (r) => names[r] ?? null);
+    const byName = Object.fromEntries(rows.map((r) => [r.name, r.local]));
+    expect(byName["测试"]).toEqual({ root, synced: true });
+    expect(byName["别的"]).toEqual({ root: other, synced: false });
+  });
+
+  test("replace 覆盖已有项目：快照范围内文件被替换，.git 保留", async () => {
+    const root = path.join(dir, "book");
+    await seedProject(root);
+    const fake = fakeSupabase();
+    const cloud = new CloudSync(config, fake.fetchImpl);
+    const up = await cloud.upload({ root, name: "测试", createdAt: "" });
+    await fs.writeFile(path.join(root, "人物", "主角.md"), "本地乱改");
+    await fs.writeFile(path.join(root, "人物", "多出来的.md"), "本地新增");
+    await cloud.download(up.slug, root, { replace: true });
+    expect(await fs.readFile(path.join(root, "人物", "主角.md"), "utf8")).toBe("---\ntitle: 主角\n---\n正文");
+    await expect(fs.access(path.join(root, "人物", "多出来的.md"))).rejects.toThrow();
+    expect(await fs.readFile(path.join(root, ".git", "HEAD"), "utf8")).toBe("ref: x");
+  });
+});

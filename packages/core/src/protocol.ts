@@ -121,6 +121,11 @@ export interface CloudProject {
   fingerprint: string;
 }
 
+/** 云端项目 + 它和本机最近项目的关系：local 为 null 表示本机没有同名项目 */
+export interface CloudProjectRow extends CloudProject {
+  local: { root: string; synced: boolean } | null;
+}
+
 export interface CloudCheck {
   slug: string;
   localFingerprint: string;
@@ -310,7 +315,14 @@ export type KernelEvent =
   | { type: "question.resolved"; questionId: string }
   | { type: "check.result"; issues: CheckIssue[] }
   /** 云端同步进度：定时同步与手动上传都发；idle 表示这轮结束 */
-  | { type: "cloud.sync"; phase: "uploading" | "idle" | "error"; message: string | null; last: CloudProject | null };
+  | {
+      type: "cloud.sync";
+      phase: "uploading" | "idle" | "error";
+      message: string | null;
+      last: CloudProject | null;
+      /** 当前项目本地内容是否已在云端；没配云端 / 没开项目 / 还没比对时为 null */
+      synced: boolean | null;
+    };
 
 // ───────────────────────── 请求（渲染层 → 内核） ─────────────────────────
 
@@ -367,13 +379,14 @@ export interface RequestMap {
   /** 保存凭据前先连一次 Supabase 校验；bucket 省略用默认 */
   "cloud.configure": { params: { url: string; serviceKey: string; bucket?: string }; result: CloudStatus };
   "cloud.clear": { params: Record<string, never>; result: CloudStatus };
-  "cloud.list": { params: Record<string, never>; result: CloudProject[] };
+  /** 云端所有项目，并按项目名对上本机最近打开的项目 */
+  "cloud.list": { params: Record<string, never>; result: CloudProjectRow[] };
   /** 当前项目与云端比对 */
   "cloud.check": { params: Record<string, never>; result: CloudCheck };
   /** 上传当前项目；内容未变时不重传 */
   "cloud.upload": { params: { force?: boolean }; result: CloudProject };
-  /** 下载到 dest（须为空目录或不存在）并打开 */
-  "cloud.download": { params: { slug: string; dest: string }; result: ProjectInfo };
+  /** 下载到 dest 并打开。dest 须为空目录或不存在；replace 为 true 时允许覆盖一个已有项目目录（.git 保留） */
+  "cloud.download": { params: { slug: string; dest: string; replace?: boolean }; result: ProjectInfo };
 }
 
 export type RequestMethod = keyof RequestMap;
