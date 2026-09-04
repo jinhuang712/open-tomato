@@ -1,6 +1,6 @@
 import type { CheckIssue, DocHeader, DocKindId } from "../protocol.js";
 import { asStringArray, splitSections } from "./frontmatter.js";
-import { DOC_KINDS, PLACEHOLDER, requiredFieldsOf, requiredSectionsOf } from "./kinds.js";
+import { DOC_KINDS, enumFieldsOf, PLACEHOLDER, requiredFieldsOf, requiredSectionsOf } from "./kinds.js";
 import type { ProjectStore } from "./store.js";
 
 export { PLACEHOLDER };
@@ -9,7 +9,7 @@ export const DEFERRED = "待定";
 
 /**
  * 机械对账。只报不拦：
- * - frontmatter 缺必填字段 / 仍是「待填」
+ * - frontmatter 缺必填字段 / 仍是「待填」/ 枚举字段填了范围外的值
  * - 正文残留「待填」；段落只写了「待定」；缺必填段（按 frontmatter 条件算）
  * - 章纲引用的人物 / 线索 / 卷不存在
  * - 正文没有对应章纲
@@ -37,6 +37,14 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
         return v === undefined || v === null || v === "" || v === PLACEHOLDER;
       });
       for (const f of missingFields) push("error", h, `缺必填字段 ${f}`, kind, `${ref(kind, h)}缺字段 ${f}，帮我补上`);
+      for (const { name, options } of enumFieldsOf(kind)) {
+        const v = h.extra[name];
+        if (v === undefined || v === null || v === "" || v === PLACEHOLDER) continue;
+        if (!options.includes(String(v))) {
+          const range = options.join(" / ");
+          push("error", h, `${name}=${String(v)} 不在取值范围内（${range}）`, kind, `${ref(kind, h)}的 ${name} 填成了「${String(v)}」，只能是 ${range} 之一，帮我改成对的`);
+        }
+      }
       const doc = await store.read(kind, h.id);
       if (!doc) continue;
       if (doc.body.includes(PLACEHOLDER)) {

@@ -13,6 +13,8 @@ export interface FieldSpec {
   value?: string;
   /** 渲染成行尾注释，给填的人看取值范围 */
   comment?: string;
+  /** 取值只能是其中之一；机检会报非法值。没写 comment 时注释由它拼出 */
+  options?: readonly string[];
 }
 
 /** 正文里的一个 `## 段` */
@@ -75,7 +77,8 @@ function renderTemplate(fields: FieldSpec[], sections: SectionSpec[], overrides:
   for (const f of fields) {
     const value = overrides[f.name] ?? f.value ?? (isRequired(f.required, fm) ? PLACEHOLDER : undefined);
     if (value === undefined) continue;
-    head.push(`${f.name}: ${value}${f.comment ? `  # ${f.comment}` : ""}`);
+    const comment = f.comment ?? f.options?.join(" / ");
+    head.push(`${f.name}: ${value}${comment ? `  # ${comment}` : ""}`);
   }
   const body = sections
     .filter((s) => isRequired(s.required, fm))
@@ -92,6 +95,8 @@ function defineKind(def: KindDef): DocKind {
 }
 
 const CHARACTER_TIERS = ["主角", "关键对手", "重要配角", "一般配角"] as const;
+/** 主线：贯穿全书的那一条；支线：有头有尾、服务主线的副线；主题：不靠事件推进的意义线；小故事：几章内自成一体的独立段落 */
+export const THREAD_TYPES = ["主线", "支线", "主题", "小故事"] as const;
 const speaksMuch = (fm: Frontmatter) => fm.tier === "主角" || fm.tier === "关键对手";
 
 export const DOC_KINDS: Record<DocKindId, DocKind> = {
@@ -132,10 +137,10 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "threads",
     label: "线索",
     dir: "线索",
-    description: "主线 / 支线 / 主题线。记起点、终点、推进阶段和挂在上面的钩子。",
+    description: "主线 / 支线 / 主题 / 小故事。记起点、终点、推进阶段和挂在上面的钩子。",
     normalizeId: slug,
     fields: [
-      { name: "type", required: true, comment: "主线 / 支线 / 主题" },
+      { name: "type", required: true, options: THREAD_TYPES },
       { name: "stage", comment: "当前推进到哪一阶段" },
     ],
     sections: [
@@ -258,6 +263,11 @@ export const DOC_KIND_IDS = Object.keys(DOC_KINDS) as DocKindId[];
 const isCommonField = (name: string) => COMMON_FIELDS.some((c) => c.name === name);
 
 /** 按已填的 frontmatter 算出这张卡此刻的必填字段名（不含通用四项） */
+/** 有取值范围的字段：给机检报非法值用 */
+export function enumFieldsOf(kind: DocKindId): { name: string; options: readonly string[] }[] {
+  return DOC_KINDS[kind].fields.flatMap((f) => (f.options ? [{ name: f.name, options: f.options }] : []));
+}
+
 export function requiredFieldsOf(kind: DocKindId, fm: Frontmatter): string[] {
   return DOC_KINDS[kind].fields.filter((f) => !isCommonField(f.name) && isRequired(f.required, fm)).map((f) => f.name);
 }

@@ -19,6 +19,10 @@ describe("模板由 schema 渲染", () => {
     expect(DOC_KINDS.characters.template).toContain("tier: 待填  # 主角 / 关键对手 / 重要配角 / 一般配角");
   });
 
+  test("枚举字段的注释由 options 拼出", () => {
+    expect(DOC_KINDS.threads.template).toContain("type: 待填  # 主线 / 支线 / 主题 / 小故事");
+  });
+
   test("hint 渲染在待填后面", () => {
     expect(DOC_KINDS.chapters.template).toContain("## 场景序列\n\n待填（每个场景：地点 / 在场人物 / 冲突 / 结果）\n");
   });

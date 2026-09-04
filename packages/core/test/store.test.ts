@@ -185,6 +185,17 @@ describe("runCheck", () => {
     expect(hit?.message).toContain("关系、弧光");
   });
 
+  test("线索 type 不在四类之内报 error，合法值不报", async () => {
+    const mk = (type: string) => `---\ntitle: 复仇\nsummary: s\nkeywords: []\nstatus: draft\ntype: ${type}\n---\n\n## 起点\n\nx\n\n## 终点\n\nx\n`;
+    await store.write("threads", "bad", mk("暗线"));
+    await store.write("threads", "ok", mk("小故事"));
+    const issues = await runCheck(store);
+    const of = (id: string) => issues.filter((i) => i.kind === "threads" && i.id === id);
+    expect(of("bad").map((i) => i.message)).toEqual(["type=暗线 不在取值范围内（主线 / 支线 / 主题 / 小故事）"]);
+    expect(of("bad")[0]?.level).toBe("error");
+    expect(of("ok")).toEqual([]);
+  });
+
   test("残留待填", async () => {
     await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n待填\n");
     const issues = await runCheck(store);
