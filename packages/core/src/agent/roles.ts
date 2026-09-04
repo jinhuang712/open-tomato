@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { PROSE_REJECT_WORDS } from "../protocol.js";
 import type { RoleId, RoleInfo } from "../protocol.js";
+import { kindInfos } from "../project/kinds.js";
 
 /**
  * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
@@ -30,27 +31,21 @@ read_doc 章纲/<章号> 再读正文。第一项检查是章纲承诺的做到�
 const REVIEW_SAVE = `- 清单不要写在回复里：用 save_review 落盘，每条填 level（must / suggest）、where（引原文前 10 字）、issue、fix
 - 回给主编的只有一句话结论和「必须改 N 条、建议看 M 条」，主编会自己 read_review`;
 
+/** 类型表从 schema 生成：schema 是唯一来源，提示词里不再手抄一份 */
+const KIND_TABLE = kindInfos()
+  .map((k) => `| ${k.id} | ${k.singleton ? `${k.label}.md` : `${k.dir}/`} | ${k.description} |`)
+  .join("\n");
+
 const PROJECT_LAYOUT = `## 项目结构
 
 所有材料都是 Markdown + YAML frontmatter，按类型（kind）分目录：
 
 | kind（工具参数） | 目录 | 是什么 |
 |---|---|---|
-| world | 世界/ | 世界设定卡：规则、势力、地点、物品 |
-| characters | 人物/ | 人物卡。「语音签名」段是写对白的唯一依据 |
-| threads | 线索/ | 线索卡，type 四选一：主线（贯穿全书）/ 支线（有头有尾、服务主线）/ 主题（不靠事件推进的意义线）/ 小故事（几章内自成一体的独立段落）；记起点、终点、推进阶段、钩子 |
-| milestones | 里程碑/ | 里程碑：全书关键帧，按 order 排序，只记坐标不复述事件 |
-| volumes | 卷纲/ | 卷纲：一卷的装配图，id 两位数字 |
-| chapters | 章纲/ | 章纲：一章的施工单，id 四位章号 |
-| manuscript | 正文/ | 正文，id 四位章号，与章纲一一对应 |
-| brief | 简介.md | 这本书是什么：一句话故事、题材平台、读者画像、书名等，全书一份七段，可改写 |
-| rules | 守则/ | 怎么写这本书：一条一卡，title 就是规则本身；level 必须 / 尽量，scope 管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）；只追加不删改 |
+${KIND_TABLE}
 
-工具的 kind 参数写英文 kind 或中文目录名都可以。**对作者说话时一律用中文路径**，写成「人物/林尧」「简介」「守则/主角不说脏话」「章纲/0003」这种形式（守则对作者说 title，不说编号），不要出现英文 kind。
-文档 id 一律用中文：人物 / 设定 / 线索卡的 id 就是它的名字（如 林尧、铁匠行会、重铸镇国剑）；卷纲 / 章纲 / 正文的 id 是数字。
-
-通用 frontmatter：title / summary / keywords / status。各 kind 另有必填字段和必填段，用 doc_template 看模板；模板后面附着这一类的可选字段和可选段清单。
-留白语义：没聊到的段不落盘，写到了再新增 \`## 段\`，不要写「待定」「待填」这类占位；必填段没写机检会报「缺必填段」，那是给你的提醒，不是让你先塞个桩。作者明确说先放一放的项，记进 frontmatter \`open: [项名]\`，作者拍板后再从 open 里去掉。
+文档 id 用中文：卡片的 id 就是名字（如 林尧、铁匠行会）；卷纲 / 章纲 / 正文的 id 是数字；守则自动编号；简介没有 id。
+通用 frontmatter：title / summary / keywords / status。各 kind 的必填字段和必填段用 doc_template 看。没聊到的段不落盘，写到了再新增 \`## 段\`；作者说先放一放的项记进 frontmatter \`open: [项名]\`。
 
 ## 读取纪律
 
