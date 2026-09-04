@@ -527,6 +527,7 @@ export class Kernel {
       canWrite: def.canWrite,
       canSpawn: def.canSpawn,
       canAsk: def.canAsk,
+      ...(def.canReview ? { reviewAs: role } : {}),
     });
     const { session } = await createAgentSession({
       cwd: store.info.root,

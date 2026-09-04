@@ -49,6 +49,56 @@ function writeDoc(gate: Gate) {
 
 const DRAFT = "---\ntitle: 第一章\nsummary: 开场\nkeywords: []\nstatus: draft\nwords: 10\n---\n\n他推门进来。\n";
 
+function toolsFor(perms: Parameters<typeof createTools>[1]) {
+  const ctx: ToolContext = {
+    store,
+    gate: gateAnswering("approve"),
+    agentId: "x",
+    runCheck: async () => [],
+    docsChanged: async () => [],
+    search: async () => [],
+  };
+  const all = createTools(ctx, perms);
+  return (name: string) => {
+    const t = all.find((x) => x.name === name);
+    if (!t) throw new Error(`没有 ${name}`);
+    return (params: unknown) => t.execute("t", params as never, undefined as never, undefined as never, undefined as never);
+  };
+}
+
+const textOf = (r: unknown) => (r as { content: Array<{ text?: string }> }).content.map((c) => c.text ?? "").join("");
+
+describe("审稿记录工具", () => {
+  test("评审角色有 save_review，落盘后 read_review 能读回；非评审角色没有 save_review", async () => {
+    await store.write("manuscript", "3", DRAFT);
+    const reviewer = toolsFor({ canWrite: false, canSpawn: false, canAsk: false, reviewAs: "proofreader" });
+    const out = await reviewer("save_review")({ chapter: "3", verdict: "有一处事实冲突", items: [{ level: "must", where: "他推门进来", issue: "上一章他被锁在外面", fix: "改成翻窗" }] });
+    expect(textOf(out)).toContain("必须改 1 条");
+
+    const writer = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    expect(() => writer("save_review")).toThrow();
+    const read = textOf(await writer("read_review")({ chapter: "3" }));
+    expect(read).toContain("## 校对：有一处事实冲突");
+    expect(read).toContain("必须改｜他推门进来 → 上一章他被锁在外面 → 改成翻窗");
+    expect(read).not.toContain("上一版正文");
+  });
+
+  test("正文改过之后读记录会标出审的是上一版", async () => {
+    await store.write("manuscript", "3", DRAFT);
+    const reviewer = toolsFor({ canWrite: false, canSpawn: false, canAsk: false, reviewAs: "reader" });
+    await reviewer("save_review")({ chapter: "3", verdict: "还行", items: [] });
+    await store.write("manuscript", "3", DRAFT.replace("推门", "翻窗"));
+    const read = textOf(await reviewer("read_review")({ chapter: "3" }));
+    expect(read).toContain("（审的是上一版正文）");
+    expect(read).toContain("- 没有问题");
+  });
+
+  test("没审过的章 read_review 说没有记录", async () => {
+    const writer = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    expect(textOf(await writer("read_review")({ chapter: "9" }))).toContain("还没有审稿记录");
+  });
+});
+
 describe("审批决议落批", () => {
   test("放行落一条 approve，version 是落盘内容的 hash", async () => {
     await writeDoc(gateAnswering("approve"))(DRAFT);

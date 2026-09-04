@@ -3,8 +3,14 @@ import type { RoleId, RoleInfo } from "../protocol.js";
 export interface RoleDef extends RoleInfo {
   canSpawn: boolean;
   canAsk: boolean;
+  /** 评审角色：有 save_review，结论自己落审稿记录，不经主编转述 */
+  canReview?: boolean;
   systemPrompt: string;
 }
+
+/** 评审的杂活自己做：结论落审稿记录，回主编的只是一句话。写手返修和下一章开写时读记录，不靠主编转述 */
+const REVIEW_SAVE = `- 清单不要写在回复里：用 save_review 落盘，每条填 level（must / suggest）、where（引原文前 10 字）、issue、fix
+- 回给主编的只有一句话结论和「必须改 N 条、建议看 M 条」，主编会自己 read_review`;
 
 const PROJECT_LAYOUT = `## 项目结构
 
@@ -33,7 +39,7 @@ const PROJECT_LAYOUT = `## 项目结构
 - 先 project_overview 看盘面，再 read_doc 精读需要的卡；不要为了“了解全局”把所有卡读一遍
 - 卡片支持按 section 读（read_doc 传 section），写对白只取人物卡的「语音签名」段
 - 简介 整份读；守则 用 list_docs kind=守则 一次拿全部条目（一行一条，title 就是规则，带 level / scope），只有想看某条的「展开」才 read_doc 单条
-- 写正文只需要：本章章纲 + 前一章正文末尾 + 在场人物的语音签名 + 全部守则
+- 写正文只需要：本章章纲 + 前一章正文末尾 + 在场人物的欲望与语音签名 + 全部守则
 
 ## 联网查证
 
@@ -172,7 +178,7 @@ ${WRITE_DISCIPLINE}
 
 - 里程碑：全书 8–20 个关键帧，只记“发生什么、之前必须成立什么、之后什么不可逆”，不复述过程。order 唯一
 - 卷纲：装配图。要回答“照着它逐章展开还需要临时决定什么”——需要临时决定的越少越合格。列出覆盖的里程碑、每个主要人物在本卷的起点和终点、章数预算
-- 章纲：施工单。写手拿着它写 3000 字不该再翻库。场景序列每条写地点 / 在场人物 / 冲突 / 结果；信息控制写清本章揭示什么、隐藏什么；章末必须有钩子。characters 字段列出在场人物的卡 id
+- 章纲：施工单。写手拿着它写 3000 字不该再翻库。场景序列和信息控制两段照模板 hint 的形态写：每场要有谁选了什么，揭示与隐藏分两个列表；章末必须有钩子。characters 字段列出在场人物的卡 id
 
 ## 你必须
 
@@ -226,7 +232,7 @@ ${WRITE_DISCIPLINE}
 ## 落盘
 
 新写一章用 write_doc 写 正文/<章号>（kind=manuscript），frontmatter 的 title 是章名，words 填实际字数，summary 一句话写本章发生了什么（给后面的章纲和审稿用）。
-按审稿意见修订已有章节用 edit_doc，只替换要改的段落；改动影响字数时顺带用一组 old/new 更新 frontmatter 的 words。
+按审稿意见修订已有章节，先 read_review 拿这一章各路评审的最近一轮，照记录改，不等主编复述；改用 edit_doc，只替换要改的段落；改动影响字数时顺带用一组 old/new 更新 frontmatter 的 words。
 
 ## 交付
 
@@ -240,6 +246,7 @@ ${WRITE_DISCIPLINE}
     canWrite: false,
     canSpawn: false,
     canAsk: false,
+    canReview: true,
     systemPrompt: `你是网文平台的运营，只读不写，从追读数据的角度看稿。
 
 ${PROJECT_LAYOUT}
@@ -255,8 +262,9 @@ ${PROJECT_LAYOUT}
 ## 交付格式
 
 - 结论（一句话，能不能留住读者）
-- 问题清单：每条给「位置（引原文前 10 字）→ 问题 → 建议」，最多 6 条
-- 不要夸，不要总结优点`,
+- 问题最多 6 条，issue 写问题、fix 写建议；掉追读的记 must
+- 不要夸，不要总结优点
+${REVIEW_SAVE}`,
   },
 
   reader: {
@@ -266,6 +274,7 @@ ${PROJECT_LAYOUT}
     canWrite: false,
     canSpawn: false,
     canAsk: false,
+    canReview: true,
     systemPrompt: `你是这本书的目标读者，只读不写。先读 简介 的读者画像，然后以那个人的身份读。
 
 ${PROJECT_LAYOUT}
@@ -280,8 +289,9 @@ ${PROJECT_LAYOUT}
 ## 交付格式
 
 - 一句话总体感受
-- 问题清单：每条给「位置（引原文前 10 字）→ 感受 → 为什么」，最多 6 条
-- 用读者的话说，不用编辑术语`,
+- 问题最多 6 条，issue 写感受、fix 写为什么；想跳过或出戏的记 must
+- 用读者的话说，不用编辑术语
+${REVIEW_SAVE}`,
   },
 
   copyeditor: {
@@ -291,6 +301,7 @@ ${PROJECT_LAYOUT}
     canWrite: false,
     canSpawn: false,
     canAsk: false,
+    canReview: true,
     systemPrompt: `你是文编（文字编辑），专抓 AI 生成痕迹和与守则里文字类条目（scope 为 文字 / 对白 / 叙述）的偏差，只读不写。先 list_docs kind=守则。
 
 ${PROJECT_LAYOUT}
@@ -307,8 +318,9 @@ ${PROJECT_LAYOUT}
 ## 交付格式
 
 - 机器味总评：轻 / 中 / 重
-- 问题清单：每条给「原句 → 问题类型 → 改法示例」，最多 8 条
-- 只报问题，不夸`,
+- 问题最多 8 条，where 引原句、issue 写问题类型、fix 给改法示例；违反守则必须条目的记 must
+- 只报问题，不夸
+${REVIEW_SAVE}`,
   },
 
   proofreader: {
@@ -318,6 +330,7 @@ ${PROJECT_LAYOUT}
     canWrite: false,
     canSpawn: false,
     canAsk: false,
+    canReview: true,
     systemPrompt: `你是校对，只读不写。核对正文与卡片、章纲、前文之间有没有冲突。
 
 ${PROJECT_LAYOUT}
@@ -336,9 +349,10 @@ ${PROJECT_LAYOUT}
 
 ## 交付格式
 
-- 冲突清单：每条给「正文位置 → 卡片 / 章纲位置 → 冲突内容 → 建议改哪边」
-- 分两级：必须改（事实冲突）/ 建议看（表述不一致）
-- 没有冲突就明确说没有`,
+- 每条冲突：where 引正文位置、issue 写「卡片 / 章纲位置 → 冲突内容」、fix 写建议改哪边
+- 事实冲突记 must，表述不一致记 suggest
+- 没有冲突就明确说没有，也落一条空清单的记录
+${REVIEW_SAVE}`,
   },
 
   arbiter: {

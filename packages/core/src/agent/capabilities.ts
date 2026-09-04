@@ -84,10 +84,10 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请审第 ${p(params, "chapter")} 章正文（正文/${p(params, "chapter")}）。
 
-按这一章的情况决定派哪几路（运营 / 读者 / 文编 / 校对），一次 spawn_agents 并行派出，任务书都指向这一章。评审都回来后：
-1. 合并成一份问题清单，按「必须改 / 建议看」分级，去重
-2. 意见冲突的点派 arbiter 裁决
-3. 给我结论 + 清单，然后用 ask_user 问我要返修哪些（可多选），不要自动开始返修`,
+按这一章的情况决定派哪几路（运营 / 读者 / 文编 / 校对），一次 spawn_agents 并行派出，任务书都指向这一章。评审各自把清单落进审稿记录，回你的只是一句话。评审都回来后：
+1. read_review 看这一章的记录，意见冲突的点派 arbiter 裁决
+2. 给我结论 + 必须改的几条，然后用 ask_user 问我要返修哪些（可多选），不要自动开始返修
+3. 返修派回原写手，写手自己 read_review，不要把清单复述进任务书`,
   },
   recap: {
     id: "recap",

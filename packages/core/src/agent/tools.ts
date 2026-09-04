@@ -53,6 +53,8 @@ export interface ToolPermissions {
   canWrite: boolean;
   canSpawn: boolean;
   canAsk: boolean;
+  /** 评审角色以哪个身份落审稿记录；不给就没有 save_review */
+  reviewAs?: RoleId;
 }
 
 /** 给人看的类型名：目录名；单例没有目录就用标签 */
@@ -349,6 +351,63 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
           if (!doc) throw new Error(`${zhPath(kind, store.normalizeId(kind, params.id))} 不存在，新建请用 write_doc`);
           const after = applyEdits(doc.raw, params.edits);
           return approveAndWrite(toolCallId, kind, doc.id, after, signal);
+        },
+      }),
+    );
+  }
+
+  /** 审稿记录是模型之间的公共记录：评审写、写手返修读、主编汇总读，作者不读 */
+  tools.push(
+    defineTool({
+      name: "read_review",
+      label: "读审稿记录",
+      description: "读一章的审稿记录：每一路评审最近一轮的结论与清单。写手返修前、主编汇总前先读这个，不要让别人复述。",
+      parameters: Type.Object({ chapter: Type.String({ description: "章号，直接给数字" }) }),
+      execute: async (_id, params) => {
+        const chapter = DOC_KINDS.manuscript.normalizeId(params.chapter);
+        const rounds = await store.records.latestReviews(chapter);
+        if (rounds.length === 0) return text(`第 ${chapter} 章还没有审稿记录。`);
+        const doc = await store.read("manuscript", chapter).catch(() => null);
+        const current = doc ? contentHash(doc.raw) : null;
+        const lines: string[] = [];
+        for (const r of rounds) {
+          const stale = current && r.version !== current ? "（审的是上一版正文）" : "";
+          lines.push(`## ${ROLES[r.role].label}${stale}：${r.verdict}`);
+          if (r.items.length === 0) lines.push("- 没有问题");
+          for (const it of r.items) lines.push(`- ${it.level === "must" ? "必须改" : "建议看"}｜${it.where} → ${it.issue}${it.fix ? ` → ${it.fix}` : ""}`);
+        }
+        return text(lines.join("\n"));
+      },
+    }),
+  );
+
+  if (perms.reviewAs) {
+    const role = perms.reviewAs;
+    tools.push(
+      defineTool({
+        name: "save_review",
+        label: "落审稿记录",
+        description: "把这一轮评审结论落进审稿记录。一路评审一份文件，各写各的；同一章审多轮就追加。清单写这里，不写在回复里。",
+        parameters: Type.Object({
+          chapter: Type.String({ description: "章号，直接给数字" }),
+          verdict: Type.String({ description: "一句话结论" }),
+          items: Type.Array(
+            Type.Object({
+              level: Type.Union([Type.Literal("must"), Type.Literal("suggest")], { description: "must 必须改 / suggest 建议看" }),
+              where: Type.String({ description: "位置：引原文前 10 字左右" }),
+              issue: Type.String({ description: "问题是什么" }),
+              fix: Type.Optional(Type.String({ description: "建议怎么改" })),
+            }),
+            { maxItems: 12 },
+          ),
+        }),
+        execute: async (_id, params) => {
+          const chapter = DOC_KINDS.manuscript.normalizeId(params.chapter);
+          const doc = await store.read("manuscript", chapter);
+          if (!doc) throw new Error(`正文/${chapter} 不存在，审的是哪一章？`);
+          await store.records.saveReview(chapter, { role, version: contentHash(doc.raw), verdict: params.verdict, items: params.items });
+          const must = params.items.filter((i) => i.level === "must").length;
+          return text(`已记录第 ${chapter} 章的${ROLES[role].label}评审：必须改 ${must} 条、建议看 ${params.items.length - must} 条。回主编时只说结论和条数。`);
         },
       }),
     );
