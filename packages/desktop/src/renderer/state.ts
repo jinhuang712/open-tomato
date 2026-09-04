@@ -646,7 +646,10 @@ export const actions = {
     let status: CloudStatus;
     try {
       status = await bridge.request("cloud.status", {});
-    } catch {
+    } catch (e) {
+      // 问不到状态别让「云端」一直挂着省略号：按未配置处理，原因留在控制台
+      console.warn("[ui] cloud.status 失败", e);
+      setState("cloud", { configured: false, url: null, bucket: null });
       return;
     }
     setState("cloud", status);

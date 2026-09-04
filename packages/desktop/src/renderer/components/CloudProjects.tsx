@@ -13,66 +13,78 @@ export function CloudProjects() {
   const configured = () => state.cloud?.configured === true;
   const host = () => state.cloud?.url?.replace(/^https?:\/\//, "") ?? "";
 
+  // 还没问到状态就什么都不画；没配云端只给一行淡淡的入口，不摆一个空的「云端」栏目
   return (
-    <div>
-      <div class="flex items-center gap-2 mb-2 text-xs text-ink-3">
-        <span>云端</span>
-        <Show when={configured()}>
-          <span>·</span>
-          <span class="truncate">
-            {host()} / {state.cloud?.bucket}
-          </span>
-          <span class="flex-1" />
-          <button class="px-1.5 rounded-md text-ink-2 hover:bg-paper-2" onClick={() => setState("cloudSettingsOpen", true)}>
-            设置
-          </button>
-        </Show>
-      </div>
-
-      <Switch>
-        <Match when={state.cloud === null}>
-          <div class="px-3 py-2 text-xs text-ink-3">…</div>
-        </Match>
-        <Match when={!configured()}>
+    <Show when={state.cloud !== null}>
+      <Show
+        when={configured()}
+        fallback={
           <button
-            class="w-full text-left px-3 py-2.5 rounded-lg border border-dashed border-line-2 hover:bg-paper-2 flex items-center gap-3"
+            class="text-xs text-ink-3 hover:text-ink flex items-center gap-1.5"
             onClick={() => setState("cloudSettingsOpen", true)}
           >
-            <CloudIcon size={18} class="text-ink-3 shrink-0" />
-            <span class="flex flex-col min-w-0">
-              <span class="font-medium">在另一台机器上接着写</span>
-              <span class="text-xs text-ink-3">连接你的 Supabase，项目和会话打包同步。密钥只存本机，不进项目文件。</span>
-            </span>
-            <span class="flex-1" />
-            <span class="text-xs text-accent shrink-0">连接 →</span>
+            <CloudIcon size={14} class="shrink-0" />
+            在另一台机器上接着写？连接 Supabase →
           </button>
-        </Match>
-        <Match when={state.cloudListing === "loading" && state.cloudRows === null}>
-          <div class="px-3 py-2 text-xs shimmer w-fit">正在看云端有什么…</div>
-        </Match>
-        <Match when={state.cloudListing === "error"}>
-          <div class="px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs flex items-center gap-2.5">
-            <span class="flex-1 selectable">{state.cloudListError}</span>
-            <button class="underline" onClick={() => void actions.refreshCloud()}>
-              重试
-            </button>
-            <button class="underline" onClick={() => setState("cloudSettingsOpen", true)}>
-              改设置
+        }
+      >
+        <div>
+          <div class="flex items-center gap-2 mb-2 text-xs text-ink-3">
+            <span>云端</span>
+            <span>·</span>
+            <span class="truncate">{host()}</span>
+            <span class="flex-1" />
+            <button
+              class="px-1.5 rounded-md text-ink-2 hover:bg-paper-2"
+              onClick={() => setState("cloudSettingsOpen", true)}
+            >
+              设置
             </button>
           </div>
-        </Match>
-        <Match when={state.cloudRows && state.cloudRows.length === 0}>
-          <div class="px-3 py-2 text-xs text-ink-3">云端还是空的。打开一个项目，它会自动同步上去。</div>
-        </Match>
-        <Match when={state.cloudRows}>
-          {(rows) => (
-            <div class="space-y-1">
-              <For each={rows()}>{(row) => <CloudRow row={row} />}</For>
-            </div>
-          )}
-        </Match>
-      </Switch>
-    </div>
+
+          <Switch>
+            <Match
+              when={
+                state.cloudListing === "loading" && state.cloudRows === null
+              }
+            >
+              <div class="px-3 py-2 text-xs shimmer w-fit">
+                正在看云端有什么…
+              </div>
+            </Match>
+            <Match when={state.cloudListing === "error"}>
+              <div class="px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs flex items-center gap-2.5">
+                <span class="flex-1 selectable">{state.cloudListError}</span>
+                <button
+                  class="underline"
+                  onClick={() => void actions.refreshCloud()}
+                >
+                  重试
+                </button>
+                <button
+                  class="underline"
+                  onClick={() => setState("cloudSettingsOpen", true)}
+                >
+                  改设置
+                </button>
+              </div>
+            </Match>
+            <Match when={state.cloudRows && state.cloudRows.length === 0}>
+              <div class="px-3 py-2 text-xs text-ink-3">
+                云端还是空的。打开一个项目，它会自动同步上去。
+              </div>
+            </Match>
+            <Match when={state.cloudRows}>
+              {(rows) => (
+                <div class="space-y-1">
+                  <For each={rows()}>{(row) => <CloudRow row={row} />}</For>
+                </div>
+              )}
+            </Match>
+          </Switch>
+        </div>
+      </Show>
+    </Show>
   );
 }
 
@@ -80,15 +92,25 @@ function CloudRow(props: { row: CloudProjectRow }) {
   const [confirming, setConfirming] = createSignal(false);
   const downloading = () => state.cloudDownloading === props.row.slug;
   const meta = () => {
-    const parts = [props.row.host ? `来自 ${props.row.host}` : null, relativeTime(props.row.uploadedAt), formatBytes(props.row.size)];
+    const parts = [
+      props.row.host ? `来自 ${props.row.host}` : null,
+      relativeTime(props.row.uploadedAt),
+      formatBytes(props.row.size),
+    ];
     return parts.filter(Boolean).join(" · ");
   };
-  const openLocal = () => props.row.local && void actions.openProject(props.row.local.root);
+  const openLocal = () =>
+    props.row.local && void actions.openProject(props.row.local.root);
 
   return (
     <div class="w-full px-3 py-2 rounded-lg hover:bg-paper-2 flex items-center gap-3">
       <CloudIcon size={16} class="text-ink-3 shrink-0" />
-      <button class="flex flex-col min-w-0 text-left" onClick={openLocal} disabled={!props.row.local} title={props.row.local ? "打开本机这份" : ""}>
+      <button
+        class="flex flex-col min-w-0 text-left"
+        onClick={openLocal}
+        disabled={!props.row.local}
+        title={props.row.local ? "打开本机这份" : ""}
+      >
         <span class="font-medium truncate">{props.row.name}</span>
         <span class="text-xs text-ink-3 truncate">{meta()}</span>
       </button>
@@ -114,17 +136,26 @@ function CloudRow(props: { row: CloudProjectRow }) {
           >
             覆盖
           </button>
-          <button class="text-xs px-2 py-0.5 rounded-md text-ink-2 hover:bg-paper-3" onClick={() => setConfirming(false)}>
+          <button
+            class="text-xs px-2 py-0.5 rounded-md text-ink-2 hover:bg-paper-3"
+            onClick={() => setConfirming(false)}
+          >
             算了
           </button>
         </Match>
         <Match when={props.row.local}>
-          <button class="text-xs px-2.5 py-0.5 rounded-md border border-accent-soft text-accent hover:bg-accent-soft" onClick={() => setConfirming(true)}>
+          <button
+            class="text-xs px-2.5 py-0.5 rounded-md border border-accent-soft text-accent hover:bg-accent-soft"
+            onClick={() => setConfirming(true)}
+          >
             拉取到本机
           </button>
         </Match>
         <Match when={!props.row.local}>
-          <button class="text-xs px-2.5 py-0.5 rounded-md border border-accent-soft text-accent hover:bg-accent-soft" onClick={() => void actions.downloadCloud(props.row)}>
+          <button
+            class="text-xs px-2.5 py-0.5 rounded-md border border-accent-soft text-accent hover:bg-accent-soft"
+            onClick={() => void actions.downloadCloud(props.row)}
+          >
             下载到本机…
           </button>
         </Match>
