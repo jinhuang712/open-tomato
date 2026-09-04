@@ -72,6 +72,15 @@ export type IssueLevel = "error" | "warning";
 /** 机检等级给作者看的叫法：error/warning 是内部字眼，界面和工具返回一律用这两个词 */
 export const ISSUE_LEVEL_LABEL: Record<IssueLevel, string> = { error: "必须修", warning: "建议改" };
 
+/**
+ * 作者退回一稿时的词汇表。它是给作者的词，不是快捷键：说不出哪里不对的人也能选一个。
+ * 正文一套按写作的真难点长，「我没感觉」合法，是「有反应没有词」的出口；材料一套讲流程位置。
+ * 界面按钮和批里的 word 字段都从这里取，只写一处。
+ */
+export const PROSE_REJECT_WORDS = ["太急", "太满", "他不会这么说", "没有事发生", "我没感觉"] as const;
+export const MATERIAL_REJECT_WORDS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"] as const;
+export const REJECT_WORDS: ReadonlySet<string> = new Set([...PROSE_REJECT_WORDS, ...MATERIAL_REJECT_WORDS]);
+
 export interface CheckIssue {
   level: IssueLevel;
   kind: DocKindId | null;

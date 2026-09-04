@@ -1,10 +1,11 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { ISSUE_LEVEL_LABEL } from "../protocol.js";
+import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../protocol.js";
 import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { applyEdits } from "../project/edits.js";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind, templateNotes } from "../project/kinds.js";
+import { contentHash } from "../project/records.js";
 import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
 import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
@@ -281,6 +282,17 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         },
         signal,
       );
+      // 作者的每次放行和退回都是一条批：退回理由若是词汇表里的词就记进 word，其余进 text
+      const reason = outcome.reason.trim();
+      await store.records.appendMark({
+        kind,
+        id: preview.id,
+        type: outcome.decision,
+        by: "author",
+        ...(REJECT_WORDS.has(reason) ? { word: reason } : reason ? { text: reason } : {}),
+        version: contentHash(preview.after),
+        agentId: ctx.agentId,
+      });
       if (outcome.decision === "reject") {
         const how = preview.isNew
           ? "文件没有创建。按原因改好后用 write_doc 重新提交全文"
