@@ -410,8 +410,10 @@ async function refreshAfterReady() {
   void actions.refreshCloud();
 }
 
+/** 去掉 Electron IPC 包的那层「Error invoking remote method 'xxx': Error: 」，只留内核说的那句 */
 export function errText(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  const raw = e instanceof Error ? e.message : String(e);
+  return raw.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, "");
 }
 
 export const actions = {

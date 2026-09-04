@@ -88,7 +88,7 @@ export function CloudSettings() {
             <span class="text-ok truncate">已连接 · {bucket() || "projects"}</span>
           </Show>
           <Show when={phase() === "error"}>
-            <span class="text-danger selectable truncate" title={error() ?? undefined}>{error()}</span>
+            <span class="text-danger selectable break-all leading-snug">{error()}</span>
           </Show>
           <Show when={phase() === "idle" && configured()}>
             <CloudIcon class="text-ok shrink-0" />
