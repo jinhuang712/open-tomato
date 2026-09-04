@@ -47,7 +47,13 @@ export class ModelsFacade {
   // ───────────── 状态 ─────────────
 
   get thinkingLevel(): ThinkingLevel {
-    return this.project?.settings.thinkingLevel ?? this.persisted.thinkingLevel;
+    const raw = this.project?.settings.thinkingLevel ?? this.persisted.thinkingLevel;
+    // 当前模型不支持思考时旧档残留不生效：读出来直接钳到 off，免得带进建会话
+    if (raw !== "off") {
+      const cur = this.currentModel();
+      if (cur && !cur.reasoning) return "off";
+    }
+    return raw;
   }
 
   /** 打开项目时调用：读项目 settings.json，之后模型选择以它为准 */
@@ -118,7 +124,8 @@ export class ModelsFacade {
     const m = this.runtime.getModel(provider, id);
     if (!m) throw new Error(`没有这个模型：${provider}/${id}`);
     this.persisted.model = { provider, id };
-    const level = thinkingLevel ? (m.reasoning ? thinkingLevel : "off") : undefined;
+    // 非推理模型没有思考档：不传参也归零，免得上一个推理模型的档位残留
+    const level = m.reasoning ? thinkingLevel : "off";
     if (level) this.persisted.thinkingLevel = level;
     await this.save();
     if (this.project) {
