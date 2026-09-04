@@ -137,6 +137,20 @@ export class CloudSync {
     return { root: dest, project: toProject(slug, manifest) };
   }
 
+  /** 删掉某个项目在云端的全部对象（manifest、latest、history）；云端本来没有也算成功 */
+  async removeProject(slug: string): Promise<void> {
+    const paths = await this.storage.listRecursive(slug);
+    await this.storage.remove(paths);
+  }
+
+  /** 清空整个 bucket 里的项目快照。返回清掉的项目数 */
+  async wipe(): Promise<number> {
+    const dirs = await this.storage.list("");
+    const slugs = dirs.filter((d) => d.name.startsWith("p-")).map((d) => d.name);
+    for (const slug of slugs) await this.removeProject(slug);
+    return slugs.length;
+  }
+
   private async readManifest(slug: string): Promise<Manifest | null> {
     const text = await this.storage.downloadText(`${slug}/manifest.json`);
     if (!text) return null;

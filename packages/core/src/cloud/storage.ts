@@ -71,6 +71,21 @@ export class SupabaseStorage {
     return out;
   }
 
+  /**
+   * 递归列出某前缀下的所有对象完整路径。Supabase 的 list 只给一层，目录项 metadata 为 null，
+   * 删除又只认完整对象名，所以先把树展开。
+   */
+  async listRecursive(prefix: string): Promise<string[]> {
+    const out: string[] = [];
+    const items = await this.list(prefix);
+    for (const it of items) {
+      const full = prefix ? `${prefix.replace(/\/$/, "")}/${it.name}` : it.name;
+      if (it.size === null) out.push(...(await this.listRecursive(full)));
+      else out.push(full);
+    }
+    return out;
+  }
+
   async upload(objectPath: string, body: Uint8Array | string, contentType: string): Promise<void> {
     const res = await this.request("POST", `/storage/v1/object/${enc(this.config.bucket)}/${encPath(objectPath)}`, {
       headers: { "content-type": contentType, "x-upsert": "true" },

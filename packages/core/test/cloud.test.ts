@@ -90,12 +90,14 @@ function fakeSupabase() {
     if (isList) {
       const { prefix } = JSON.parse(init.body as string) as { prefix: string };
       const base = prefix ? `${prefix.replace(/\/$/, "")}/` : "";
-      const names = new Set<string>();
+      // 与真实 Supabase 一致：目录项 metadata 为 null，文件项才有 size
+      const entries = new Map<string, boolean>();
       for (const key of objects.keys()) {
         if (!key.startsWith(base)) continue;
-        names.add(key.slice(base.length).split("/")[0]!);
+        const parts = key.slice(base.length).split("/");
+        entries.set(parts[0]!, parts.length === 1);
       }
-      return Response.json([...names].map((name) => ({ name, updated_at: null, metadata: { size: 1 } })));
+      return Response.json([...entries].map(([name, isFile]) => ({ name, updated_at: null, metadata: isFile ? { size: 1 } : null })));
     }
     const key = decodeURIComponent(rest ?? "");
     if (method === "POST") {
@@ -191,6 +193,38 @@ describe("cloud sync", () => {
       await new Promise((r) => setTimeout(r, 2));
     }
     expect([...fake.objects.keys()].filter((k) => k.includes("/history/"))).toHaveLength(5);
+  });
+});
+
+describe("cloud sync · 删除", () => {
+  test("removeProject 连 history 一起删干净，别的项目不动；删不存在的也不报错", async () => {
+    const a = path.join(dir, "a");
+    const b = path.join(dir, "b");
+    await seedProject(a);
+    await seedProject(b);
+    const fake = fakeSupabase();
+    const cloud = new CloudSync(config, fake.fetchImpl);
+    const ua = await cloud.upload({ root: a, name: "甲", createdAt: "" });
+    const ub = await cloud.upload({ root: b, name: "乙", createdAt: "" });
+    await cloud.removeProject(ua.slug);
+    expect([...fake.objects.keys()].some((k) => k.startsWith(`${ua.slug}/`))).toBe(false);
+    expect([...fake.objects.keys()].filter((k) => k.startsWith(`${ub.slug}/`))).toHaveLength(3);
+    expect((await cloud.list()).map((p) => p.name)).toEqual(["乙"]);
+    await cloud.removeProject(projectSlug("没有的"));
+  });
+
+  test("wipe 清空所有项目并返回数量", async () => {
+    const a = path.join(dir, "a");
+    const b = path.join(dir, "b");
+    await seedProject(a);
+    await seedProject(b);
+    const fake = fakeSupabase();
+    const cloud = new CloudSync(config, fake.fetchImpl);
+    await cloud.upload({ root: a, name: "甲", createdAt: "" });
+    await cloud.upload({ root: b, name: "乙", createdAt: "" });
+    expect(await cloud.wipe()).toBe(2);
+    expect(fake.objects.size).toBe(0);
+    expect(await cloud.list()).toEqual([]);
   });
 });
 
