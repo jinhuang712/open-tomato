@@ -36,7 +36,7 @@ function toolsFor(perms: Parameters<typeof createTools>[1]) {
 }
 const textOf = (r: unknown) => (r as { content: Array<{ text?: string }> }).content.map((c) => c.text ?? "").join("");
 
-/** 一条线从第 1 章后 20 章没推进：机检该报停滞 */
+/** 一条线从第 1 章后 20 章没推进：机检报推进情况这条事实 */
 async function stalledThread() {
   await store.write("threads", "复仇", fm({ type: "主线" }, "## 起点\n\n甲\n\n## 终点\n\n乙\n"));
   await store.write("chapters", "1", fm({ volume: "01", characters: "[]", threads: "[复仇]", words: "10" }, "## 本章目标\n\n a\n\n## 场景序列\n\n b\n\n## 信息控制\n\n c\n\n## 章末钩子\n\n d\n"));
@@ -47,9 +47,9 @@ async function stalledThread() {
 }
 
 describe("作者说不欠", () => {
-  test("settle 之后机检对这条线的建议改闭嘴，reopen 之后又报", async () => {
+  test("settle 之后机检对这条线的事实与建议改闭嘴，reopen 之后又报", async () => {
     await stalledThread();
-    const stall = (issues: Awaited<ReturnType<typeof runCheck>>) => issues.filter((i) => i.kind === "threads" && i.id === "复仇" && i.message.includes("没再推进"));
+    const stall = (issues: Awaited<ReturnType<typeof runCheck>>) => issues.filter((i) => i.kind === "threads" && i.id === "复仇" && i.message.includes("最后一次推进"));
     expect(stall(await runCheck(store)).length).toBe(1);
 
     const director = toolsFor({ canWrite: true, canSpawn: true, canAsk: true });

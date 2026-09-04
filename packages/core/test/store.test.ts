@@ -221,7 +221,7 @@ describe("runCheck", () => {
     expect(orphans.every((i) => i.level === "warning")).toBe(true);
   });
 
-  test("线索停滞：超过 15 章没被章纲推进报 warning，已收束的不报", async () => {
+  test("线索推进情况只报事实（info）：最后推进在哪章、之后写了几章；已收束的和最新一章刚推过的不报", async () => {
     const thread = (id: string, status = "draft") => store.write("threads", id, `---\ntitle: ${id}\nsummary: s\nkeywords: []\nstatus: ${status}\ntype: 支线\n---\n\n## 起点\n\nx\n\n## 终点\n\nx\n`);
     const chapter = (n: number, threads: string) => store.write("chapters", String(n), `---\ntitle: c${n}\nsummary: s\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\nthreads: [${threads}]\n---\n\n## 本章目标\n\nx\n\n## 场景序列\n\nx\n\n## 信息控制\n\nx\n\n## 章末钩子\n\nx\n`);
     await store.write("volumes", "1", "---\ntitle: v\nsummary: s\nkeywords: []\nstatus: draft\nmilestones: []\nchapters: 1-30\n---\n\n## 本卷目标\n\nx\n\n## 里程碑分配\n\nx\n\n## 人物落点\n\nx\n\n## 卷末状态\n\nx\n");
@@ -231,9 +231,9 @@ describe("runCheck", () => {
     for (let n = 1; n <= 20; n++) await chapter(n, n === 2 ? "复仇, 暗恋, 旧债" : "复仇");
     for (let n = 1; n <= 18; n++) await store.write("manuscript", String(n), `---\ntitle: 第${n}章\nsummary: s\nkeywords: []\nstatus: draft\nwords: 3000\n---\n\n正文\n`);
     const issues = await runCheck(store);
-    const stalled = issues.filter((i) => i.message.includes("没再推进"));
-    expect(stalled.map((i) => `${i.id}:${i.message}`)).toEqual(["暗恋:第 2 章之后 16 章没再推进"]);
-    expect(stalled[0]?.level).toBe("warning");
+    const facts = issues.filter((i) => i.message.includes("最后一次推进"));
+    expect(facts.map((i) => `${i.id}:${i.message}`)).toEqual(["暗恋:最后一次推进在第 2 章，之后正文写了 16 章"]);
+    expect(facts[0]?.level).toBe("info");
   });
 
   test("残留待填", async () => {

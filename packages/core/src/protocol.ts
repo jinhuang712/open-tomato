@@ -67,10 +67,13 @@ export interface SearchHit {
   snippet: string;
 }
 
-export type IssueLevel = "error" | "warning";
+export type IssueLevel = "error" | "warning" | "info";
 
-/** 机检等级给作者看的叫法：error/warning 是内部字眼，界面和工具返回一律用这两个词 */
-export const ISSUE_LEVEL_LABEL: Record<IssueLevel, string> = { error: "必须修", warning: "建议改" };
+/**
+ * 机检等级给作者看的叫法：error/warning/info 是内部字眼，界面和工具返回一律用这几个词。
+ * info 是事实不是判词：机检只说「这条线最后在第几章推进过、之后写了几章」，该不该动交给模型和作者，侧栏不为它亮点。
+ */
+export const ISSUE_LEVEL_LABEL: Record<IssueLevel, string> = { error: "必须修", warning: "建议改", info: "留意" };
 
 /**
  * 作者退回一稿时的词汇表。它是给作者的词，不是快捷键：说不出哪里不对的人也能选一个。
@@ -213,6 +216,15 @@ export function stubPrompt(label: string, text: string): string {
   return `${STUB_PREFIX}${label}${STUB_SUFFIX}\n${text}`;
 }
 
+/** 排队里的一条：作者在 agent 跑着的时候发的话或批注。label 是界面上的短标签（排队 / 批注 N / 已插入） */
+export interface QueueItem {
+  id: string;
+  label: string;
+  text: string;
+  /** 已经插进当前这轮，等下一个工具边界送到；插入了就不能再撤回 */
+  inserted: boolean;
+}
+
 export type UiPart =
   | { type: "text"; text: string }
   /** 内部指令的占位：只显示 label */
@@ -272,8 +284,8 @@ export type AgentStreamEvent =
   | { type: "tool_end"; toolCallId: string; output: string; details: unknown; isError: boolean }
   | { type: "message_end"; message: UiMessage }
   | { type: "status_text"; text: string }
-  /** 排队中的消息：steering 会在当前这步工具结束后插进去，followUp 等整轮跑完再发 */
-  | { type: "queue_update"; steering: string[]; followUp: string[] }
+  /** 还没送到的消息：排队的等这轮跑完一并送；已插入的在当前这步工具结束后送 */
+  | { type: "queue_update"; items: QueueItem[] }
   /** interrupted：上次会话没有正常收尾（发了话没回 / 工具跑一半 / 被中止），UI 在末尾画一条分隔线 */
   | { type: "history"; messages: UiMessage[]; interrupted: boolean };
 
@@ -380,11 +392,13 @@ export interface RequestMap {
   "models.refresh": { params: Record<string, never>; result: ModelsState };
   /**
    * agentId 省略 = 主编。agent 跑着的时候按 deliverAs 决定怎么送：
-   * steer（默认）插话，在当前这步工具结束后就送到；followUp 排队，等这一轮完全跑完再送。空闲时两者都是直接发。
+   * followUp 排队，进它的收件箱，等这一轮完全跑完一并送；steer 插话，在当前这步工具结束后就送到。空闲时两者都是直接发。
    */
   "chat.send": { params: { text: string; agentId?: string; deliverAs?: "steer" | "followUp" }; result: null };
-  /** 把还没送到的排队消息全部撤回，原文交还给输入框 */
-  "chat.clearQueue": { params: { agentId?: string }; result: { steering: string[]; followUp: string[] } };
+  /** 把排队里的某一条立刻插进当前这轮：作者等不了它这轮跑完 */
+  "chat.insert": { params: { agentId?: string; id: string }; result: null };
+  /** 把还没送到的消息全部撤回，原文交还给输入框 */
+  "chat.clearQueue": { params: { agentId?: string }; result: { texts: string[] } };
   /** 这个 agent 的会话记录 jsonl 落盘路径；子 agent 只在内存、或主编还没写过第一条时返回 null */
   "chat.sessionFile": { params: { agentId?: string }; result: string | null };
   /** 立刻中止：掐断正在跑的模型调用和工具，agent 回到空闲。输入框的「停」按钮和内核关项目 / 新会话 / reset 都走这条 */

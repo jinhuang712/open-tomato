@@ -150,7 +150,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         <div class="px-5 py-2 bg-warn-soft/50 border-b border-line text-xs space-y-0.5">
           <For each={issues()}>
             {(i) => (
-              <div class={`flex items-baseline gap-2 ${i.level === "error" ? "text-danger" : "text-warn"}`}>
+              <div class={`flex items-baseline gap-2 ${i.level === "error" ? "text-danger" : i.level === "warning" ? "text-warn" : "text-ink-2"}`}>
                 <span class="shrink-0 opacity-80">{ISSUE_LEVEL_LABEL[i.level]}</span>
                 <span class="flex-1 min-w-0">{i.message}</span>
                 <Show when={i.fix}>

@@ -40,7 +40,8 @@ export function Sidebar() {
   const kindOf = (k: DocKindId) => state.kinds.find((x) => x.id === k);
   const kindLabel = (k: DocKindId) => kindOf(k)?.label ?? k;
   const activeDoc = () => (state.view.type === "doc" ? `${state.view.kind}/${state.view.id}` : null);
-  const issueOf = (kind: string, id: string) => state.issues?.find((i) => i.kind === kind && i.id === id);
+  // 侧栏只为必须修 / 建议改亮点；info 是事实不是判词，不亮
+  const issueOf = (kind: string, id: string) => state.issues?.find((i) => i.kind === kind && i.id === id && i.level !== "info");
   const item = (d: DocHeader) => {
     const issue = () => issueOf(d.kind, d.id);
     const on = () => activeDoc() === `${d.kind}/${d.id}`;

@@ -6,9 +6,7 @@ import type { ProjectStore } from "./store.js";
 export { PLACEHOLDER };
 /** 旧写法里的软占位。现在没想好的段不落盘，作者明确搁置的决定记在 frontmatter open 里 */
 export const DEFERRED = "待定";
-/** 一条线多少章没推进算停滞。网文读者对一条线的记忆大约就是这个长度 */
-export const STALL_CHAPTERS = 15;
-/** 线索 status 到了这几个值就不再算停滞：已经收束的线不欠读者 */
+/** 线索 status 到了这几个值就不再报推进情况：已经收束的线不欠读者 */
 const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
 
 /**
@@ -19,7 +17,7 @@ const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
  * - 正文没有对应章纲
  * - 章号 / 里程碑 order 断档或重复
  * - 排了章纲之后还没被任何章纲 / 里程碑引用的线索、没被任何卷纲覆盖的里程碑（孤儿）
- * - 线索停滞：最后一次被章纲推进之后，正文又写了超过 STALL_CHAPTERS 章还没再碰它
+ * - 线索推进情况（info，只报事实不下判词）：最后一次被章纲推进在第几章、之后正文又写了几章。该不该动是感觉，交给模型和作者
  */
 export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   const issues: CheckIssue[] = [];
@@ -124,7 +122,8 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     }
   }
 
-  // 停滞：一条线最后被哪一章推进，与正文最新章号比。只看有正文的项目
+  // 推进情况：一条线最后被哪一章推进，与正文最新章号比。只看有正文的项目。
+  // 只报事实：多少章不动算停滞没有数字能定，一条线沉三卷可能正是作者要的
   const written = Math.max(0, ...(byKind.get("manuscript") ?? []).map((h) => Number(h.id)).filter((n) => Number.isFinite(n)));
   if (written > 0) {
     const lastTouched = new Map<string, number>();
@@ -141,7 +140,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
       const last = lastTouched.get(h.id);
       if (last === undefined) continue; // 从没排进章纲的归孤儿那条报
       const idle = written - last;
-      if (idle > STALL_CHAPTERS) push("warning", h, `第 ${last} 章之后 ${idle} 章没再推进`, "threads", `${ref("threads", h)}从第 ${last} 章起就没动过了，帮我看看接下来哪几章该推它一步，或者这条线是不是该收束`);
+      if (idle > 0) push("info", h, `最后一次推进在第 ${last} 章，之后正文写了 ${idle} 章`, "threads", `${ref("threads", h)}最后在第 ${last} 章推进过，之后写了 ${idle} 章，看看是该推一步、该收束，还是有意沉着`);
     }
   }
 
@@ -171,7 +170,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     if (hs.length > 1) push("error", null, `里程碑 order=${o} 重复：${hs.map((h) => h.id).join("、")}`, "milestones");
   }
 
-  // 作者说过「这笔账不欠」的材料（有 defer 批且没被推翻），建议改一律闭嘴；必须修照报，那是坏掉不是欠账
+  // 作者说过「这笔账不欠」的材料（有 defer 批且没被推翻），建议改和事实一律闭嘴；必须修照报，那是坏掉不是欠账
   const deferred = await store.records.deferredDocs();
   return issues.filter((i) => i.level === "error" || !i.kind || !i.id || !deferred.has(`${i.kind}/${i.id}`));
 }
