@@ -63,7 +63,6 @@ function BookMenu(props: { name: string }) {
       </button>
       <Show when={open()}>
         <div class="absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
-          <MenuItem label="新会话" hint="⌘⇧N" onClick={() => run(actions.newChat)} />
           <MenuItem label="重新机检" onClick={() => run(actions.runCheck)} />
           <MenuItem label="导出故事种子" hint="⌘E" onClick={() => run(actions.exportSeed)} />
           <MenuItem label="复制会话路径" tag="dev" hint="⌘⇧E" onClick={() => run(actions.copyTranscriptPath)} />
