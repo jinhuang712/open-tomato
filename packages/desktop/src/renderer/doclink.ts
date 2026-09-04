@@ -24,6 +24,7 @@ const ALIASES: Record<string, DocKindId> = {
   章纲: "chapters",
   manuscript: "manuscript",
   正文: "manuscript",
+  rules: "rules",
   guide: "rules",
   守则: "rules",
 };
@@ -46,10 +47,15 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 let cacheKey = "";
 let cachedRef: RegExp | null = null;
+/** kind + 正文里写出的名字 → 真实文档 id；标题只给守则开放，重名标题不入表 */
+let cachedAliases = new Map<string, string>();
+
+const aliasKey = (kind: DocKindId, shown: string) => `${kind}\u0000${shown}`;
 
 /**
  * 只认项目里真实存在的文档 id（最长优先），中文 id 后面紧跟正文也不会多吃或少吃。
- * 没有项目时退回宽松匹配。
+ * 守则对作者显示的是 title，不是 001 这类编号，所以唯一 title 也是合法引用名；重名时不猜。
+ * 项目文档尚未载入时，只识别仍在正则表里的旧守则引用。
  */
 /** 引用表的版本号，markdown 缓存靠它失效 */
 export function docRefVersion(): string {
@@ -58,12 +64,39 @@ export function docRefVersion(): string {
 }
 
 function refPattern(): RegExp {
-  // 老会话里的英文守则 id 也认，点开时再映射
-  const ids = [...new Set([...state.docs.map((d) => d.id), ...Object.keys(LEGACY_GUIDE_IDS)])].sort((a, b) => b.length - a.length);
-  const key = ids.join("\u0000");
+  const docs = state.docs;
+  // title 要进 key：守则改名后，同一段 markdown 必须重新识别并渲染
+  const key = docs.map((d) => `${d.kind}\u0000${d.id}\u0000${d.kind === "rules" ? d.title : ""}`).join("\u0001");
   if (cachedRef && key === cacheKey) return cachedRef;
   cacheKey = key;
-  const idAlt = ids.length > 0 ? ids.map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
+  cachedAliases = new Map();
+
+  const shown = new Set<string>();
+  for (const d of docs) {
+    cachedAliases.set(aliasKey(d.kind, d.id), d.id);
+    shown.add(d.id);
+  }
+
+  // 模型按约定写「守则/<title>」。只接唯一标题；两个同名规则无法可靠判断，保持纯文本。
+  const rules = docs.filter((d) => d.kind === "rules");
+  const titleCounts = new Map<string, number>();
+  for (const d of rules) titleCounts.set(d.title, (titleCounts.get(d.title) ?? 0) + 1);
+  for (const d of rules) {
+    if (!d.title || titleCounts.get(d.title) !== 1) continue;
+    for (const name of new Set([d.title, escapeHtml(d.title)])) {
+      const k = aliasKey("rules", name);
+      if (!cachedAliases.has(k)) cachedAliases.set(k, d.id); // 真 id 优先于恰好同名的 title
+      shown.add(name);
+    }
+  }
+
+  // 老会话里的英文守则 id 仍可点；它们在 click 时再由 resolveLegacyRef 映射
+  for (const id of Object.keys(LEGACY_GUIDE_IDS)) {
+    cachedAliases.set(aliasKey("rules", id), id);
+    shown.add(id);
+  }
+
+  const idAlt = shown.size > 0 ? [...shown].sort((a, b) => b.length - a.length).map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
   cachedRef = new RegExp(
     `(?<![\\w/.\\-\\p{Script=Han}])(?:(${DIR_ALTERNATION})\\/(${idAlt})|(${SINGLETON_ALTERNATION}))(\\.md)?(?![\\w/.\\-\\p{Script=Han}])`,
     "gu",
@@ -79,14 +112,18 @@ export function displayPath(kind: DocKindId | string, id: string): string {
   return `${dir}/${shownId}`;
 }
 
-/** 正则命中的三个分组 → 文档引用 */
+/** 正则命中的三个分组 → 文档引用；有项目时还要校验 kind/id 配对，不能拿别类的 id 串过来 */
 function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined): DocRef | null {
   if (single !== undefined) {
     const kind = SINGLETONS[single];
     return kind ? { kind, id: single } : null;
   }
   const kind = dir !== undefined ? ALIASES[dir] : undefined;
-  return kind && id !== undefined ? { kind, id } : null;
+  if (!kind || id === undefined) return null;
+  // 没有项目盘面时，沿用正则已识别出的旧引用；有盘面时必须命中真实 kind/id 或唯一守则 title
+  if (state.docs.length === 0) return { kind, id };
+  const resolved = cachedAliases.get(aliasKey(kind, id));
+  return resolved ? { kind, id: resolved } : null;
 }
 
 export function parseDocRef(text: string): DocRef | null {
