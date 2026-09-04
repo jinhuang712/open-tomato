@@ -224,6 +224,11 @@ mark {
   padding: 0 1px;
 }
 
+/* 批注定位：点桩跳回时标亮被引的那段，用 Highlight API 不改 DOM */
+::highlight(annot) {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
 /* 审阅视图：Word 式修订痕迹——只用颜色和线，不铺底色 */
 .tc-ins {
   color: var(--color-ok);

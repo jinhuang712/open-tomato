@@ -1,17 +1,19 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
-import { setState } from "../state";
+import { setState, type ComposerQuote, type QuoteSource } from "../state";
 
 interface Hit {
   x: number;
   y: number;
   text: string;
-  role: "user" | "assistant";
+  role?: "user" | "assistant";
+  source?: QuoteSource;
 }
 
 /**
- * 作者在消息区划过一段字，选区末尾上方浮出「批注」。
+ * 作者划过一段字，选区末尾上方浮出「批注」。
  * 点下去这段字就进输入框上方的引用条，等作者对着它说话。
- * 只挂在主编会话：子 agent 不面向作者说话，也就没有被批注的资格。
+ * 宿主两种：消息气泡（data-role，圈的是谁说的话）和材料正文（data-quote-src，圈的是哪份稿、哪篇卡）。
+ * 消息区只挂在主编会话：子 agent 不面向作者说话，也就没有被批注的资格。
  */
 export function QuotePill(props: { within: () => HTMLElement | undefined }) {
   const [hit, setHit] = createSignal<Hit | null>(null);
@@ -24,17 +26,26 @@ export function QuotePill(props: { within: () => HTMLElement | undefined }) {
     const node = range.commonAncestorContainer;
     const el = node instanceof Element ? node : node.parentElement;
     // 跨消息的选区 closest 落不到单条消息上，直接不理
-    const host = el?.closest<HTMLElement>("[data-role]");
+    const host = el?.closest<HTMLElement>("[data-role], [data-quote-src]");
     const root = props.within();
     if (!host || !root || !root.contains(host)) return null;
-    const role = host.dataset.role;
-    if (role !== "user" && role !== "assistant") return null;
     const text = sel.toString().replace(/\n{3,}/g, "\n\n").trim();
     if (!text) return null;
     const rects = Array.from(range.getClientRects());
     // 单行贴在末尾上方；多行贴在首行末尾，离作者松手的地方近
     const anchor = (rects.length > 1 ? rects[0] : rects[rects.length - 1]) ?? range.getBoundingClientRect();
-    return { x: anchor.right, y: anchor.top, text, role };
+    const at = { x: anchor.right, y: anchor.top, text };
+    const srcRaw = host.dataset.quoteSrc;
+    if (srcRaw) {
+      try {
+        return { ...at, source: JSON.parse(srcRaw) as QuoteSource };
+      } catch {
+        return null;
+      }
+    }
+    const role = host.dataset.role;
+    if (role !== "user" && role !== "assistant") return null;
+    return { ...at, role };
   };
 
   let raf = 0;
@@ -67,7 +78,8 @@ export function QuotePill(props: { within: () => HTMLElement | undefined }) {
   const take = () => {
     const h = hit();
     if (!h) return;
-    setState("composerQuotes", (qs) => [...qs, { id: crypto.randomUUID(), role: h.role, text: h.text }]);
+    const quote: ComposerQuote = h.source ? { id: crypto.randomUUID(), text: h.text, source: h.source } : { id: crypto.randomUUID(), text: h.text, role: h.role ?? "assistant" };
+    setState("composerQuotes", (qs) => [...qs, quote]);
     document.getSelection()?.removeAllRanges();
     setHit(null);
   };

@@ -2,6 +2,7 @@ import type { UiMessage } from "@opentomato/core/protocol";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { splitAttachments } from "../attachments";
+import { actions, state } from "../state";
 import { ToolCard } from "./ToolCard";
 
 /** 用户消息里的附件：默认只露文件名和字数，点开才看正文 */
@@ -49,13 +50,30 @@ export function Message(props: { message: UiMessage }) {
     return p && p.type === "stub" ? p.label : null;
   };
   // 界面按钮发出的指令只显示一个小标签，不露内部 prompt
+  // 批注的桩能点：跳回原处看全文；批注已处理就只剩桩
+  const isAnnotation = () => /^批注\d+$/.test(stub() ?? "");
+  const alive = () => state.annotations.some((n) => n.label === stub());
   if (stub() !== null) {
     return (
       <div class="flex justify-end px-5 py-1.5">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-paper-3 text-ink-2 text-xs">
-          <span class="text-ink-3">▶</span>
-          {stub()}
-        </span>
+        <Show
+          when={isAnnotation()}
+          fallback={
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-paper-3 text-ink-2 text-xs">
+              <span class="text-ink-3">▶</span>
+              {stub()}
+            </span>
+          }
+        >
+          <button
+            class={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs ${alive() ? "bg-accent-soft text-ink hover:brightness-95" : "bg-paper-3 text-ink-3"}`}
+            title={alive() ? "跳回去看这条批注" : "这条批注已经处理完"}
+            onClick={() => actions.jumpToAnnotation(stub() ?? "")}
+          >
+            <span class="font-serif translate-y-px">❝</span>
+            {stub()}
+          </button>
+        </Show>
       </div>
     );
   }

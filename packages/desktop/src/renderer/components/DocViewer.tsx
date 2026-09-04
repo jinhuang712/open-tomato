@@ -1,10 +1,12 @@
 import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
 import type { DocContent, DocHeader, DocKindId } from "@opentomato/core/protocol";
-import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { clearFocus, focusText, hasText } from "../annotate";
 import { bridge } from "../bridge";
 import { refId } from "../refid";
 import { renderMarkdown } from "../markdown";
-import { actions, errText, setState, state, toast } from "../state";
+import { actions, errText, setState, state, toast, type QuoteSource } from "../state";
+import { QuotePill } from "./QuotePill";
 
 export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [doc, { refetch }] = createResource(
@@ -52,6 +54,34 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
       { defer: true },
     ),
   );
+
+  /** 这篇材料上的批注：作者翻材料时圈的段。那段被改掉就没了 */
+  let scroller: HTMLDivElement | undefined;
+  let prose: HTMLDivElement | undefined;
+  const notes = () => state.annotations.filter((n) => n.source.type === "doc" && n.source.kind === props.kind && n.source.id === props.id);
+  const quoteSource = (): QuoteSource | null => (doc() ? { type: "doc", kind: props.kind, id: props.id, path: doc()!.path } : null);
+  const focusQuote = (q: string) => {
+    if (!prose || !scroller) return;
+    if (!focusText(prose, scroller, q)) toast("这段已经改过，找不到原处了");
+  };
+  // 正文渲染完：先撤掉引文已经找不到的批注，再看有没有点桩跳回来要标亮的
+  createEffect(
+    on(
+      () => [doc()?.raw, editing()] as const,
+      () => {
+        requestAnimationFrame(() => {
+          if (!prose || editing()) return;
+          for (const n of notes()) if (!n.quotes.some((q) => hasText(prose!, q))) actions.dropAnnotation(n.label);
+          const v = state.view;
+          if (v.type === "doc" && v.focus && v.kind === props.kind && v.id === props.id) {
+            setState("view", { type: "doc", kind: v.kind, id: v.id });
+            focusQuote(v.focus);
+          }
+        });
+      },
+    ),
+  );
+  onCleanup(clearFocus);
 
   const startEdit = (d: DocContent) => {
     setDraft(d.raw);
@@ -135,7 +165,8 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
           </For>
         </div>
       </Show>
-      <div class="flex-1 overflow-y-auto">
+      <QuotePill within={() => scroller} />
+      <div ref={scroller} class="flex-1 overflow-y-auto">
         <Show when={doc.loading && !doc()}>
           <div class="p-6 text-ink-3">读取中…</div>
         </Show>
@@ -161,7 +192,24 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                       )}
                     </For>
                   </div>
-                  <div class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`} innerHTML={renderMarkdown(d().body)} />
+                  <Show when={notes().length > 0}>
+                    <div class="mb-4 flex flex-col gap-1 text-sm">
+                      <For each={notes()}>
+                        {(n) => (
+                          <button class="text-left flex items-start gap-2 px-2 py-1 rounded-md hover:bg-paper-3" onClick={() => focusQuote(n.quotes[0] ?? "")} title="滚到这段">
+                            <span class="shrink-0 text-xs text-ink-3 mt-0.5">{n.label}</span>
+                            <span class="text-ink-2 line-clamp-2">{n.text || "（只圈了这段，没写话）"}</span>
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                  <div
+                    ref={prose}
+                    data-quote-src={JSON.stringify(quoteSource())}
+                    class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`}
+                    innerHTML={renderMarkdown(d().body)}
+                  />
                   <Show when={backlinks().length > 0}>
                     <div class="mt-8 pt-4 border-t border-line text-sm space-y-4">
                       <For each={backlinks()}>

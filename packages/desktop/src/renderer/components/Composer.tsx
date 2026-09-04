@@ -1,3 +1,4 @@
+import { stubPrompt } from "@opentomato/core/protocol";
 import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
@@ -119,8 +120,14 @@ export function Composer(props: { agentId?: string }) {
   const canSend = () => Boolean(text().trim()) || quotes().length > 0 || attachments().length > 0;
   const submit = (deliverAs: "steer" | "followUp") => {
     if (!canSend() || disabled()) return;
-    const blocks = quotes().map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
-    const t = [...blocks, text().trim(), ...inlineAttachments(attachments())].filter(Boolean).join("\n\n");
+    // 圈的是材料：整条消息变成一条批注，对话里只留桩，主编收到引文加作者的话
+    const annotation = actions.makeAnnotation(quotes(), text().trim());
+    const blocks = quotes()
+      .filter((q) => !q.source)
+      .map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
+    const t = annotation
+      ? stubPrompt(annotation.label, [annotation.body, ...blocks, ...inlineAttachments(attachments())].filter(Boolean).join("\n\n"))
+      : [...blocks, text().trim(), ...inlineAttachments(attachments())].filter(Boolean).join("\n\n");
     setText("");
     setAttachments([]);
     setState("composerQuotes", []);
@@ -163,7 +170,7 @@ export function Composer(props: { agentId?: string }) {
               {(q) => (
                 <div class="group flex items-start gap-2 pl-3 pr-1 py-0.5 border-l-2 border-ink-3">
                   <div class="flex-1 min-w-0">
-                    <div class="text-xs text-ink-3 leading-tight">{q.role === "user" ? "你说过" : "主编说过"}</div>
+                    <div class="text-xs text-ink-3 leading-tight">{q.source ? `批注 ${q.source.path}` : q.role === "user" ? "你说过" : "主编说过"}</div>
                     <div class="font-serif text-sm text-ink-2 whitespace-pre-line line-clamp-2">{q.text}</div>
                   </div>
                   <button
