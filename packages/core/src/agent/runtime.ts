@@ -69,6 +69,20 @@ const PAUSE_PROMPT_LEAD = `【作者按了「暂停」】
 2. 然后用 ask_user 问作者想怎么调整，选项固定给这三个并允许自由输入：「我有新的想法」「对之前的内容不满意」「换个方向」
 3. 拿到回答后按回答处理；作者说继续就接着做`;
 
+/** 主编没问作者就停了：不是在等拍板，就是漏了 ask_user。补一句让它自己判断 */
+const NUDGE_PROMPT = "【你停下了，但没有问作者。要作者回答的用 ask_user 问出去；没有要问的就接着做下一件】";
+
+/**
+ * 主编这一轮该不该补一句：没调 ask_user、不是出错或暂停、收件箱里也没有作者的话等着（有就送作者的话，不用补）。
+ * 每次作者发言只补一次，补完再停就真停，交给作者。
+ */
+export function shouldNudge(live: Pick<LiveAgent, "info" | "asked" | "nudged" | "hold" | "inbox">): boolean {
+  if (live.info.agentId !== LEAD_ID) return false;
+  if (live.info.status === "error") return false;
+  if (live.asked || live.nudged || live.hold) return false;
+  return live.inbox.length === 0;
+}
+
 const PAUSE_PROMPT_CHILD = `【作者按了「暂停」】
 请立刻收尾：不要再开新的工具调用。把到目前为止做了什么、停在哪一步、还差什么，用三五句话作为你的最终回复交回主编，然后结束。已经落盘的不用撤。`;
 
@@ -92,6 +106,10 @@ interface LiveAgent {
   hold: boolean;
   /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
   flushRest: boolean;
+  /** 这一轮里调过 ask_user：主编只有问作者才算合法收尾 */
+  asked: boolean;
+  /** 这轮是补过的：主编没问就停时内核补一句让它接着干，一次作者发言只补一次，别循环 */
+  nudged: boolean;
 }
 
 interface InboxEntry {
@@ -307,7 +325,11 @@ export class Kernel {
       },
       "chat.abort": async ({ agentId }) => {
         const targets = agentId ? [this.agents.get(agentId)].filter((a): a is LiveAgent => !!a) : [...this.agents.values()];
-        for (const a of targets) await a.session.abort().catch(() => {});
+        for (const a of targets) {
+          // 作者按了停止：这轮的 agent_end 不算「没问就停」，也不去取收件箱，作者再开口才动
+          a.hold = true;
+          await a.session.abort().catch(() => {});
+        }
         return null;
       },
       "chat.new": async () => {
@@ -596,7 +618,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -665,7 +687,9 @@ export class Kernel {
 
   /** 作者说话、批稿、答题、插入都算开口：暂停解除，这轮结束后收件箱照常送 */
   private authorActed(live: LiveAgent | undefined) {
-    if (live) live.hold = false;
+    if (!live) return;
+    live.hold = false;
+    live.nudged = false;
   }
 
   /** 收件箱与已插入的一起给界面：作者要看到自己的话在哪儿等着 */
@@ -864,6 +888,7 @@ export class Kernel {
     switch (ev.type) {
       case "agent_start":
         this.setStatus(live, "running");
+        live.asked = false;
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
@@ -875,6 +900,11 @@ export class Kernel {
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
+        if (shouldNudge(live)) {
+          live.nudged = true;
+          this.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
+          return;
+        }
         this.flushInbox(live);
         return;
       case "queue_update":
@@ -917,6 +947,7 @@ export class Kernel {
         return;
       }
       case "tool_execution_start":
+        if (ev.toolName === "ask_user") live.asked = true;
         this.send(live, {
           type: "tool_start",
           messageId: live.streamingMessageId ?? "",

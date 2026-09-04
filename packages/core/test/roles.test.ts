@@ -15,7 +15,8 @@ describe("评审手册", () => {
       expect(g).not.toContain("✗");
       expect(g).not.toContain("✓");
       expect(g).toMatch(/^1\. \*\*.+\*\*：/m);
-      expect(g).toContain("记 must");
+      // 分级句只写手册独有的那半句；章纲承诺没做到记 must 在 REVIEW_INTENT 里统一说
+      expect(g).toMatch(/记 (must|suggest)/);
     }
   });
 
