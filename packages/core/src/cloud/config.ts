@@ -45,7 +45,10 @@ export async function clearCloudConfig(file: string): Promise<void> {
 /** 校验并整理；不合格直接抛，给 UI 一句能读的话 */
 export function normalizeCloudConfig(input: unknown): CloudConfig {
   const next = normalize(input);
-  if (!next) throw new Error("云端配置不完整：url 要是 https://xxx.supabase.co 这样的地址，service key 不能为空");
+  if (!next) throw new Error("云端配置不完整：Project URL 要是 https://xxx.supabase.co 这样的地址，Secret key 不能为空");
+  if (/^sb_publishable_/.test(next.serviceKey)) {
+    throw new Error("这是 Publishable key，只能公开读。要 Project Settings → API Keys 里的 Secret key（sb_secret_…）");
+  }
   return next;
 }
 

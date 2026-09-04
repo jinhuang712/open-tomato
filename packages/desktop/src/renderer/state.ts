@@ -663,8 +663,8 @@ export const actions = {
     }
   },
   /** 连接并保存凭据；内核先连一次 Supabase 再落盘，失败原样抛给弹窗显示 */
-  async configureCloud(url: string, serviceKey: string, bucket: string) {
-    const status = await bridge.request("cloud.configure", { url, serviceKey, ...(bucket.trim() ? { bucket: bucket.trim() } : {}) });
+  async configureCloud(url: string, serviceKey: string) {
+    const status = await bridge.request("cloud.configure", { url, serviceKey });
     setState("cloud", status);
     void actions.refreshCloud();
     return status;

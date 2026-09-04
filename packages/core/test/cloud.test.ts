@@ -227,3 +227,11 @@ describe("cloud sync · 本机关系与覆盖", () => {
     expect(await fs.readFile(path.join(root, ".git", "HEAD"), "utf8")).toBe("ref: x");
   });
 });
+
+describe("cloud config", () => {
+  test("粘了 Publishable key 直接说清楚，不去撞 Supabase", async () => {
+    const { normalizeCloudConfig } = await import("../src/cloud/config.js");
+    expect(() => normalizeCloudConfig({ url: "https://abc.supabase.co", serviceKey: "sb_publishable_xxx" })).toThrow(/Publishable key/);
+    expect(normalizeCloudConfig({ url: "https://abc.supabase.co/", serviceKey: "sb_secret_xxx" }).bucket).toBe("projects");
+  });
+});
