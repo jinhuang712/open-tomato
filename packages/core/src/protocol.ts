@@ -164,7 +164,7 @@ export interface RoleInfo {
   canWrite: boolean;
 }
 
-export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review";
+export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review" | "recap";
 
 export interface CapabilityParam {
   name: string;
