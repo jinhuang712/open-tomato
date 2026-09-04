@@ -429,6 +429,10 @@ export interface RequestMap {
   "cloud.upload": { params: { force?: boolean }; result: CloudProject };
   /** 下载到 dest 并打开。dest 须为空目录或不存在；replace 为 true 时允许覆盖一个已有项目目录（.git 保留） */
   "cloud.download": { params: { slug: string; dest: string; replace?: boolean }; result: ProjectInfo };
+  /** 删掉某个本机项目在云端的快照（按项目名找），云端本来没有也算成功；删项目时顺带调，root 必须还在磁盘上 */
+  "cloud.remove": { params: { root: string }; result: null };
+  /** 清空云端所有项目快照，凭据保留；返回清掉的项目数 */
+  "cloud.wipe": { params: Record<string, never>; result: { removed: number } };
 }
 
 export type RequestMethod = keyof RequestMap;

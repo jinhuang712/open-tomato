@@ -26,7 +26,7 @@ import type {
 import { STUB_PATTERN, stubPrompt } from "../protocol.js";
 import { stubStripExtension } from "./stub-strip.js";
 import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfig, writeCloudConfig, type CloudConfig } from "../cloud/config.js";
-import { CloudSync } from "../cloud/sync.js";
+import { CloudSync, projectSlug } from "../cloud/sync.js";
 import { runCheck } from "../project/check.js";
 import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
 import { contentHash } from "../project/records.js";
@@ -396,6 +396,24 @@ export class Kernel {
         this.store = store;
         await this.afterOpen("continue");
         return store.info;
+      },
+      "cloud.remove": async ({ root }) => {
+        const cloud = this.requireCloud();
+        const { name } = (await ProjectStore.open(root)).info;
+        await cloud.removeProject(projectSlug(name));
+        if (this.store && this.store.info.name === name) {
+          this.cloudSynced = false;
+          this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
+        }
+        return null;
+      },
+      "cloud.wipe": async () => {
+        const removed = await this.requireCloud().wipe();
+        if (this.store) {
+          this.cloudSynced = false;
+          this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
+        }
+        return { removed };
       },
     };
     const handler = handlers[method];
