@@ -46,6 +46,11 @@ describe("applyEdits", () => {
     expect(() => applyEdits("a。\nb。\na。\n", [{ old: "a。", new: "c。" }])).toThrow(/出现了 2 次/);
   });
 
+  test("拿 frontmatter 分隔线当锚点：直说不能用、该走哪条路", () => {
+    expect(() => applyEdits(doc, [{ old: "---", new: "---\n正文" }])).toThrow(/分隔线.*write_doc/);
+    expect(() => applyEdits(doc, [{ old: "---\n", new: "" }])).toThrow(/分隔线/);
+  });
+
   test("old 与 new 相同报错", () => {
     expect(() => applyEdits(doc, [{ old: "雨越来越大。", new: "雨越来越大。" }])).toThrow(EditError);
   });

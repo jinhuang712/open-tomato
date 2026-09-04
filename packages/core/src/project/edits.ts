@@ -52,7 +52,13 @@ export function applyEdits(raw: string, edits: TextEdit[]): string {
       const hint = firstLine && text.includes(firstLine) ? "首行能找到但整段对不上，多半是换行或空格不一致；请重新 read_doc 取原文" : "文件里没有这段文字，可能已被改过；请重新 read_doc 再改";
       throw new EditError(i, `找不到「${preview(e.old)}」。${hint}`);
     }
-    if (n > 1) throw new EditError(i, `「${preview(e.old)}」出现了 ${n} 次，请把 old 多带一两行上下文以唯一定位`);
+    if (n > 1) {
+      // 模型常拿 frontmatter 的「---」当「正文开头」的坐标，文件里前后各一条必然撞车；直说该怎么办，省一轮往返
+      if (/^-{3,}$/.test(e.old.trim())) {
+        throw new EditError(i, "「---」是 frontmatter 的分隔线，文件里前后各一条，不能当锚点。要在正文里改就逐字照抄正文里的原句；文档还是空模板、要铺全文就用 write_doc");
+      }
+      throw new EditError(i, `「${preview(e.old)}」出现了 ${n} 次，请把 old 多带一两行上下文以唯一定位`);
+    }
     text = text.replace(e.old, () => e.new);
   });
   return text;
