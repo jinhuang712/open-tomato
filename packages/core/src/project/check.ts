@@ -14,6 +14,7 @@ export const DEFERRED = "待定";
  * - 章纲引用的人物 / 线索 / 卷不存在；里程碑引用的线索不存在
  * - 正文没有对应章纲
  * - 章号 / 里程碑 order 断档或重复
+ * - 排了章纲之后还没被任何章纲 / 里程碑引用的线索、没被任何卷纲覆盖的里程碑（孤儿）
  */
 export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   const issues: CheckIssue[] = [];
@@ -96,6 +97,25 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     for (const m of asStringArray(h.extra.milestones)) {
       const nid = DOC_KINDS.milestones.normalizeId(m);
       if (!ids("milestones").has(nid)) push("error", h, `引用了不存在的里程碑「${m}」`);
+    }
+  }
+
+  // 孤儿：大纲已经排起来了，某条线 / 某个关键帧却没人指向它。大纲还没排时不报，免得设卡阶段满屏黄点
+  const referenced = (froms: DocKindId[], field: string, to: DocKindId) => {
+    const set = new Set<string>();
+    for (const k of froms) for (const h of byKind.get(k) ?? []) for (const v of asStringArray(h.extra[field])) set.add(DOC_KINDS[to].normalizeId(v));
+    return set;
+  };
+  if ((byKind.get("chapters") ?? []).length > 0) {
+    const used = referenced(["chapters", "milestones"], "threads", "threads");
+    for (const h of byKind.get("threads") ?? []) {
+      if (!used.has(h.id)) push("warning", h, "没有任何章纲或里程碑指向这条线索", "threads", `${ref("threads", h)}还没排进任何章纲，帮我看看它该在哪几章推进`);
+    }
+  }
+  if ((byKind.get("volumes") ?? []).length > 0) {
+    const covered = referenced(["volumes"], "milestones", "milestones");
+    for (const h of byKind.get("milestones") ?? []) {
+      if (!covered.has(h.id)) push("warning", h, "没有任何卷纲覆盖这个里程碑", "milestones", `${ref("milestones", h)}还没分到任何一卷，帮我排进卷纲`);
     }
   }
 

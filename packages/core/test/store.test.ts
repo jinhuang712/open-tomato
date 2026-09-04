@@ -203,6 +203,24 @@ describe("runCheck", () => {
     expect(issues.filter((i) => i.kind === "milestones").map((i) => i.message)).toEqual(["引用了不存在的线索卡「幽灵」"]);
   });
 
+  test("孤儿线索 / 孤儿里程碑：大纲排起来之后才报", async () => {
+    const thread = (id: string) => store.write("threads", id, `---\ntitle: ${id}\nsummary: s\nkeywords: []\nstatus: draft\ntype: 支线\n---\n\n## 起点\n\nx\n\n## 终点\n\nx\n`);
+    const ms = (id: string, order: number) => store.write("milestones", id, `---\ntitle: ${id}\nsummary: s\nkeywords: []\nstatus: draft\norder: ${order}\nthreads: []\n---\n\n## 发生什么\n\nx\n\n## 之后不可逆的变化\n\nx\n`);
+    await thread("复仇");
+    await thread("暗恋");
+    await ms("灭门", 1);
+    await ms("重逢", 2);
+    const before = await runCheck(store);
+    expect(before.some((i) => i.message.includes("没有任何"))).toBe(false);
+
+    await store.write("volumes", "1", "---\ntitle: v\nsummary: s\nkeywords: []\nstatus: draft\nmilestones: [灭门]\nchapters: 1-3\n---\n\n## 本卷目标\n\nx\n\n## 里程碑分配\n\nx\n\n## 人物落点\n\nx\n\n## 卷末状态\n\nx\n");
+    await store.write("chapters", "1", "---\ntitle: c1\nsummary: s\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\nthreads: [复仇]\n---\n\n## 本章目标\n\nx\n\n## 场景序列\n\nx\n\n## 信息控制\n\nx\n\n## 章末钩子\n\nx\n");
+    const after = await runCheck(store);
+    const orphans = after.filter((i) => i.message.includes("没有任何"));
+    expect(orphans.map((i) => `${i.kind}/${i.id}`).sort()).toEqual(["milestones/重逢", "threads/暗恋"]);
+    expect(orphans.every((i) => i.level === "warning")).toBe(true);
+  });
+
   test("残留待填", async () => {
     await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n待填\n");
     const issues = await runCheck(store);
