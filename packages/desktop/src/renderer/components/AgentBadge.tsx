@@ -28,7 +28,7 @@ export function AgentBadge() {
 
   return (
     <Show when={subs().length > 0}>
-      <div class="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <div class="relative shrink-0" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
         <button
           class="h-6.5 px-2.5 rounded-md font-medium hover:brightness-110 flex items-center gap-1.5"
           classList={{

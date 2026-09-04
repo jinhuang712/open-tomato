@@ -34,9 +34,10 @@ export function Titlebar() {
           </button>
         </Show>
       </div>
-      <div class="no-drag flex items-center justify-end gap-1 text-xs min-w-0">
+      {/* 右侧一律不折行：徽章/云端固定宽，空间不够时只截模型名 */}
+      <div class="no-drag flex items-center justify-end gap-1 text-xs min-w-0 whitespace-nowrap">
         <Show when={pending() > 0}>
-          <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110" onClick={() => actions.openChat("director")}>
+          <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110 shrink-0" onClick={() => actions.openChat("director")}>
             {pending()} 项等你拍板
           </button>
         </Show>
@@ -44,10 +45,10 @@ export function Titlebar() {
         <Show when={state.project && state.cloud?.configured}>
           <CloudIndicator />
         </Show>
-        <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3 flex items-center gap-1.5" onClick={() => setState("modelPickerOpen", true)}>
-          <span>{state.models?.current ? state.models.current.id : "选择模型"}</span>
+        <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3 flex items-center gap-1.5 min-w-0" onClick={() => setState("modelPickerOpen", true)}>
+          <span class="truncate">{state.models?.current ? state.models.current.id : "选择模型"}</span>
           <Show when={state.models?.thinkingLevel && state.models.thinkingLevel !== "off"}>
-            <span class="text-ink-3">思考 {state.models!.thinkingLevel}</span>
+            <span class="text-ink-3 shrink-0">思考 {state.models!.thinkingLevel}</span>
           </Show>
         </button>
       </div>

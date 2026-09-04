@@ -41,7 +41,7 @@ export function CloudIndicator() {
   const busy = () => sync().phase === "uploading";
 
   return (
-    <div ref={root} class="relative">
+    <div ref={root} class="relative shrink-0">
       <button class={`h-6.5 px-2 rounded-md hover:bg-paper-3 flex items-center gap-1.5 ${face().color}`} onClick={() => setOpen(!open())} title={face().title}>
         <Show when={busy()} fallback={<CloudIcon />}>
           <SpinnerIcon />
