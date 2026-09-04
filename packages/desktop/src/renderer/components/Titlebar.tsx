@@ -30,7 +30,7 @@ export function Titlebar() {
       </Show>
       <div class="no-drag flex items-center gap-1 text-xs">
         <Show when={pending() > 0}>
-          <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110" onClick={() => actions.openChat("lead")}>
+          <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110" onClick={() => actions.openChat("director")}>
             {pending()} 项等你拍板
           </button>
         </Show>

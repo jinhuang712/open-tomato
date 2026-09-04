@@ -6,13 +6,13 @@ import { actions, state } from "../state";
 type ToolPart = Extract<UiPart, { type: "tool" }>;
 
 export const ROLE_LABELS: Record<string, string> = {
-  architect: "设定师",
-  planner: "结构师",
-  writer: "执笔",
-  critic_market: "市场评审",
-  critic_reader: "读者评审",
-  critic_voice: "文风评审",
-  continuity: "连续性审校",
+  designer: "策划",
+  plotter: "编剧",
+  writer: "写手",
+  ops: "运营",
+  reader: "读者",
+  copyeditor: "文编",
+  proofreader: "校对",
   arbiter: "裁决",
 };
 

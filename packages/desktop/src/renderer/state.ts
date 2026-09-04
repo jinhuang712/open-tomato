@@ -114,7 +114,7 @@ const initial: State = {
   approvals: [],
   questions: [],
   issues: null,
-  view: { type: "chat", agentId: "lead" },
+  view: { type: "chat", agentId: "director" },
   capabilities: [],
   recent: [],
   toasts: [],
@@ -177,7 +177,7 @@ export function applyEvent(ev: KernelEvent) {
         approvals: [],
         questions: [],
         issues: null,
-        view: { type: "chat", agentId: "lead" },
+        view: { type: "chat", agentId: "director" },
         cloudSync: idleCloudSync,
         closePromptOpen: false,
       });
@@ -440,16 +440,16 @@ export const actions = {
     const t = text.trim();
     if (!t) return;
     try {
-      await bridge.request("chat.send", { text: t, deliverAs, ...(agentId && agentId !== "lead" ? { agentId } : {}) });
+      await bridge.request("chat.send", { text: t, deliverAs, ...(agentId && agentId !== "director" ? { agentId } : {}) });
     } catch (e) {
       toast(errText(e), "error");
     }
   },
   /** 立刻掐断：模型调用和工具都停，在最后一条消息后画「被打断」分隔线 */
   async stop(agentId?: string) {
-    const id = agentId ?? "lead";
+    const id = agentId ?? "director";
     try {
-      await bridge.request("chat.abort", id !== "lead" ? { agentId: id } : {});
+      await bridge.request("chat.abort", id !== "director" ? { agentId: id } : {});
       const last = state.transcripts[id]?.at(-1);
       if (last) setState("interruptedAfter", id, last.id);
       toast("已停下");
@@ -460,9 +460,9 @@ export const actions = {
   /** 撤回排队中的消息，原文拼回输入框 */
   async recallQueue(agentId?: string) {
     try {
-      const q = await bridge.request("chat.clearQueue", agentId && agentId !== "lead" ? { agentId } : {});
+      const q = await bridge.request("chat.clearQueue", agentId && agentId !== "director" ? { agentId } : {});
       const texts = [...q.steering, ...q.followUp];
-      setState("queues", agentId ?? "lead", { steering: [], followUp: [] });
+      setState("queues", agentId ?? "director", { steering: [], followUp: [] });
       if (texts.length > 0) setState("composerDraft", texts.join("\n\n"));
     } catch (e) {
       toast(errText(e), "error");
@@ -470,7 +470,7 @@ export const actions = {
   },
   async pause(agentId?: string) {
     try {
-      await bridge.request("chat.pause", agentId && agentId !== "lead" ? { agentId } : {});
+      await bridge.request("chat.pause", agentId && agentId !== "director" ? { agentId } : {});
       toast("已请求暂停，agent 会收尾后停下来问你");
     } catch (e) {
       toast(errText(e), "error");
@@ -487,7 +487,7 @@ export const actions = {
   async runCapability(id: CapabilityInfo["id"], params: Record<string, string>) {
     try {
       await bridge.request("capability.run", { id, params });
-      setState({ capabilityDialog: null, view: { type: "chat", agentId: "lead" } });
+      setState({ capabilityDialog: null, view: { type: "chat", agentId: "director" } });
     } catch (e) {
       toast(errText(e), "error");
     }
@@ -534,11 +534,11 @@ export const actions = {
     }
   },
   async copyTranscriptPath(agentId?: string) {
-    const id = agentId ?? (state.view.type === "chat" ? state.view.agentId : "lead");
+    const id = agentId ?? (state.view.type === "chat" ? state.view.agentId : "director");
     try {
       const file = await bridge.request("chat.sessionFile", { agentId: id });
       if (!file) {
-        toast(id === "lead" ? "主编还没写过一条消息，会话记录尚未落盘" : "子 agent 的会话只在内存里，没有落盘文件", "error");
+        toast(id === "director" ? "主编还没写过一条消息，会话记录尚未落盘" : "子 agent 的会话只在内存里，没有落盘文件", "error");
         return;
       }
       await bridge.copyText(file);

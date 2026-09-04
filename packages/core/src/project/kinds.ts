@@ -186,7 +186,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "chapters",
     label: "章纲",
     dir: "章纲",
-    description: "一章的施工单。执笔照着写不该再翻库。",
+    description: "一章的施工单。写手照着写不该再翻库。",
     normalizeId: padded(4),
     fields: [
       { name: "volume", required: true },

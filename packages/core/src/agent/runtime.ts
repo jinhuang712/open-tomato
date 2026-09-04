@@ -49,7 +49,7 @@ import {
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
 
-const LEAD_ID = "lead";
+const LEAD_ID = "director";
 
 /** propose 轮发给子 agent 的开场说明：写工具已从会话里拿掉，别去试 */
 const PROPOSE_NOTICE = "【候选阶段：这一轮没有 write_doc / edit_doc，不要尝试落盘或写临时稿。把候选直接写在回复里交给主编，作者拍板后主编会让你接着落盘】";
@@ -242,7 +242,7 @@ export class Kernel {
         const live = this.agents.get(id);
         if (!live) throw new Error("这个 agent 已经不在了");
         if (live.info.status !== "running") return null;
-        const text = stubPrompt("暂停", live.info.role === "lead" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD);
+        const text = stubPrompt("暂停", live.info.role === "director" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD);
         // steer 会插在当前这步工具结束之后，正在写的东西不会被掐断
         live.session.prompt(text, { streamingBehavior: "steer" }).catch(() => {});
         return null;
@@ -544,7 +544,7 @@ export class Kernel {
         : SessionManager.create(store.info.root, store.leadSessionsDir);
     const { session, tools } = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
-      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.lead.label, task: "", status: "idle", error: null, statusText: "" },
+      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.director.label, task: "", status: "idle", error: null, statusText: "" },
       session,
       tools,
     );

@@ -35,7 +35,7 @@ describe("dispose 不留幽灵状态", () => {
   test("退场的子 agent 收到 done，之后它的滞后更新被吞掉", async () => {
     const k = kernel as any;
     const fake = {
-      info: { agentId: "child-1", parentId: "lead", role: "writer", label: "执笔", task: "写", status: "running", error: null, statusText: "" },
+      info: { agentId: "child-1", parentId: "director", role: "writer", label: "写手", task: "写", status: "running", error: null, statusText: "" },
       session: { abort: async () => {}, dispose: () => {} },
       unsubscribe: () => {},
       streamingMessageId: null,
@@ -56,18 +56,18 @@ describe("dispose 不留幽灵状态", () => {
 
   test("setStatus 认对象不认 id：不在表里的旧 live 发不出事件", async () => {
     const k = kernel as any;
-    const current = k.agents.get("lead");
+    const current = k.agents.get("director");
     const stale = { info: { ...current.info } };
     k.setStatus(stale, "error", "ghost");
     expect(statuses()).toEqual([]);
     // 表里的对象照常能发
     k.setStatus(current, "error", "real");
-    expect(statuses().map((e) => [e.agentId, e.status, e.error])).toEqual([["lead", "error", "real"]]);
+    expect(statuses().map((e) => [e.agentId, e.status, e.error])).toEqual([["director", "error", "real"]]);
   });
 
   test("chat.new 时旧 lead 的 run 报错不会污染新会话", async () => {
     const k = kernel as any;
-    const live = k.agents.get("lead");
+    const live = k.agents.get("director");
     let rejectRun!: (e: Error) => void;
     const pending = new Promise<never>((_, rej) => {
       rejectRun = rej;
@@ -82,11 +82,11 @@ describe("dispose 不留幽灵状态", () => {
       },
       dispose: () => {},
     };
-    k.sendTo("lead", "hi");
+    k.sendTo("director", "hi");
     events.length = 0;
     await kernel.handle("chat.new", {});
     await new Promise((r) => setTimeout(r, 50));
-    const leadErrors = statuses().filter((e) => e.agentId === "lead" && e.status === "error");
+    const leadErrors = statuses().filter((e) => e.agentId === "director" && e.status === "error");
     expect(leadErrors).toEqual([]);
   });
 });

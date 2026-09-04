@@ -13,7 +13,7 @@ import { searchWeb } from "./websearch.js";
 export type SpawnMode = "propose" | "commit";
 
 /** 没有一句话故事就不能派的角色：排大纲、写正文都建在故事之上 */
-const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["planner", "writer"]);
+const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["plotter", "writer"]);
 
 /** propose 时从会话里剥掉的工具 */
 export const WRITE_TOOL_NAMES = ["write_doc", "edit_doc"] as const;
@@ -384,18 +384,18 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
 
   if (perms.canSpawn && ctx.spawn) {
     const spawn = ctx.spawn;
-    const roleList = ROLE_IDS.filter((r) => r !== "lead")
+    const roleList = ROLE_IDS.filter((r) => r !== "director")
       .map((r) => `${r}（${ROLES[r].label}：${ROLES[r].description}）`)
       .join("；");
     tools.push(
       defineTool({
         name: "spawn_agents",
         label: "派子 agent",
-        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 planner / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
+        description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
         parameters: Type.Object({
           tasks: Type.Array(
             Type.Object({
-              role: Type.Union(ROLE_IDS.filter((r) => r !== "lead").map((r) => Type.Literal(r))),
+              role: Type.Union(ROLE_IDS.filter((r) => r !== "director").map((r) => Type.Literal(r))),
               task: Type.String({ description: "任务书" }),
               mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "propose=只出候选不落盘；commit=可以落盘。默认 commit" })),
             }),
@@ -405,7 +405,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         execute: async (_id, params, signal, onUpdate) => {
           const tasks: SpawnTask[] = params.tasks.map((t) => {
             const role: unknown = t.role;
-            if (!isRoleId(role) || role === "lead") throw new Error(`不能派这个角色：${String(role)}`);
+            if (!isRoleId(role) || role === "director") throw new Error(`不能派这个角色：${String(role)}`);
             return { role, task: t.task, ...(t.mode ? { mode: t.mode } : {}) };
           });
           if (tasks.some((t) => STORY_GATED_ROLES.has(t.role)) && !(await hasOneLineStory(store))) {

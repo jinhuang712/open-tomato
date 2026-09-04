@@ -20,11 +20,11 @@ const LONG_CHAT = 40;
  * 按钮的名字、提示和发出去的话都随现状变：上次是不是被打断、项目走到哪个阶段、对话有多长。
  */
 export function QuickActions(props: { hasHistory: boolean }) {
-  const idle = () => state.agents.lead?.status !== "running";
+  const idle = () => state.agents.director?.status !== "running";
   const ready = () => !!state.models?.current;
   const plan = createMemo(() => stagePlan(state.docs));
-  const interrupted = () => !!state.interruptedAfter.lead;
-  const chatLen = () => state.transcripts.lead?.length ?? 0;
+  const interrupted = () => !!state.interruptedAfter.director;
+  const chatLen = () => state.transcripts.director?.length ?? 0;
 
   const quicks = createMemo<Quick[]>(() => {
     const p = plan();

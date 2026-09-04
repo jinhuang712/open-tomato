@@ -3,7 +3,7 @@ import { Gate, type GateSink } from "../src/agent/gate.js";
 import type { ApprovalDecision, ApprovalRequest, QuestionRequest } from "../src/protocol.js";
 
 const req: Omit<ApprovalRequest, "approvalId"> = {
-  agentId: "lead",
+  agentId: "director",
   toolCallId: "t1",
   kind: "world",
   docId: "sect",
@@ -80,7 +80,7 @@ describe("Gate 审批门", () => {
     const aLead = gate.requestApproval(req);
     const aChild = gate.requestApproval({ ...req, agentId: "child-1" });
     const qChild = gate.requestQuestion({ agentId: "child-1", text: "哪个？", options: [], allowFreeText: true });
-    const qLead = gate.requestQuestion({ agentId: "lead", text: "书名？", options: [], allowFreeText: true });
+    const qLead = gate.requestQuestion({ agentId: "director", text: "书名？", options: [], allowFreeText: true });
     expect(gate.pendingCount).toBe(4);
     gate.rejectAgent("child-1", "子 agent 挂了");
     await expect(aChild).rejects.toThrow("子 agent 挂了");
@@ -99,7 +99,7 @@ describe("Gate 审批门", () => {
   test("rejectAll 一次清掉所有审批和提问", async () => {
     const { gate, closed, questionsClosed } = setup();
     const a = gate.requestApproval(req);
-    const q = gate.requestQuestion({ agentId: "lead", text: "哪个？", options: ["甲", "乙"], allowFreeText: false });
+    const q = gate.requestQuestion({ agentId: "director", text: "哪个？", options: ["甲", "乙"], allowFreeText: false });
     gate.rejectAll("会话重建");
     await expect(a).rejects.toThrow("会话重建");
     await expect(q).rejects.toThrow("会话重建");
@@ -112,7 +112,7 @@ describe("Gate 审批门", () => {
 describe("Gate 提问门", () => {
   test("答案原样回给工具", async () => {
     const { gate, questions, questionsClosed } = setup();
-    const p = gate.requestQuestion({ agentId: "lead", text: "书名？", options: [], allowFreeText: true });
+    const p = gate.requestQuestion({ agentId: "director", text: "书名？", options: [], allowFreeText: true });
     const id = questions[0]!.questionId;
     expect(gate.resolveQuestion(id, "红尘")).toBe(true);
     expect(await p).toBe("红尘");

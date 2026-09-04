@@ -14,7 +14,7 @@ export function Chat(props: { agentId: string }) {
   let scroller: HTMLDivElement | undefined;
   const messages = () => state.transcripts[props.agentId] ?? [];
   const agent = () => state.agents[props.agentId];
-  const isLead = () => props.agentId === "lead";
+  const isLead = () => props.agentId === "director";
   // 子 agent 自己发起的待答 / 待审也可能挂在它的会话上，按 agentId 归属
   const question = () => state.questions.find((q) => q.agentId === props.agentId);
   const approval = () => state.approvals.find((a) => a.agentId === props.agentId);

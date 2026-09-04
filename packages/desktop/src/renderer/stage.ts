@@ -70,7 +70,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       stage: "设卡",
       line: `大纲起了个头（里程碑 / 卷纲 ${outlines} 处），还没排章纲。先把章纲排出来，卡不够顺手补。`,
       steps: [
-        { title: "继续排章纲", desc: "结构师接着把施工单排出来", kind: "capability", cap: "outline", primary: true },
+        { title: "继续排章纲", desc: "编剧接着把施工单排出来", kind: "capability", cap: "outline", primary: true },
         { title: "继续设卡", desc: "补人物 / 世界设定 / 线索", kind: "capability", cap: "design" },
         TALK,
       ],
@@ -84,7 +84,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       stage: "写正文",
       line: `章纲排到第 ${chapters} 章，正文写到第 ${written} 章。`,
       steps: [
-        { title: `写第 ${next} 章`, desc: "执笔按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", params: { chapter: String(next) }, primary: true },
+        { title: `写第 ${next} 章`, desc: "写手按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", params: { chapter: String(next) }, primary: true },
         ...review,
         { title: "继续排章纲", desc: "把后面几章的施工单排出来", kind: "capability", cap: "outline" },
         TALK,
@@ -100,7 +100,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
     line: `正文写到第 ${written} 章，章纲也排到这里了。`,
     steps: [
       ...review,
-      { title: "排下一批章纲", desc: "结构师接着往后排", kind: "capability", cap: "outline" },
+      { title: "排下一批章纲", desc: "编剧接着往后排", kind: "capability", cap: "outline" },
       TALK,
     ],
   };

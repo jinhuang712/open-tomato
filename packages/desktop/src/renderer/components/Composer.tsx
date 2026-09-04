@@ -94,8 +94,8 @@ export function Composer(props: { agentId?: string }) {
     text();
     if (box) autoGrow(box);
   });
-  const agentId = () => props.agentId ?? "lead";
-  const isLead = () => agentId() === "lead";
+  const agentId = () => props.agentId ?? "director";
+  const isLead = () => agentId() === "director";
   const agent = () => state.agents[agentId()];
   const busy = () => agent()?.status === "running";
   const gone = () => !isLead() && agent()?.status === "error";

@@ -78,7 +78,7 @@ export interface CheckIssue {
   id: string | null;
   path: string | null;
   message: string;
-  /** 一句能直接发给 lead 的修补请求；界面预填进输入框，作者确认后再发。没有就只展示，不给按钮 */
+  /** 一句能直接发给主编的修补请求；界面预填进输入框，作者确认后再发。没有就只展示，不给按钮 */
   fix?: string;
 }
 
@@ -147,14 +147,14 @@ export interface CloudCheck {
 // ───────────────────────── 角色 / 能力 ─────────────────────────
 
 export type RoleId =
-  | "lead"
-  | "architect"
-  | "planner"
+  | "director"
+  | "designer"
+  | "plotter"
   | "writer"
-  | "critic_market"
-  | "critic_reader"
-  | "critic_voice"
-  | "continuity"
+  | "ops"
+  | "reader"
+  | "copyeditor"
+  | "proofreader"
   | "arbiter";
 
 export interface RoleInfo {

@@ -17,14 +17,14 @@ export function AgentStrip() {
   });
   const active = () => (state.view.type === "chat" ? state.view.agentId : null);
   const statusOf = (a: AgentInfo) => (a.status === "running" && a.statusText) || STATUS[a.status];
-  const inChild = () => active() !== null && active() !== "lead";
+  const inChild = () => active() !== null && active() !== "director";
 
   return (
     <Show when={agents().length > 1 || inChild()}>
       <div class="relative shrink-0 border-b border-line text-xs text-ink-2">
       {/* 「回到主编」放在列外的左沿，不挤占主编在名单里的位置 */}
       <Show when={inChild()}>
-        <button class="absolute left-5 top-0 h-9 flex items-center text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
+        <button class="absolute left-5 top-0 h-9 flex items-center text-ink-2 hover:text-ink" onClick={() => actions.openChat("director")}>
           ← 回到主编
         </button>
       </Show>

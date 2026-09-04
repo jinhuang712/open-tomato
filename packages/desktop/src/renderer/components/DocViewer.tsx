@@ -18,7 +18,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
   /** 机检给的修补请求：切到对话、预填进输入框，发不发由作者定 */
   const fixInChat = (text: string) => {
-    actions.openChat("lead");
+    actions.openChat("director");
     setState("composerDraft", text);
   };
   /**
@@ -82,7 +82,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   return (
     <div class="flex flex-col h-full min-w-0">
       <div class="flex items-center gap-2 px-5 py-2 border-b border-line bg-paper-2 text-xs">
-        <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("lead")}>
+        <button class="text-ink-2 hover:text-ink" onClick={() => actions.openChat("director")}>
           ← 对话
         </button>
         <span class="text-ink-3">|</span>

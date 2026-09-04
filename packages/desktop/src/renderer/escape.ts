@@ -42,8 +42,8 @@ export function escapeOneLevel(): boolean {
   // 2. 二级视图：文档、子 agent 会话，都回主编的主会话
   if (!state.project) return false;
   const v = state.view;
-  if (v.type === "doc" || (v.type === "chat" && v.agentId !== "lead")) {
-    actions.openChat("lead");
+  if (v.type === "doc" || (v.type === "chat" && v.agentId !== "director")) {
+    actions.openChat("director");
     return true;
   }
   return false;
