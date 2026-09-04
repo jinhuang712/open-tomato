@@ -49,6 +49,8 @@ export interface ToolContext {
   continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
+  /** 返回非空字符串表示现在还不能 ask_user（子 agent 结论刚回来、还没对作者解释），字符串是给模型看的原因 */
+  askBlocked?: () => string | null;
 }
 
 export interface ToolPermissions {
@@ -481,7 +483,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         name: "ask_user",
         label: "问作者",
         description:
-          "向作者提一个问题，等作者在界面上回答。**每次都要给 options**：封闭问题给明确选项；开放问题（书名、故事、人名这类）给 2–4 个你替作者想好的具体候选，作者点一下就能选，也能自由输入。候选是一大段文字（比如同一段的两种写法、两版人物小传）时，用 {label, text} 形式：label 是短名字（「主角是 A」「留白版」），text 是完整正文，界面会把它们并排铺开给作者对比；候选来自子 agent 的就照它写的全文交出去，不缩写，作者只看得到这里的字。界面会按候选形态自动补逃生口（换一批 / 混搭 / 你替我定 / 先放一放），你不用重复给。",
+          "向作者提一个问题，等作者在界面上回答。**每次都要给 options**：封闭问题给明确选项；开放问题（书名、故事、人名这类）给 2–4 个你替作者想好的具体候选，作者点一下就能选，也能自由输入。候选是一大段文字（比如同一段的两种写法、两版人物小传）时，用 {label, text} 形式：label 是短名字（「主角是 A」「留白版」），text 是完整正文，界面会把它们并排铺开给作者对比。选项卡不替代解释：子 agent 刚交回的东西先在正文里对作者讲清，再问。界面会按候选形态自动补逃生口（换一批 / 混搭 / 你替我定 / 先放一放），你不用重复给。",
         parameters: Type.Object({
           question: Type.String(),
           options: Type.Optional(
@@ -500,6 +502,8 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         }),
         prepareArguments: repairAskArgs,
         execute: async (_id, params, signal) => {
+          const blocked = ctx.askBlocked?.();
+          if (blocked) throw new Error(blocked);
           const answer = await ctx.gate.requestQuestion(
             {
               agentId: ctx.agentId,

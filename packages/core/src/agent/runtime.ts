@@ -69,6 +69,16 @@ const PAUSE_PROMPT_LEAD = `【作者按了「暂停」】
 2. 然后用 ask_user 问作者想怎么调整，选项固定给这三个并允许自由输入：「我有新的想法」「对之前的内容不满意」「换个方向」
 3. 拿到回答后按回答处理；作者说继续就接着做`;
 
+/** 主编拿到子 agent 结论后一个字没说就 ask_user：作者看不到子 agent 的原话，等于用选项卡代替解释。打回去让它先讲 */
+export const EXPLAIN_FIRST_MESSAGE =
+  "【先解释再问】子 agent 的结论刚回来，作者还一个字没看到。先用正文对作者讲清：回来了什么、几个候选各是什么路子、差在哪、各自的代价；讲完再 ask_user 让作者选。选项卡不是解释。";
+
+/** 主编这一刻能不能 ask_user：子 agent 结论回来后还没对作者说过一句正文，就不能 */
+export function askBlockReason(live: Pick<LiveAgent, "info" | "unexplained">): string | null {
+  if (live.info.agentId !== LEAD_ID) return null;
+  return live.unexplained ? EXPLAIN_FIRST_MESSAGE : null;
+}
+
 /** 主编没问作者就停了：不是在等拍板，就是漏了 ask_user。补一句让它自己判断 */
 const NUDGE_PROMPT = "【你停下了，但没有问作者。要作者回答的用 ask_user 问出去；没有要问的就接着做下一件】";
 
@@ -112,6 +122,8 @@ interface LiveAgent {
   asked: boolean;
   /** 这轮是补过的：主编没问就停时内核补一句让它接着干，一次作者发言只补一次，别循环 */
   nudged: boolean;
+  /** 子 agent 的结论回来了、主编还没对作者说过一句正文：这时 ask_user 会被打回，先解释 */
+  unexplained: boolean;
 }
 
 interface InboxEntry {
@@ -610,6 +622,10 @@ export class Kernel {
       if (!live || live.mode === "commit") return null;
       return "这一轮是候选阶段（propose），不能落盘。把候选写在回复里交给主编，作者拍板后主编会让你接着落盘。";
     };
+    ctx.askBlocked = () => {
+      const live = this.agents.get(agentId);
+      return live ? askBlockReason(live) : null;
+    };
     return ctx;
   }
 
@@ -638,7 +654,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, unexplained: false };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -901,6 +917,12 @@ export class Kernel {
   }
 
   /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
+  /** 给作者看的正文出去了：子 agent 结论就算解释过了 */
+  private sendText(live: LiveAgent, messageId: string, delta: string) {
+    if (delta.trim()) live.unexplained = false;
+    this.send(live, { type: "text_delta", messageId, delta });
+  }
+
   private forwardText(live: LiveAgent, messageId: string, delta: string) {
     if (live.headBuffer === null) {
       if (live.skipBlank) {
@@ -908,7 +930,7 @@ export class Kernel {
         live.skipBlank = false;
         delta = delta.replace(/^\s+/, "");
       }
-      this.send(live, { type: "text_delta", messageId, delta });
+      this.sendText(live, messageId, delta);
       return;
     }
     live.headBuffer += delta;
@@ -919,7 +941,7 @@ export class Kernel {
     live.headBuffer = null;
     live.skipBlank = Boolean(status) && !rest;
     if (status) this.send(live, { type: "status_text", text: status.text });
-    if (rest) this.send(live, { type: "text_delta", messageId, delta: rest });
+    if (rest) this.sendText(live, messageId, rest);
   }
 
   private forward(live: LiveAgent, event: SessionEvent) {
@@ -975,7 +997,7 @@ export class Kernel {
         if (live.headBuffer) {
           const status = takeStatusLine(live.headBuffer);
           if (status) this.send(live, { type: "status_text", text: status.text });
-          else this.send(live, { type: "text_delta", messageId: msg.id, delta: live.headBuffer });
+          else this.sendText(live, msg.id, live.headBuffer);
         }
         live.headBuffer = null;
         live.skipBlank = false;
@@ -1006,6 +1028,7 @@ export class Kernel {
         });
         return;
       case "tool_execution_end":
+        if ((ev.toolName === "spawn_agents" || ev.toolName === "continue_agent") && !ev.isError) live.unexplained = true;
         this.send(live, {
           type: "tool_end",
           toolCallId: String(ev.toolCallId),
