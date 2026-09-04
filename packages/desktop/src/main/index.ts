@@ -125,6 +125,14 @@ ipcMain.handle("clipboard:writeText", (_e, text: string) => clipboard.writeText(
 
 ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
 
+ipcMain.handle("shell:trashProject", async (_e, root: string) => {
+  const name = root.split("/").filter(Boolean).pop() ?? root;
+  const ok = await confirmAction(mainWindow, `删除项目「${name}」？`, `整个文件夹会移到废纸篓，可从废纸篓找回。\n${root}`, "移到废纸篓");
+  if (!ok) return false;
+  await shell.trashItem(root);
+  return true;
+});
+
 ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { defaultName: string; content: string }) => {
   if (!mainWindow) return null;
   const r = await dialog.showSaveDialog(mainWindow, {

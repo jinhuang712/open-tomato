@@ -338,6 +338,15 @@ export const actions = {
   async closeProject() {
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
+  /** 先弹确认，再把文件夹移到废纸篓并从最近列表摘掉 */
+  async deleteProject(root: string) {
+    try {
+      if (!(await bridge.trashProject(root))) return;
+      await actions.forgetProject(root);
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   async forgetProject(root: string) {
     try {
       await bridge.request("project.forget", { root });

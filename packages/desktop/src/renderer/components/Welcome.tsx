@@ -31,13 +31,22 @@ export function Welcome() {
                     <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
                     <span class="text-ink-3 text-xs truncate">{r}</span>
                   </button>
-                  <button
-                    class="mr-2 px-2 py-1 rounded text-xs text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink hover:bg-paper"
-                    title="从最近列表移除（不删文件）"
-                    onClick={() => void actions.forgetProject(r)}
-                  >
-                    移除
-                  </button>
+                  <div class="mr-2 flex gap-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      class="px-2 py-1 rounded text-xs text-ink-3 hover:text-ink hover:bg-paper"
+                      title="从最近列表移除（不删文件）"
+                      onClick={() => void actions.forgetProject(r)}
+                    >
+                      移除
+                    </button>
+                    <button
+                      class="px-2 py-1 rounded text-xs text-ink-3 hover:text-danger hover:bg-danger-soft"
+                      title="把项目文件夹移到废纸篓"
+                      onClick={() => void actions.deleteProject(r)}
+                    >
+                      删除…
+                    </button>
+                  </div>
                 </div>
               )}
             </For>
