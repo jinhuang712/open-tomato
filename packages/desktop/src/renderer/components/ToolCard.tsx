@@ -126,19 +126,25 @@ function rejectReason(output: string): string {
   return m?.[1]?.trim() ?? "";
 }
 
-/** 写文档：路径 + 落盘结果，diff 已经在审批时看过，这里不重复 */
+/** 写文档：路径 + 落盘结果，diff 已经在审批时看过，这里不重复。
+ * 失败（非拒因的 error：stale、参数错、审批被 abort……）必须写成「失败」并露出原因，
+ * 不能掉进默认分支报「已写入」。 */
 function WriteCard(props: { part: ToolPart }) {
   const a = () => args(props.part);
   const running = () => props.part.status === "running";
   const rejected = () => props.part.output.startsWith("用户拒绝");
+  const failed = () => !running() && !rejected() && props.part.status === "error";
   const reason = () => rejectReason(props.part.output);
   return (
     <div class={`my-1 h-7 flex items-center gap-2 text-xs ${running() ? "px-3 rounded-md bg-warn-soft text-warn" : "text-ink-3"}`}>
-      <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
-      <span class={`shrink-0 ${running() ? "font-medium" : "text-ink-2"}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
+      <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || failed() ? "bg-danger" : "bg-ok"}`} />
+      <span class={`shrink-0 ${running() ? "font-medium" : "text-ink-2"}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : failed() ? "失败" : "已写入"}</span>
       <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs shrink-0" />
       <Show when={rejected() && reason()}>
         <span class="text-ink-3 truncate selectable">拒因：{reason()}</span>
+      </Show>
+      <Show when={failed()}>
+        <span class="text-danger truncate selectable" title={props.part.output}>{props.part.output}</span>
       </Show>
     </div>
   );
