@@ -6,15 +6,16 @@ describe("评审手册", () => {
     expect(ROLES.copyeditor.systemPrompt).toContain(reviewGuide("文编"));
     expect(ROLES.ops.systemPrompt).toContain(reviewGuide("运营"));
     expect(ROLES.proofreader.systemPrompt).toContain(reviewGuide("校对"));
-    expect(ROLES.reader.systemPrompt).not.toContain("## 定级");
+    expect(ROLES.reader.systemPrompt).not.toMatch(/^1\. \*\*.+\*\*：/m);
   });
 
-  test("手册只有现象条目，不带文摘、不带阈值判词", () => {
+  test("手册是编号职责清单，一条一个职责，不带文摘", () => {
     for (const name of ["文编", "运营", "校对"] as const) {
       const g = reviewGuide(name);
       expect(g).not.toContain("✗");
       expect(g).not.toContain("✓");
-      expect(g).toContain("## 定级");
+      expect(g).toMatch(/^1\. \*\*.+\*\*：/m);
+      expect(g).toContain("记 must");
     }
   });
 
