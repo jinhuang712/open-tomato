@@ -14,21 +14,15 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const [rejecting, setRejecting] = createSignal(false);
   const agent = () => state.agents[props.request.agentId];
   const close = () => setState("reviewOpen", null);
-  /** 审完一条直接切到下一条待审，不让作者再点一次；没有下一条才关 */
-  const next = () => {
-    const other = state.approvals.find((a) => a.approvalId !== props.request.approvalId);
-    setState("reviewOpen", other?.approvalId ?? null);
-  };
-  const approve = () => {
-    void actions.approve(props.request.approvalId);
-    next();
-  };
+  /** 批/拒只发动作，切到下一条由 approval.resolved 事件推进：
+   * 乐观读过期列表会跳回已决项（连审三条以上时甚至把弹窗关掉、剩下没审的）。
+   * 事件是 gate 里同步发出的，弹窗只多留一瞬，且动作失败时正好停在原项可重试。 */
+  const approve = () => void actions.approve(props.request.approvalId);
   /** 原因必填：没有原因 agent 只能瞎猜，白耗一轮 */
   const canReject = () => reason().trim() !== "";
   const reject = () => {
     if (!canReject()) return;
     void actions.reject(props.request.approvalId, reason().trim());
-    next();
   };
   const QUICK_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
   const remaining = () => state.approvals.length - 1;

@@ -232,10 +232,13 @@ export function applyEvent(ev: KernelEvent) {
       // 没在审别的就直接弹出来
       if (!state.reviewOpen) setState("reviewOpen", ev.request.approvalId);
       return;
-    case "approval.resolved":
-      setState("approvals", (a) => a.filter((x) => x.approvalId !== ev.approvalId));
-      if (state.reviewOpen === ev.approvalId) setState("reviewOpen", null);
+    case "approval.resolved": {
+      const rest = state.approvals.filter((x) => x.approvalId !== ev.approvalId);
+      setState("approvals", rest);
+      // 刚决掉的就是正在看的：有下一条就接着审，没有才关；手动关掉的不碰
+      if (state.reviewOpen === ev.approvalId) setState("reviewOpen", rest[0]?.approvalId ?? null);
       return;
+    }
     case "question.requested":
       setState("questions", (q) => [...q, ev.request]);
       return;
