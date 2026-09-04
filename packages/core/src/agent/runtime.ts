@@ -94,6 +94,8 @@ interface LiveAgent {
   streamingMessageId: string | null;
   /** 消息开头暂存的文本，用来截状态行；null 表示状态行已处理完 */
   headBuffer: string | null;
+  /** 状态行摘完后正文还没开始：后续先到的空白 delta 直接吞掉，不然会渲染成空段落撑开行距 */
+  skipBlank: boolean;
   /** propose 时落盘工具被挡住；主编续派时可以切到 commit */
   mode: SpawnMode;
   /** 这个角色的全部工具名；propose 时用它算出剥掉写工具后的列表，commit 时恢复 */
@@ -618,7 +620,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -870,6 +872,11 @@ export class Kernel {
   /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
   private forwardText(live: LiveAgent, messageId: string, delta: string) {
     if (live.headBuffer === null) {
+      if (live.skipBlank) {
+        if (!delta.trim()) return;
+        live.skipBlank = false;
+        delta = delta.replace(/^\s+/, "");
+      }
       this.send(live, { type: "text_delta", messageId, delta });
       return;
     }
@@ -879,6 +886,7 @@ export class Kernel {
     const status = takeStatusLine(live.headBuffer);
     const rest = status ? status.rest : live.headBuffer;
     live.headBuffer = null;
+    live.skipBlank = Boolean(status) && !rest;
     if (status) this.send(live, { type: "status_text", text: status.text });
     if (rest) this.send(live, { type: "text_delta", messageId, delta: rest });
   }
@@ -917,6 +925,7 @@ export class Kernel {
         // user / assistant 都是一对 start / end，用同一个 id 才能在 UI 里合并成一条
         live.streamingMessageId = msg.id;
         live.headBuffer = msg.role === "assistant" ? "" : null;
+        live.skipBlank = false;
         this.send(live, { type: "message_start", message: msg });
         return;
       }
@@ -938,6 +947,7 @@ export class Kernel {
           else this.send(live, { type: "text_delta", messageId: msg.id, delta: live.headBuffer });
         }
         live.headBuffer = null;
+        live.skipBlank = false;
         live.streamingMessageId = null;
         this.send(live, { type: "message_end", message: msg });
         const raw = ev.message as RawMessage;
@@ -996,7 +1006,8 @@ interface RawMessage {
 export function takeStatusLine(text: string): { text: string; rest: string } | null {
   const m = STATUS_LINE_PATTERN.exec(text);
   if (!m) return null;
-  return { text: m[1]!.trim(), rest: text.slice(m[0].length).replace(/^\r?\n/, "") };
+  // 状态行和正文之间的空行全吞掉：留一个 "\n" 进消息体，marked 开着 breaks 会渲染成一段空白
+  return { text: m[1]!.trim(), rest: text.slice(m[0].length).replace(/^(?:[ \t]*\r?\n)+/, "") };
 }
 
 /** 工具参数可能是对象，也可能是还没解析的 JSON 字符串（部分 provider / 截断的流） */
@@ -1041,9 +1052,11 @@ function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
               break;
             }
           }
-          // assistant 正文开头的状态行不进消息体，它走 status_text
-          const text = m.role === "assistant" && parts.length === 0 ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
-          if (text) parts.push({ type: "text", text });
+          // assistant 第一段正文开头的状态行不进消息体，它走 status_text。
+          // 开着思考时 thinking 排在 text 前面，所以按「第一个 text」判断，不能按 parts 是否为空
+          const firstText = !parts.some((p) => p.type === "text");
+          const text = m.role === "assistant" && firstText ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
+          if (text.trim()) parts.push({ type: "text", text });
           break;
         }
         case "thinking":

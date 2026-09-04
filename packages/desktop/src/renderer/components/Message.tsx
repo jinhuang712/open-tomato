@@ -44,7 +44,8 @@ function UserText(props: { text: string }) {
 /** 思考过程不展示，只靠状态行告诉作者在干什么 */
 export function Message(props: { message: UiMessage }) {
   const isUser = () => props.message.role === "user";
-  const visible = () => props.message.parts.filter((p) => p.type !== "thinking");
+  // 只剩空白的正文（状态行摘完留下的换行）也不渲染，不然是一段空白撑开行距
+  const visible = () => props.message.parts.filter((p) => p.type !== "thinking" && !(p.type === "text" && !p.text.trim()));
   const stub = () => {
     const p = props.message.parts.find((x) => x.type === "stub");
     return p && p.type === "stub" ? p.label : null;

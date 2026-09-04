@@ -8,6 +8,12 @@ describe("takeStatusLine", () => {
     expect(r?.rest).toBe("先看盘面。");
   });
 
+  test("状态行后多个空行全部吞掉", () => {
+    const r = takeStatusLine("» 正在核对简介缺项\n\n\n先看盘面。");
+    expect(r?.rest).toBe("先看盘面。");
+    expect(takeStatusLine("» 正在核对简介缺项\n\n")?.rest).toBe("");
+  });
+
   test("只有状态行没有正文", () => {
     const r = takeStatusLine("» 正在产出方案");
     expect(r?.text).toBe("正在产出方案");
@@ -27,5 +33,21 @@ describe("normalizeHistory 去状态行", () => {
       { role: "assistant", content: [{ type: "text", text: "» 正在理清思路\n\n你好，先看盘面。" }] },
     ]);
     expect(msgs[1]?.parts).toEqual([{ type: "text", text: "你好，先看盘面。" }]);
+  });
+
+  test("thinking 排在前面时状态行照样剥掉，只剩空白的正文不进消息体", () => {
+    const msgs = normalizeHistory([
+      { role: "user", content: "你好" },
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "想一想" },
+          { type: "text", text: "» 正在核对简介缺项\n\n" },
+          { type: "toolCall", id: "t1", name: "read_doc", arguments: { kind: "brief", id: "brief" } },
+        ],
+      },
+    ]);
+    const types = msgs[1]?.parts.map((p) => p.type);
+    expect(types).toEqual(["thinking", "tool"]);
   });
 });
