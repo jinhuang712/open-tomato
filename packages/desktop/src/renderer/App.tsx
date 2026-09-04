@@ -72,11 +72,13 @@ export function App() {
       }
     });
     // 渲染层刷新过（HMR / 重新载入）时内核里可能还挂着项目和正在跑的 agent，
-    // 先让它全部停下回到空白，和眼前的界面对齐；内核 ready 后这个请求才会被处理
+    // 先让它全部停下回到空白，和眼前的界面对齐；内核 ready 后这个请求才会被处理。
+    // kernel.ready 事件可能在监听装上之前就发过了，所以这条路也要把云端状态问一遍。
     void bridge
       .request("kernel.reset", {})
       .then(() => bridge.request("models.list", {}))
       .then((m) => setState({ models: m, ready: true }))
+      .then(() => actions.refreshCloud())
       .catch(() => {});
     void bridge
       .request("capabilities.list", {})
