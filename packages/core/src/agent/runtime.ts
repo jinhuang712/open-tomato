@@ -780,6 +780,11 @@ export class Kernel {
     return { text: texts.join("\n\n"), details: roster.snapshot() };
   }
 
+  /**
+   * 派一个子 agent 并等它这一轮跑完。任何一步失败都不往外抛：
+   * spawn 是 Promise.all，一个抛出会让主编只看到错误、同批其他人的结论被丢掉，
+   * 而已经 register 的 live 会永远停在 running（界面上就是「在跑」却没有输出的幽灵）。
+   */
   private async runChild(
     parentId: string,
     task: SpawnTask,
@@ -787,23 +792,31 @@ export class Kernel {
     roster: ReturnType<Kernel["roster"]>,
     signal?: AbortSignal,
   ): Promise<string> {
-    const store = this.requireStore();
     const def = ROLES[task.role];
     const agentId = randomUUID();
-    // 子 agent 会话和主编一样落在项目里：作者可能在候选悬着时关掉应用去休息，重开后主编还能续派它
-    const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
-    const live = this.register(
-      { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
-      session,
-      tools,
-    );
-    const mode = task.mode ?? "commit";
-    this.setMode(live, mode);
-    await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
     const slot: DispatchSlot = { agentId, role: task.role, label: def.label, task: task.task, status: "running", error: null };
     slots.push(slot);
-    const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
-    return this.promptChild(live, prefix + task.task, slot, roster, signal);
+    let live: LiveAgent | null = null;
+    try {
+      const store = this.requireStore();
+      // 子 agent 会话和主编一样落在项目里：作者可能在候选悬着时关掉应用去休息，重开后主编还能续派它
+      const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
+      live = this.register(
+        { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
+        session,
+        tools,
+      );
+      const mode = task.mode ?? "commit";
+      this.setMode(live, mode);
+      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
+      const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
+      return await this.promptChild(live, prefix + task.task, slot, roster, signal);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (live) this.setStatus(live, "error", msg);
+      roster.touch(slot, "error", msg);
+      return `## ${def.label}（${task.role}，id=${agentId}）\n\n派单失败：${msg}`;
+    }
   }
 
   private async continueChild(
