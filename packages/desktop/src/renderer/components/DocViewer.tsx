@@ -179,19 +179,28 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
               when={editing()}
               fallback={
                 <div class="max-w-3xl mx-auto px-8 py-6">
-                  <h1 class="font-serif text-xl mb-1">{d().title}</h1>
-                  <div class="text-ink-2 mb-1">{d().summary}</div>
-                  <div class="flex flex-wrap gap-1.5 mb-5 text-xs">
-                    <span class="px-1.5 rounded bg-paper-3 text-ink-2">{d().status}</span>
-                    <For each={d().keywords}>{(k) => <span class="px-1.5 rounded bg-paper-3 text-ink-2">{k}</span>}</For>
-                    <For each={Object.entries(d().extra)}>
-                      {([k, v]) => (
-                        <span class="px-1.5 rounded bg-paper-2 text-ink-3">
-                          {k}={typeof v === "string" ? v : JSON.stringify(v)}
-                        </span>
-                      )}
-                    </For>
-                  </div>
+                  <Show
+                    when={props.kind === "rules"}
+                    fallback={
+                      <>
+                        <h1 class="font-serif text-xl mb-1">{d().title}</h1>
+                        <div class="text-ink-2 mb-1">{d().summary}</div>
+                        <div class="flex flex-wrap gap-1.5 mb-5 text-xs">
+                          <span class="px-1.5 rounded bg-paper-3 text-ink-2">{d().status}</span>
+                          <For each={d().keywords}>{(k) => <span class="px-1.5 rounded bg-paper-3 text-ink-2">{k}</span>}</For>
+                          <For each={Object.entries(d().extra)}>
+                            {([k, v]) => (
+                              <span class="px-1.5 rounded bg-paper-2 text-ink-3">
+                                {k}={typeof v === "string" ? v : JSON.stringify(v)}
+                              </span>
+                            )}
+                          </For>
+                        </div>
+                      </>
+                    }
+                  >
+                    <RuleHeader doc={d()} />
+                  </Show>
                   <Show when={notes().length > 0}>
                     <div class="mb-4 flex flex-col gap-1 text-sm">
                       <For each={notes()}>
@@ -210,6 +219,9 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                     class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`}
                     innerHTML={renderMarkdown(d().body)}
                   />
+                  <Show when={props.kind === "rules" && !d().body.trim()}>
+                    <p class="text-sm text-ink-3">还没写「展开」：这条规则管到哪、不管哪、哪些情形容易误伤。跟主编聊一句就会补上。</p>
+                  </Show>
                   <Show when={backlinks().length > 0}>
                     <div class="mt-8 pt-4 border-t border-line text-sm space-y-4">
                       <For each={backlinks()}>
@@ -249,6 +261,44 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
           )}
         </Show>
       </div>
+    </div>
+  );
+}
+
+/** 守则头部：短标题、规则原句、级别 / 范围、作者原话。extra 字段各有位置，不再按 k=v 平铺 */
+function RuleHeader(props: { doc: DocContent }) {
+  const str = (k: string) => {
+    const v = props.doc.extra[k];
+    return typeof v === "string" && v.trim() ? v : "";
+  };
+  const must = () => str("level") === "必须";
+  const others = () =>
+    Object.entries(props.doc.extra).filter(([k, v]) => !["level", "scope", "source"].includes(k) && typeof v === "string" && v);
+  return (
+    <div class="mb-6">
+      <h1 class="font-serif text-2xl mb-3">{props.doc.title}</h1>
+      <Show when={props.doc.summary && props.doc.summary !== props.doc.title}>
+        <p class="text-lg leading-8 mb-3">{props.doc.summary}</p>
+      </Show>
+      <div class="flex flex-wrap items-center gap-1.5 text-xs">
+        <Show when={str("level")}>
+          <span class={`px-1.5 py-0.5 rounded ${must() ? "bg-accent-soft text-accent font-medium" : "bg-paper-3 text-ink-2"}`}>{str("level")}</span>
+        </Show>
+        <Show when={str("scope")}>
+          <span class="px-1.5 py-0.5 rounded bg-paper-3 text-ink-2">管 {str("scope")}</span>
+        </Show>
+        <Show when={props.doc.status !== "draft"}>
+          <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{props.doc.status}</span>
+        </Show>
+        <For each={props.doc.keywords}>{(k) => <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{k}</span>}</For>
+        <For each={others()}>{([k, v]) => <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{k}={String(v)}</span>}</For>
+      </div>
+      <Show when={str("source")}>
+        <blockquote class="mt-4 pl-3 border-l-2 border-line-2 text-sm text-ink-2 leading-6">
+          <span class="text-ink-3 mr-1">作者原话</span>
+          {str("source")}
+        </blockquote>
+      </Show>
     </div>
   );
 }
