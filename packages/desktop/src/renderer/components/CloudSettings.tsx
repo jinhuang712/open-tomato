@@ -88,7 +88,7 @@ export function CloudSettings() {
           </Show>
           <Show when={phase() === "idle" && configured()}>
             <CloudIcon class="text-ok shrink-0" />
-            <span class="text-ink-2 truncate" title={state.cloud?.url}>
+            <span class="text-ink-2 truncate" title={state.cloud?.url ?? undefined}>
               已连接 · {state.cloud?.url?.replace(/^https?:\/\//, "")}
             </span>
           </Show>
