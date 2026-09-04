@@ -31,6 +31,24 @@ afterEach(async () => {
 
 const statuses = () => events.filter((e) => e.type === "agent.status") as Array<{ type: "agent.status"; agentId: string; status: string; error: string | null }>;
 
+describe("作者手改落批", () => {
+  test("doc.write 内容有变就落一条 edit 批，带 patch 与前后 hash", async () => {
+    const before = "---\ntitle: 林尧\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n\n铁匠。\n";
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw: before });
+    const after = before.replace("铁匠。", "铁匠，左手缺一指。");
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw: after, expectBefore: before });
+    // 内容没变的保存不落批
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw: after });
+
+    const store = (kernel as any).requireStore();
+    const marks = await store.records.marks("characters", "林尧");
+    expect(marks.map((m: { type: string }) => m.type)).toEqual(["edit", "edit"]);
+    expect(marks[1].by).toBe("author");
+    expect(marks[1].before).not.toBe(marks[1].version);
+    expect(marks[1].patch).toContain("+铁匠，左手缺一指。");
+  });
+});
+
 describe("dispose 不留幽灵状态", () => {
   test("退场的子 agent 收到 done，之后它的滞后更新被吞掉", async () => {
     const k = kernel as any;

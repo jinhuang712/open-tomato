@@ -28,6 +28,7 @@ import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfi
 import { CloudSync } from "../cloud/sync.js";
 import { runCheck } from "../project/check.js";
 import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
+import { contentHash } from "../project/records.js";
 import { SearchIndex } from "../project/search.js";
 import { buildStorySeed, storySeedFilename } from "../project/seed.js";
 import { migrateLegacySessions, ProjectStore } from "../project/store.js";
@@ -193,7 +194,22 @@ export class Kernel {
       },
       "doc.read": async ({ kind, id }) => this.requireStore().read(kindOf(kind), id),
       "doc.write": async ({ kind, id, raw, expectBefore }) => {
-        const header = await this.requireStore().write(kindOf(kind), id, raw, expectBefore === undefined ? {} : { expectBefore });
+        // 作者在阅读界面手改：不走审批门，但改动是全系统最高信号的一条批，patch 随批落盘
+        const store = this.requireStore();
+        const k = kindOf(kind);
+        const preview = await store.previewWrite(k, id, raw);
+        const header = await store.write(k, preview.id, preview.after, expectBefore === undefined ? {} : { expectBefore });
+        if (preview.before !== preview.after) {
+          await store.records.appendMark({
+            kind: k,
+            id: preview.id,
+            type: "edit",
+            by: "author",
+            before: contentHash(preview.before),
+            version: contentHash(preview.after),
+            patch: preview.patch,
+          });
+        }
         await this.emitDocsChanged();
         return header;
       },
