@@ -2,6 +2,7 @@ import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
 import type { DocContent, DocHeader, DocKindId } from "@opentomato/core/protocol";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { bridge } from "../bridge";
+import { refId } from "../refid";
 import { renderMarkdown } from "../markdown";
 import { actions, errText, setState, state, toast } from "../state";
 
@@ -25,7 +26,6 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
    * 反查：谁的 frontmatter 引用了这篇。只读现有五条引用边，不新增字段：
    * 章纲 characters / threads / volume，里程碑 threads，卷纲 milestones。引用写的是名字，跟 id 一样按 slug 规则对齐。
    */
-  const slug = (v: string) => v.trim().toLowerCase().replace(/\.md$/, "").replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/^-+|-+$/g, "");
   const sortKey = (d: DocHeader) => {
     const n = Number(d.kind === "milestones" ? d.extra.order : d.id);
     return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
@@ -38,8 +38,8 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     { from: "chapters", field: "volume", to: "volumes", label: "本卷的章" },
   ];
   const backlinks = () => {
-    const me = slug(props.id);
-    const hits = (v: unknown) => (Array.isArray(v) ? v : [v]).some((t) => typeof t === "string" && slug(t) === me);
+    const me = refId(props.id);
+    const hits = (v: unknown) => (Array.isArray(v) ? v : [v]).some((t) => typeof t === "string" && refId(t) === me);
     return REFS.filter((r) => r.to === props.kind)
       .map((r) => ({ label: r.label, docs: state.docs.filter((d) => d.kind === r.from && hits(d.extra[r.field])).sort((a, b) => sortKey(a) - sortKey(b)) }))
       .filter((g) => g.docs.length > 0);

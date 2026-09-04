@@ -1,4 +1,5 @@
 import type { CapabilityId, DocHeader } from "@opentomato/core/protocol";
+import { refId } from "./refid";
 
 /** 下一步的一个候选：要么跑一条能力，要么往输入框预填一句话 */
 export type StageStep =
@@ -19,6 +20,34 @@ const ADOPT: StageStep = {
   kind: "say",
   text: "我有一些现成的材料，先贴给你，帮我整理进对应的卡片，不确定的先问我：\n\n",
 };
+
+/** 卷纲 chapters 字段「1-30」「5」这类写法解析成闭区间 */
+export function chapterRange(v: unknown): [number, number] | null {
+  if (typeof v !== "string" && typeof v !== "number") return null;
+  const m = String(v).match(/(\d+)\s*(?:[-–~至到]\s*(\d+))?/);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = m[2] === undefined ? a : Number(m[2]);
+  return a > 0 && b >= a ? [a, b] : null;
+}
+
+/**
+ * 里程碑达成靠推导不落盘：一卷 chapters 范围内的正文都写完了，这卷 milestones 里的里程碑就算过了。
+ * 顺带算出「刚写完最后一章」的那卷，给卷末盘点当候选。
+ */
+export function milestoneProgress(docs: DocHeader[], written: number): { total: number; achieved: number; justFinished: DocHeader | null } {
+  const milestones = docs.filter((d) => d.kind === "milestones");
+  const achieved = new Set<string>();
+  let justFinished: DocHeader | null = null;
+  for (const v of docs.filter((d) => d.kind === "volumes")) {
+    const range = chapterRange(v.extra.chapters);
+    if (!range || written < range[1]) continue;
+    if (written === range[1]) justFinished = v;
+    const refs = Array.isArray(v.extra.milestones) ? v.extra.milestones : [];
+    for (const r of refs) if (typeof r === "string") achieved.add(refId(r));
+  }
+  return { total: milestones.length, achieved: milestones.filter((m) => achieved.has(m.id)).length, justFinished };
+}
 
 /**
  * 按项目现状判断处在哪个阶段，把下一步做成候选。
@@ -76,15 +105,31 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       ],
     };
   }
+  const progress = milestoneProgress(docs, written);
+  const progressLine = progress.total > 0 ? `全书 ${progress.total} 个里程碑过了 ${progress.achieved} 个。` : "";
+  // 一卷刚写完最后一章：先盘点回写线索，再往下排。盘点是这一刻的第一候选，写下一章 / 审稿退到后面
+  const recap: StageStep[] = progress.justFinished
+    ? [
+        {
+          title: `盘点第 ${Number(progress.justFinished.id)} 卷`,
+          desc: "编剧把线索推进到哪、坑填了没回写进线索卡，再排下一卷",
+          kind: "capability",
+          cap: "recap",
+          params: { volume: String(Number(progress.justFinished.id)) },
+          primary: true,
+        },
+      ]
+    : [];
   if (written < chapters) {
     const next = written + 1;
     const review: StageStep[] =
       written > 0 ? [{ title: `审第 ${written} 章`, desc: "四路评审并行看上一章", kind: "capability", cap: "review", params: { chapter: String(written) } }] : [];
     return {
       stage: "写正文",
-      line: `章纲排到第 ${chapters} 章，正文写到第 ${written} 章。`,
+      line: `章纲排到第 ${chapters} 章，正文写到第 ${written} 章。${progressLine}`,
       steps: [
-        { title: `写第 ${next} 章`, desc: "写手按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", params: { chapter: String(next) }, primary: true },
+        ...recap,
+        { title: `写第 ${next} 章`, desc: "写手按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", params: { chapter: String(next) }, primary: recap.length === 0 },
         ...review,
         { title: "继续排章纲", desc: "把后面几章的施工单排出来", kind: "capability", cap: "outline" },
         TALK,
@@ -93,12 +138,13 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
   }
   const review: StageStep[] =
     written > 0
-      ? [{ title: `审第 ${written} 章`, desc: "市场 / 读者 / 文风 / 连续性四路并行", kind: "capability", cap: "review", params: { chapter: String(written) }, primary: true }]
+      ? [{ title: `审第 ${written} 章`, desc: "市场 / 读者 / 文风 / 连续性四路并行", kind: "capability", cap: "review", params: { chapter: String(written) }, primary: recap.length === 0 }]
       : [];
   return {
     stage: "审稿",
-    line: `正文写到第 ${written} 章，章纲也排到这里了。`,
+    line: `正文写到第 ${written} 章，章纲也排到这里了。${progressLine}`,
     steps: [
+      ...recap,
       ...review,
       { title: "排下一批章纲", desc: "编剧接着往后排", kind: "capability", cap: "outline" },
       TALK,

@@ -175,3 +175,4 @@ export function installDocLinkHandler(): () => void {
   document.addEventListener("click", handler);
   return () => document.removeEventListener("click", handler);
 }
+
