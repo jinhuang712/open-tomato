@@ -433,13 +433,11 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async exportChat(agentId?: string) {
-    const id = agentId ?? (state.view.type === "chat" ? state.view.agentId : "lead");
-    const { exportTranscript } = await import("./exportTranscript");
-    const { filename, content } = exportTranscript(id);
+  async exportSeed() {
     try {
+      const { filename, content } = await bridge.request("project.exportSeed", {});
       const saved = await bridge.saveTextFile({ defaultName: filename, content });
-      if (saved) toast(`已导出：${saved}`);
+      if (saved) toast(`已导出故事种子：${saved}`);
     } catch (e) {
       toast(errText(e), "error");
     }

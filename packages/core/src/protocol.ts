@@ -289,6 +289,8 @@ export interface RequestMap {
   "project.open": { params: { root: string }; result: ProjectInfo };
   "project.close": { params: Record<string, never>; result: null };
   "project.recent": { params: Record<string, never>; result: string[] };
+  /** 把项目全部文档拼成一份「故事种子」markdown（剥 frontmatter、不含设置），供日后「导入项目」由主编拆回最新结构 */
+  "project.exportSeed": { params: Record<string, never>; result: { filename: string; content: string } };
   "doc.read": { params: { kind: DocKindId; id: string }; result: DocContent | null };
   /** expectBefore 给了就要求磁盘还是这份内容，否则报 StaleWriteError：防作者手改和 agent 落盘互相盖 */
   "doc.write": { params: { kind: DocKindId; id: string; raw: string; expectBefore?: string }; result: DocHeader };

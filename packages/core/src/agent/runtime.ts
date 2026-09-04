@@ -27,6 +27,7 @@ import { STUB_PATTERN, stubPrompt } from "../protocol.js";
 import { runCheck } from "../project/check.js";
 import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
+import { buildStorySeed, storySeedFilename } from "../project/seed.js";
 import { migrateLegacySessions, ProjectStore } from "../project/store.js";
 import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
 import { Gate } from "./gate.js";
@@ -164,6 +165,11 @@ export class Kernel {
         return null;
       },
       "project.recent": async () => this.models.recentProjects,
+      "project.exportSeed": async () => {
+        const store = this.requireStore();
+        const now = new Date();
+        return { filename: storySeedFilename(store.info.name, now), content: await buildStorySeed(store, now) };
+      },
       "doc.read": async ({ kind, id }) => this.requireStore().read(kindOf(kind), id),
       "doc.write": async ({ kind, id, raw, expectBefore }) => {
         const header = await this.requireStore().write(kindOf(kind), id, raw, expectBefore === undefined ? {} : { expectBefore });

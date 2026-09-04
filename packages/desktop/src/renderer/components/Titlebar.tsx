@@ -65,8 +65,8 @@ function BookMenu(props: { name: string }) {
         <div class="absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
           <MenuItem label="新会话" hint="⌘⇧N" onClick={() => run(actions.newChat)} />
           <MenuItem label="重新机检" onClick={() => run(actions.runCheck)} />
-          <MenuItem label="导出会话" hint="⌘E" onClick={() => run(actions.exportChat)} />
-          <MenuItem label="复制会话记录路径" hint="⌘⇧E" onClick={() => run(actions.copyTranscriptPath)} />
+          <MenuItem label="导出故事种子" hint="⌘E" onClick={() => run(actions.exportSeed)} />
+          <MenuItem label="复制会话路径" tag="dev" hint="⌘⇧E" onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
           <MenuItem label="打开别的项目" onClick={() => run(() => actions.openProject())} />
           <MenuItem label="关闭项目" onClick={() => run(actions.closeProject)} />
@@ -76,10 +76,14 @@ function BookMenu(props: { name: string }) {
   );
 }
 
-function MenuItem(props: { label: string; hint?: string; onClick: () => void }) {
+function MenuItem(props: { label: string; tag?: string; hint?: string; onClick: () => void }) {
   return (
-    <button class="w-full h-8 px-3 flex items-center text-left hover:bg-paper-3" onClick={props.onClick}>
-      <span class="flex-1">{props.label}</span>
+    <button class="w-full h-8 px-3 flex items-center gap-1.5 text-left hover:bg-paper-3" onClick={props.onClick}>
+      <span>{props.label}</span>
+      <Show when={props.tag}>
+        <span class="px-1 rounded text-[10px] leading-4 font-mono border border-line text-ink-3">{props.tag}</span>
+      </Show>
+      <span class="flex-1" />
       <Show when={props.hint}>
         <span class="text-xs text-ink-3">{props.hint}</span>
       </Show>

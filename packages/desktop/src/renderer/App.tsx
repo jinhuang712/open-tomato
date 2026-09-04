@@ -52,8 +52,8 @@ export function App() {
         case "check.run":
           if (state.project) void actions.runCheck();
           break;
-        case "chat.export":
-          if (state.project) void actions.exportChat();
+        case "project.exportSeed":
+          if (state.project) void actions.exportSeed();
           break;
         case "chat.copyPath":
           if (state.project) void actions.copyTranscriptPath();
