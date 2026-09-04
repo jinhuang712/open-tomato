@@ -11,6 +11,8 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   );
   const [editing, setEditing] = createSignal(false);
   const [draft, setDraft] = createSignal("");
+  /** 点"编辑"那一刻磁盘上的版本；保存时带回去，期间被 agent 改过就报 stale，不静默盖 */
+  const [base, setBase] = createSignal<string | null>(null);
   const kindLabel = () => state.kinds.find((k) => k.id === props.kind)?.label ?? props.kind;
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
 
@@ -24,15 +26,27 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
 
   const startEdit = (d: DocContent) => {
     setDraft(d.raw);
+    setBase(d.raw);
     setEditing(true);
   };
   const save = async () => {
     try {
-      await bridge.request("doc.write", { kind: props.kind, id: props.id, raw: draft() });
+      const b = base();
+      await bridge.request("doc.write", b === null ? { kind: props.kind, id: props.id, raw: draft() } : { kind: props.kind, id: props.id, raw: draft(), expectBefore: b });
       setEditing(false);
+      setBase(null);
       toast("已保存");
     } catch (e) {
-      toast(errText(e), "error");
+      const msg = errText(e);
+      if (msg.includes("审批期间被改过") || msg.includes("StaleWriteError")) {
+        // agent 在你编辑期间落盘了：不关编辑器、不丢草稿，基准换成最新，等你合完再存
+        await refetch();
+        const latest = doc();
+        if (latest) setBase(latest.raw);
+        toast("这篇在你编辑期间被改过（可能是 agent 刚写入），已载入最新：把你的修改合进去再存", "error");
+      } else {
+        toast(msg, "error");
+      }
     }
   };
 

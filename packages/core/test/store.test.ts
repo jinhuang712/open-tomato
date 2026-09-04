@@ -40,6 +40,10 @@ describe("ProjectStore", () => {
     const p2 = await store.previewWrite("rules", "", rule("不写梦境开场"));
     expect(p2.id).toBe("002");
     expect(store.normalizeId("rules", "7")).toBe("007");
+    // write 空 id 也自动编号，和 previewWrite 一致
+    const h = await store.write("rules", "", rule("不写梦境开场"));
+    expect(h.id).toBe("002");
+    expect(h.path).toBe("守则/002.md");
   });
 
   test("open 读回项目名", async () => {

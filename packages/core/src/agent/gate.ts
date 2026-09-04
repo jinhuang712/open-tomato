@@ -7,6 +7,7 @@ export interface ApprovalOutcome {
 }
 
 interface Pending<T> {
+  agentId: string;
   resolve: (v: T) => void;
   reject: (e: Error) => void;
   cleanup: () => void;
@@ -36,7 +37,7 @@ export class Gate {
     return new Promise<ApprovalOutcome>((resolve, reject) => {
       const onAbort = () => this.closeApproval(approvalId, "reject", new Error("审批被中止"));
       signal?.addEventListener("abort", onAbort, { once: true });
-      this.approvals.set(approvalId, { resolve, reject, cleanup: () => signal?.removeEventListener("abort", onAbort) });
+      this.approvals.set(approvalId, { agentId: req.agentId, resolve, reject, cleanup: () => signal?.removeEventListener("abort", onAbort) });
       this.sink.approvalRequested({ ...req, approvalId });
     });
   }
@@ -50,7 +51,7 @@ export class Gate {
     return new Promise<string>((resolve, reject) => {
       const onAbort = () => this.closeQuestion(questionId, new Error("提问被中止"));
       signal?.addEventListener("abort", onAbort, { once: true });
-      this.questions.set(questionId, { resolve, reject, cleanup: () => signal?.removeEventListener("abort", onAbort) });
+      this.questions.set(questionId, { agentId: req.agentId, resolve, reject, cleanup: () => signal?.removeEventListener("abort", onAbort) });
       this.sink.questionRequested({ ...req, questionId });
     });
   }
@@ -63,6 +64,19 @@ export class Gate {
   rejectAll(reason: string) {
     for (const id of [...this.approvals.keys()]) this.closeApproval(id, "reject", new Error(reason));
     for (const id of [...this.questions.keys()]) this.closeQuestion(id, new Error(reason));
+  }
+
+  /**
+   * 只清某一个 agent 的：它的 run 已经死了（模型报错 / prompt 被掐），
+   * 悬着的门再也没人能答，不拒掉就成幽灵 pending。
+   */
+  rejectAgent(agentId: string, reason: string) {
+    for (const [id, p] of [...this.approvals]) {
+      if (p.agentId === agentId) this.closeApproval(id, "reject", new Error(reason));
+    }
+    for (const [id, p] of [...this.questions]) {
+      if (p.agentId === agentId) this.closeQuestion(id, new Error(reason));
+    }
   }
 
   get pendingCount(): number {

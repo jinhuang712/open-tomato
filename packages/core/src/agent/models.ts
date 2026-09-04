@@ -99,7 +99,8 @@ export class ModelsFacade {
       providers,
       models,
       current: cur ? { provider: cur.provider, id: cur.id } : null,
-      thinkingLevel: this.persisted.thinkingLevel,
+      // 显示生效值：绑定项目时以项目设置为准，和 currentModel 的选模型逻辑一致
+      thinkingLevel: this.thinkingLevel,
     };
   }
 

@@ -36,14 +36,20 @@ const send = (msg: Outbound) => {
 
 const kernel = new Kernel(home, (event) => send({ kind: "event", event }));
 
+/** 还没回的请求数：stdio 模式 stdin 关了也要等它们落定，不能悄悄吞掉 */
+let inFlight = 0;
+
 async function onRequest(raw: unknown) {
   const req = raw as Partial<RequestEnvelope>;
   if (!req || req.kind !== "request" || typeof req.id !== "string" || typeof req.method !== "string") return;
+  inFlight++;
   try {
     const result = await kernel.handle(req.method, (req.params ?? {}) as never);
     send({ kind: "response", id: req.id, ok: true, result });
   } catch (e) {
     send({ kind: "response", id: req.id, ok: false, error: e instanceof Error ? e.message : String(e) });
+  } finally {
+    inFlight--;
   }
 }
 
@@ -59,7 +65,14 @@ if (parentPort) {
       send({ kind: "event", event: { type: "kernel.error", message: `无法解析请求：${line.slice(0, 80)}` } });
     }
   });
-  rl.on("close", () => void kernel.dispose().finally(() => process.exit(0)));
+  // stdin 关了不等于活干完了：等在途请求落定（最多 10 秒，内核 handle 内部会等 init）再退出；没等完就是丢请求，非零码
+  rl.on("close", () => {
+    const deadline = Date.now() + 10_000;
+    const drain = async () => {
+      while (inFlight > 0 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+    };
+    void drain().then(() => kernel.dispose().finally(() => process.exit(inFlight > 0 ? 1 : 0)));
+  });
 }
 
 process.on("uncaughtException", (e) => send({ kind: "event", event: { type: "kernel.error", message: `uncaught: ${e.message}` } }));

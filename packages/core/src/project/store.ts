@@ -229,7 +229,8 @@ export class ProjectStore {
    */
   async write(kind: DocKindId, id: string, raw: string, opts: { expectBefore?: string } = {}): Promise<DocHeader> {
     this.assertWritable(raw);
-    const nid = this.normalizeId(kind, id);
+    // 和 previewWrite 一致：自动编号类型传空 id 就分配下一个编号
+    const nid = DOC_KINDS[kind].autoId && id.trim() === "" ? await this.nextId(kind) : this.normalizeId(kind, id);
     const abs = this.absPath(kind, nid);
     if (opts.expectBefore !== undefined) {
       const current = (await fs.readFile(abs, "utf8").catch(() => null)) ?? "";

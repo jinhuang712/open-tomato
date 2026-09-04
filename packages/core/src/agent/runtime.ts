@@ -165,8 +165,8 @@ export class Kernel {
       },
       "project.recent": async () => this.models.recentProjects,
       "doc.read": async ({ kind, id }) => this.requireStore().read(kindOf(kind), id),
-      "doc.write": async ({ kind, id, raw }) => {
-        const header = await this.requireStore().write(kindOf(kind), id, raw);
+      "doc.write": async ({ kind, id, raw, expectBefore }) => {
+        const header = await this.requireStore().write(kindOf(kind), id, raw, expectBefore === undefined ? {} : { expectBefore });
         await this.emitDocsChanged();
         return header;
       },
@@ -289,6 +289,8 @@ export class Kernel {
   private async disposeAgents() {
     this.gate.rejectAll("会话已重建");
     for (const a of this.agents.values()) {
+      // 先给渲染层一个终态：它据此撤掉这个 agent 的问答/待审 dock，不会留下永远"运行中"的幽灵
+      this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : "done");
       await a.session.abort().catch(() => {});
       a.unsubscribe();
       a.session.dispose();
@@ -416,7 +418,10 @@ export class Kernel {
     if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
     const run = live.session.isStreaming ? live.session.prompt(text, { streamingBehavior: deliverAs }) : live.session.prompt(text);
     run.catch((e: unknown) => {
-      this.setStatus(live, "error", e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      this.setStatus(live, "error", msg);
+      // run 死了，它挂着的问答/待审再也没人能答，一并拒掉，别留幽灵 pending
+      this.gate.rejectAgent(agentId, msg);
     });
   }
 
@@ -523,6 +528,7 @@ export class Kernel {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
+      this.gate.rejectAgent(live.info.agentId, msg);
       roster.touch(slot, "error", msg);
       return `${header}\n\n执行失败：${msg}`;
     } finally {

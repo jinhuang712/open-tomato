@@ -290,7 +290,8 @@ export interface RequestMap {
   "project.close": { params: Record<string, never>; result: null };
   "project.recent": { params: Record<string, never>; result: string[] };
   "doc.read": { params: { kind: DocKindId; id: string }; result: DocContent | null };
-  "doc.write": { params: { kind: DocKindId; id: string; raw: string }; result: DocHeader };
+  /** expectBefore 给了就要求磁盘还是这份内容，否则报 StaleWriteError：防作者手改和 agent 落盘互相盖 */
+  "doc.write": { params: { kind: DocKindId; id: string; raw: string; expectBefore?: string }; result: DocHeader };
   "doc.template": { params: { kind: DocKindId }; result: string };
   "search.query": { params: { query: string; limit?: number }; result: SearchHit[] };
   "models.list": { params: Record<string, never>; result: ModelsState };

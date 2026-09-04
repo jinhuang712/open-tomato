@@ -75,6 +75,27 @@ describe("Gate 审批门", () => {
     expect(gate.pendingCount).toBe(0);
   });
 
+  test("rejectAgent 只清指定 agent 的门，别人的不动", async () => {
+    const { gate, requested, closed, questions, questionsClosed } = setup();
+    const aLead = gate.requestApproval(req);
+    const aChild = gate.requestApproval({ ...req, agentId: "child-1" });
+    const qChild = gate.requestQuestion({ agentId: "child-1", text: "哪个？", options: [], allowFreeText: true });
+    const qLead = gate.requestQuestion({ agentId: "lead", text: "书名？", options: [], allowFreeText: true });
+    expect(gate.pendingCount).toBe(4);
+    gate.rejectAgent("child-1", "子 agent 挂了");
+    await expect(aChild).rejects.toThrow("子 agent 挂了");
+    await expect(qChild).rejects.toThrow("子 agent 挂了");
+    expect(closed).toHaveLength(1);
+    expect(questionsClosed).toHaveLength(1);
+    expect(gate.pendingCount).toBe(2);
+    // lead 的门还能正常答
+    expect(gate.resolveApproval(requested[0]!.approvalId, { decision: "approve", reason: "" })).toBe(true);
+    expect(await aLead).toEqual({ decision: "approve", reason: "" });
+    expect(gate.resolveQuestion(questions[1]!.questionId, "红尘")).toBe(true);
+    expect(await qLead).toBe("红尘");
+    expect(gate.pendingCount).toBe(0);
+  });
+
   test("rejectAll 一次清掉所有审批和提问", async () => {
     const { gate, closed, questionsClosed } = setup();
     const a = gate.requestApproval(req);
