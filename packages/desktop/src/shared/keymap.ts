@@ -47,7 +47,7 @@ export const KEYMAP: KeyBinding[] = [
   { id: "question.submit", label: "提交回答", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "问答卡" },
   { id: "search.move", label: "上下选择", scope: "panel", keys: ["Up", "Down"], note: "搜索面板" },
   { id: "search.pick", label: "打开选中项", scope: "panel", keys: ["Enter"], note: "搜索面板" },
-  { id: "panel.close", label: "关闭面板", scope: "panel", keys: ["Escape"], note: "搜索、审阅、设置等浮层" },
+  { id: "panel.close", label: "退一层", scope: "panel", keys: ["Escape"], note: "先关最上面的浮层（搜索、审阅、设置…），没有浮层时从文档 / 子 agent 会话退回主会话" },
 ];
 
 export function binding(id: string): KeyBinding {

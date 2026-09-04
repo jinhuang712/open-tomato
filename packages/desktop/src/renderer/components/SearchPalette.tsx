@@ -70,7 +70,10 @@ export function SearchPalette() {
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") return close();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      return close();
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setCursor((c) => Math.min(flat().length - 1, c + 1));

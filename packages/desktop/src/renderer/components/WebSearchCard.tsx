@@ -53,7 +53,10 @@ function WebSearchModal(props: { part: ToolPart; hits: ReturnType<typeof parseWe
         class="w-full max-w-[720px] max-h-[85vh] rounded-2xl bg-paper border border-line shadow-2xl flex flex-col overflow-hidden outline-none"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
-          if (e.key === "Escape") props.onClose();
+          if (e.key === "Escape") {
+            e.preventDefault();
+            props.onClose();
+          }
         }}
       >
         <div class="flex items-center gap-3 px-5 py-3 border-b border-line">

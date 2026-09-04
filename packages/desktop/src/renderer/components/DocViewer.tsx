@@ -146,6 +146,13 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                 class="w-full h-full p-6 bg-paper font-mono text-xs leading-relaxed outline-none resize-none"
                 value={draft()}
                 onInput={(e) => setDraft(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  // 编辑态里 Escape 只退出编辑，不连文档一起关；全局 Escape 看到 defaultPrevented 就让路
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setEditing(false);
+                  }
+                }}
                 spellcheck={false}
               />
             </Show>

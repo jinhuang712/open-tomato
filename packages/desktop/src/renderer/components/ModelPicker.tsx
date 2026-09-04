@@ -1,4 +1,4 @@
-import { createMemo, For, onCleanup, onMount, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 import { ThinkingLevelPicker } from "./ModelSettings";
 
@@ -8,13 +8,6 @@ import { ThinkingLevelPicker } from "./ModelSettings";
  */
 export function ModelPicker() {
   const close = () => setState("modelPickerOpen", false);
-  onMount(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", onKey);
-    onCleanup(() => document.removeEventListener("keydown", onKey));
-  });
   const models = () => state.models;
   const groups = createMemo(() => {
     const providers = models()?.providers ?? [];

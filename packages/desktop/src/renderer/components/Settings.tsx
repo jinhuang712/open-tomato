@@ -1,5 +1,5 @@
 import type { AppInfo } from "../../preload/bridge-types";
-import { createResource, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createResource, For, Match, Show, Switch } from "solid-js";
 import { formatKeys, KEYMAP, SCOPE_LABEL, SCOPES } from "../../shared/keymap";
 import { bridge } from "../bridge";
 import { setState, type SettingsTab, state, toast } from "../state";
@@ -18,13 +18,6 @@ const TABS: { id: SettingsTab; label: string }[] = [
  */
 export function Settings() {
   const close = () => setState("settingsOpen", false);
-  onMount(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", onKey);
-    onCleanup(() => document.removeEventListener("keydown", onKey));
-  });
 
   return (
     <div class="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] bg-black/30" onClick={close}>

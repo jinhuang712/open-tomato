@@ -1,6 +1,7 @@
 import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
 import { installDocLinkHandler } from "./doclink";
+import { installEscapeHandler } from "./escape";
 import { CapabilityDialog } from "./components/CapabilityDialog";
 import { ClosePrompt } from "./components/ClosePrompt";
 import { CloudSettings } from "./components/CloudSettings";
@@ -40,6 +41,7 @@ export function App() {
     };
     document.addEventListener("keydown", onKey);
     onCleanup(() => document.removeEventListener("keydown", onKey));
+    onCleanup(installEscapeHandler());
     const offEvent = bridge.onEvent(applyEvent);
     const offMenu = bridge.onMenu((cmd) => {
       switch (cmd) {

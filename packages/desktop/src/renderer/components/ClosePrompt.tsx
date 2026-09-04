@@ -13,7 +13,6 @@ export function ClosePrompt() {
 
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") cancel();
       if (e.key === "Enter" && !busy()) void actions.syncAndClose();
     };
     document.addEventListener("keydown", onKey);
