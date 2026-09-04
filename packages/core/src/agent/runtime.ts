@@ -164,7 +164,17 @@ export class Kernel {
         await this.closeProject();
         return null;
       },
-      "project.recent": async () => this.models.recentProjects,
+      // 磁盘上已经不是项目的（目录被删、被改名）顺手从列表摘掉，首页不留死卡片
+      "project.recent": async () => {
+        const all = this.models.recentProjects;
+        const alive = await Promise.all(all.map((root) => ProjectStore.exists(root)));
+        for (const [i, root] of all.entries()) if (!alive[i]) await this.models.forgetProject(root);
+        return this.models.recentProjects;
+      },
+      "project.forget": async ({ root }) => {
+        await this.models.forgetProject(root);
+        return null;
+      },
       "project.exportSeed": async () => {
         const store = this.requireStore();
         const now = new Date();

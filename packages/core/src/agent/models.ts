@@ -68,6 +68,14 @@ export class ModelsFacade {
     await this.save();
   }
 
+  /** 从最近列表摘掉一条；不在列表里就什么也不做 */
+  async forgetProject(root: string) {
+    const next = this.persisted.recentProjects.filter((r) => r !== root);
+    if (next.length === this.persisted.recentProjects.length) return;
+    this.persisted.recentProjects = next;
+    await this.save();
+  }
+
   /** 当前选中的模型：项目设置 → 全局上次选择 → 第一个可用的 */
   currentModel(): Model<Api> | undefined {
     for (const want of [this.project?.settings.model, this.persisted.model]) {

@@ -288,7 +288,10 @@ export interface RequestMap {
   "project.create": { params: { root: string; name: string }; result: ProjectInfo };
   "project.open": { params: { root: string }; result: ProjectInfo };
   "project.close": { params: Record<string, never>; result: null };
+  /** 返回前会剔掉磁盘上已不存在的项目并落盘 */
   "project.recent": { params: Record<string, never>; result: string[] };
+  /** 只从最近列表摘掉，不碰磁盘上的文件 */
+  "project.forget": { params: { root: string }; result: null };
   /** 把项目全部文档拼成一份「故事种子」markdown（剥 frontmatter、不含设置），供日后「导入项目」由主编拆回最新结构 */
   "project.exportSeed": { params: Record<string, never>; result: { filename: string; content: string } };
   "doc.read": { params: { kind: DocKindId; id: string }; result: DocContent | null };
