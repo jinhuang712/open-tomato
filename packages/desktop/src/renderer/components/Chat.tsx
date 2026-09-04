@@ -125,7 +125,7 @@ export function Chat(props: { agentId: string }) {
           )}
         </For>
         <Show when={agent()?.status === "running"}>
-          <div class="px-5 py-2 flex items-center gap-2 text-xs">
+          <div class="px-5 my-0.5 h-6.5 flex items-center gap-2 text-xs">
             <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             <span class="shimmer">{agent()?.statusText || `${agent()?.label} 正在理清思路`}</span>
           </div>

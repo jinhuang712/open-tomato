@@ -78,8 +78,10 @@ export function Message(props: { message: UiMessage }) {
       </div>
     );
   }
+  // 只有思考、没有可见内容的助手消息不占行，否则一段空白把工具行之间的间距撑得忽宽忽窄
   return (
-    <div class={`flex ${isUser() ? "justify-end" : "justify-start"} px-5 py-1.5`} data-role={props.message.role}>
+    <Show when={visible().length > 0}>
+    <div class={`flex ${isUser() ? "justify-end px-5 py-1.5" : "justify-start px-5"}`} data-role={props.message.role}>
       <div
         class={
           isUser()
@@ -92,7 +94,7 @@ export function Message(props: { message: UiMessage }) {
             <Switch>
               <Match when={part.type === "text" && part}>
                 {(p) => (
-                  <Show when={isUser()} fallback={<div class="prose-zh" innerHTML={renderMarkdown(p().text)} />}>
+                  <Show when={isUser()} fallback={<div class="prose-zh py-1.5" innerHTML={renderMarkdown(p().text)} />}>
                     <UserText text={p().text} />
                   </Show>
                 )}
@@ -103,5 +105,6 @@ export function Message(props: { message: UiMessage }) {
         </For>
       </div>
     </div>
+    </Show>
   );
 }
