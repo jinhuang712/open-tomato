@@ -5,6 +5,7 @@ import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.
 import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, frontmatterProblem } from "./frontmatter.js";
 import { PLACEHOLDER } from "./check.js";
 import { BRIEF_SEED_BODY, DOC_KIND_IDS, DOC_KINDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
+import { ProjectRecords } from "./records.js";
 import { settingsPath } from "./settings.js";
 
 const MARKER_DIR = ".opentomato";
@@ -47,7 +48,12 @@ export interface WritePreview {
 }
 
 export class ProjectStore {
-  private constructor(public readonly info: ProjectInfo) {}
+  /** 系统侧记录（批、审稿记录）：.opentomato/ 下，不是材料 */
+  readonly records: ProjectRecords;
+
+  private constructor(public readonly info: ProjectInfo) {
+    this.records = new ProjectRecords(path.join(info.root, MARKER_DIR));
+  }
 
   static markerPath(root: string): string {
     return path.join(root, MARKER_DIR, MARKER_FILE);
