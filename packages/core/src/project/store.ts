@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo } from "../protocol.js";
-import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, frontmatterProblem } from "./frontmatter.js";
+import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, stringifyFrontmatter, frontmatterProblem } from "./frontmatter.js";
 import { PLACEHOLDER } from "./check.js";
 import { BRIEF_SEED_BODY, DOC_KIND_IDS, DOC_KINDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
 import { ProjectRecords } from "./records.js";
@@ -110,6 +110,7 @@ export class ProjectStore {
     await migrateLegacyLayout(root);
     await ensureKindDirs(root);
     await ensureMarkerDir(root);
+    await stripSeedPlaceholders(root);
     return new ProjectStore({
       root,
       name: asString(parsed.name, path.basename(root)),
@@ -281,6 +282,20 @@ async function ensureKindDirs(root: string) {
 }
 
 /** 英文目录 → 中文目录、英文守则文件名 → 中文；只在老目录存在且新目录为空时搬 */
+/**
+ * 旧版立项时预置的 简介 带着一排只写「待填」的段。现在文档里不留桩，打开老项目时把这些空段去掉，
+ * 机检改报「缺必填段」。只碰 简介、只删内容恰好是「待填」的段，作者写过一个字的都不动。
+ */
+async function stripSeedPlaceholders(root: string) {
+  const abs = path.join(root, DOC_KINDS.brief.dir, `${DOC_KINDS.brief.normalizeId("")}.md`);
+  const raw = await fs.readFile(abs, "utf8").catch(() => null);
+  if (raw === null || !raw.includes(PLACEHOLDER)) return;
+  const parsed = parseFrontmatter(raw);
+  const kept = splitSections(parsed.body).filter((s) => s.heading === "" || s.content !== PLACEHOLDER);
+  const body = kept.map((s) => (s.heading === "" ? s.content : `## ${s.heading}\n\n${s.content}\n`)).join("\n");
+  await writeAtomic(abs, stringifyFrontmatter(parsed.frontmatter, body));
+}
+
 async function migrateLegacyLayout(root: string) {
   const exists = (p: string) => fs.access(p).then(() => true, () => false);
   for (const k of DOC_KIND_IDS) {

@@ -258,6 +258,17 @@ describe("会话目录", () => {
     expect(await fs.readFile(path.join(root, ".opentomato/.gitignore"), "utf8")).toBe("custom\n");
   });
 
+  test("打开老项目时去掉简介里只写「待填」的预置段，写过字的段不动", async () => {
+    const legacySeed = "---\ntitle: 简介\nsummary: s\nkeywords: [立项]\nstatus: draft\n---\n\n## 一句话故事\n\n落魄铸剑师重铸镇国剑。\n\n## 题材与平台\n\n待填\n\n## 读者画像\n\n待填\n";
+    await fs.writeFile(path.join(root, "简介.md"), legacySeed, "utf8");
+    const reopened = await ProjectStore.open(root);
+    const doc = await reopened.read("brief", "简介");
+    expect(doc?.sections).toEqual(["一句话故事"]);
+    expect(doc?.body).toContain("落魄铸剑师重铸镇国剑。");
+    expect(doc?.raw).not.toContain("待填");
+    expect(doc?.title).toBe("简介");
+  });
+
   test("migrateLegacySessions 只搬 cwd 匹配的 jsonl", async () => {
     const legacy = await fs.mkdtemp(path.join(os.tmpdir(), "ot-sessions-"));
     const header = (cwd: string) => `${JSON.stringify({ type: "session", version: 3, id: "x", cwd })}\n{"type":"message"}\n`;
