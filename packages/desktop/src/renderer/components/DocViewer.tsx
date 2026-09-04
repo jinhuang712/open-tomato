@@ -1,3 +1,4 @@
+import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
 import type { DocContent, DocKindId } from "@opentomato/core/protocol";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { bridge } from "../bridge";
@@ -92,7 +93,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
           <For each={issues()}>
             {(i) => (
               <div class={i.level === "error" ? "text-danger" : "text-warn"}>
-                [{i.level}] {i.message}
+                {ISSUE_LEVEL_LABEL[i.level]}：{i.message}
               </div>
             )}
           </For>

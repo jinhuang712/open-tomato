@@ -1,5 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { ISSUE_LEVEL_LABEL } from "../protocol.js";
 import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { applyEdits } from "../project/edits.js";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
@@ -62,7 +63,7 @@ const KIND_SCHEMA = Type.String({
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
 
-const fmtIssue = (i: CheckIssue) => `- [${i.level}] ${i.path ?? i.kind ?? "-"}：${i.message}`;
+const fmtIssue = (i: CheckIssue) => `- ${i.path ?? (i.kind ? zhDir(i.kind) : "全书")}：${i.message}`;
 
 /** 给作者 / 模型看的路径一律中文目录；单例只有名字 */
 const zhPath = (kind: DocKindId, id: string) => (DOC_KINDS[kind].singleton ? zhDir(kind) : `${DOC_KINDS[kind].dir}/${id}`);
@@ -131,7 +132,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         for (const k of DOC_KIND_IDS) {
           const docs = all.filter((d) => d.kind === k);
           if (docs.length === 0) continue;
-          lines.push("", DOC_KINDS[k].singleton ? `## ${zhDir(k)}（kind=${k}）` : `## ${DOC_KINDS[k].dir}/（kind=${k}）${docs.length} 篇`);
+          lines.push("", DOC_KINDS[k].singleton ? `## ${zhDir(k)}` : `## ${DOC_KINDS[k].dir}/ ${docs.length} 篇`);
           for (const d of docs) lines.push(`- ${d.id} | ${d.title} | ${d.status} | ${d.summary}`);
         }
         return text(lines.join("\n"));
@@ -249,9 +250,9 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         const warnings = issues.filter((i) => i.level === "warning");
         return text(
           [
-            `error ${errors.length} 条，warning ${warnings.length} 条`,
-            ...(errors.length ? ["", "## error", ...errors.map(fmtIssue)] : []),
-            ...(warnings.length ? ["", "## warning", ...warnings.map(fmtIssue)] : []),
+            `机检：${ISSUE_LEVEL_LABEL.error} ${errors.length} 处，${ISSUE_LEVEL_LABEL.warning} ${warnings.length} 处`,
+            ...(errors.length ? ["", `## ${ISSUE_LEVEL_LABEL.error}`, ...errors.map(fmtIssue)] : []),
+            ...(warnings.length ? ["", `## ${ISSUE_LEVEL_LABEL.warning}`, ...warnings.map(fmtIssue)] : []),
           ].join("\n"),
         );
       },
@@ -288,7 +289,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       }
       const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
       const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
-      const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map(fmtIssue).join("\n")}`;
+      const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
       return text(`已写入 ${header.path}（${header.title}）${tail}`);
     };
 

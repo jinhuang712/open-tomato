@@ -50,7 +50,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派设定师设计：${p(params, "brief")}。
 
-要求：方向还没定就先让设定师出候选，我挑了再让它落卡；我已经说清要什么就直接落。落卡返回里带的机检 error 要修掉。`,
+要求：方向还没定就先让设定师出候选，我挑了再让它落卡；我已经说清要什么就直接落。落卡返回里带的机检里标「必须修」的要修掉。`,
   },
   outline: {
     id: "outline",
@@ -62,7 +62,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派结构师编排：${p(params, "scope")}。
 
-要求：结构师动笔前读 简介、守则、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时第一轮 mode=propose 先给我候选结构让我选，选定后 continue_agent、mode=commit 让同一个结构师落盘；编排章纲直接 mode=commit 落盘走审批。落盘返回里带的机检 error 修掉再向我汇报。`,
+要求：结构师动笔前读 简介、守则、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时第一轮 mode=propose 先给我候选结构让我选，选定后 continue_agent、mode=commit 让同一个结构师落盘；编排章纲直接 mode=commit 落盘走审批。落盘返回里带的机检里标「必须修」的修掉再向我汇报。`,
   },
   draft: {
     id: "draft",

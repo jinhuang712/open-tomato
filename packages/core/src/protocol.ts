@@ -65,6 +65,9 @@ export interface SearchHit {
 
 export type IssueLevel = "error" | "warning";
 
+/** 机检等级给作者看的叫法：error/warning 是内部字眼，界面和工具返回一律用这两个词 */
+export const ISSUE_LEVEL_LABEL: Record<IssueLevel, string> = { error: "必须修", warning: "建议改" };
+
 export interface CheckIssue {
   level: IssueLevel;
   kind: DocKindId | null;
