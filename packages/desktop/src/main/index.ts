@@ -7,6 +7,36 @@ import { installMenu } from "./menu";
 
 const kernel = new KernelHost();
 let mainWindow: BrowserWindow | null = null;
+// 用户在退出确认里点了「退出」之后置真：此后 close / before-quit 不再拦，让 app.quit() 一路走完
+let quitConfirmed = false;
+// 同时只允许一个确认框：连按 ⌘W 或 ⌘Q 不叠弹
+let asking = false;
+
+async function confirmAction(win: BrowserWindow | null, message: string, detail: string, okLabel: string) {
+  if (asking) return false;
+  asking = true;
+  try {
+    const opts = {
+      type: "question" as const,
+      buttons: [okLabel, "取消"],
+      defaultId: 0,
+      cancelId: 1,
+      message,
+      detail,
+    };
+    const { response } = win && !win.isDestroyed() ? await dialog.showMessageBox(win, opts) : await dialog.showMessageBox(opts);
+    return response === 0;
+  } finally {
+    asking = false;
+  }
+}
+
+async function requestQuit() {
+  const ok = await confirmAction(mainWindow, "退出 OpenTomato？", "正在运行的会话会被中断。", "退出");
+  if (!ok) return;
+  quitConfirmed = true;
+  app.quit();
+}
 
 function createWindow() {
   const state = windowStateKeeper({ defaultWidth: 1440, defaultHeight: 900 });
@@ -31,6 +61,14 @@ function createWindow() {
   });
   state.manage(win);
   win.once("ready-to-show", () => win.show());
+  // ⌘W 只收起窗口，App 留在 Dock，点图标再回来；确认过退出的路径直接放行
+  win.on("close", (e) => {
+    if (quitConfirmed) return;
+    e.preventDefault();
+    void confirmAction(win, "关闭窗口？", "OpenTomato 会留在 Dock，点击图标即可回到当前会话。", "关闭").then((ok) => {
+      if (ok && !win.isDestroyed()) win.hide();
+    });
+  });
   win.on("closed", () => {
     mainWindow = null;
   });
@@ -58,6 +96,7 @@ function createWindow() {
       setTimeout(async () => {
         const image = await win.webContents.capturePage();
         await writeFile(shot, image.toPNG());
+        quitConfirmed = true;
         app.quit();
       }, Number(process.env.OPENTOMATO_SCREENSHOT_DELAY ?? 2500));
     });
@@ -115,12 +154,21 @@ void app.whenReady().then(() => {
     });
   }
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+    else createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
-  app.quit();
+  if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => kernel.stop());
+// ⌘Q / Dock 菜单退出：先问一句，点了「退出」才真走
+app.on("before-quit", (e) => {
+  if (quitConfirmed) {
+    kernel.stop();
+    return;
+  }
+  e.preventDefault();
+  void requestQuit();
+});
