@@ -67,7 +67,7 @@ export function QuickActions(props: { hasHistory: boolean }) {
         label: "现状盘点",
         hint: `${p.stage}阶段 · 进展到哪、还缺什么`,
         run: () =>
-          void actions.send(stubPrompt("现状盘点", "看一下项目盘面，用三五句话告诉我：进展到哪一步、哪些卡还是空的、下一步建议做什么。先不要动手改。")),
+          void actions.send(stubPrompt("现状盘点", "看一下项目盘面，用三五句话告诉我这本书的账：每条线索推到哪、哪条停了没动、哪些坑还没填、里程碑过了几个、哪些卡还是空的，然后按欠得最久的排下一步建议。先不要动手改。")),
       });
 
       list.push({
