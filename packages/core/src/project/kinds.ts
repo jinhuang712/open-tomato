@@ -242,7 +242,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     label: "守则",
     dir: "守则",
     description:
-      "怎么写这本书：一条一卡，title 就是规则本身。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
+      "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 是规则完整的一句话，展开 段写边界与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
     normalizeId: padded(3),
     autoId: true,
     fields: [
@@ -251,7 +251,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "source", required: true, comment: "作者原话或来源" },
     ],
     sections: [
-      { name: "展开", required: false, hint: "规则的边界、例外" },
+      { name: "展开", required: true, hint: "规则管到哪、不管哪：边界、例外、容易误伤的情形。两三段" },
       { name: "例子", required: false, hint: "这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范挂在规则上才知道学的是哪一处" },
     ],
   }),

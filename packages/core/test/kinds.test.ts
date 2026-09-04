@@ -65,7 +65,8 @@ describe("模板附注", () => {
     const raw = `${DOC_KINDS.rules.template}\n${templateNotes("rules")}`;
     expect(parseFrontmatter(raw).frontmatter.status).toBe("draft");
     expect(raw).toMatch(/<!-- 必填字段.*level（必须 \/ 尽量）、scope（.*）、source（作者原话或来源） -->/);
-    expect(raw).toMatch(/<!-- 可选段.*展开（规则的边界、例外）、例子（这条规则写出来长什么样.*） -->/);
+    expect(raw).toMatch(/<!-- 可选段.*例子（这条规则写出来长什么样.*） -->/);
+    expect(raw).toMatch(/<!-- 必填段.*展开（规则管到哪、不管哪.*） -->/);
   });
 });
 

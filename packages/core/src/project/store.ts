@@ -357,7 +357,7 @@ async function migrateGuide(root: string) {
     const { body } = parseFrontmatter(await fs.readFile(file, "utf8"));
     for (const item of legacyGuideItems(body)) {
       const id = DOC_KINDS.rules.normalizeId(String(next++));
-      const raw = `---\ntitle: ${yamlScalar(item)}\nsummary: 待填\nkeywords: []\nstatus: draft\nlevel: ${meta.level}\nscope: ${meta.scope}\nsource: 迁移自旧 守则/${name}\n---\n`;
+      const raw = `---\ntitle: ${yamlScalar(item)}\nsummary: ${yamlScalar(item)}\nkeywords: []\nstatus: draft\nlevel: ${meta.level}\nscope: ${meta.scope}\nsource: 迁移自旧 守则/${name}\n---\n`;
       await fs.writeFile(path.join(rulesDir, `${id}.md`), raw, "utf8");
     }
     await fs.unlink(file);
