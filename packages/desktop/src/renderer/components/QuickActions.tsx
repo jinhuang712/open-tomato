@@ -61,18 +61,21 @@ export function QuickActions(props: { hasHistory: boolean }) {
       list.push({ label: next.title, hint: next.desc, primary: true, run: () => runStep(next) });
     }
 
-    list.push({
-      label: "现状盘点",
-      hint: `${p.stage}阶段 · 进展到哪、还缺什么`,
-      run: () =>
-        void actions.send(stubPrompt("现状盘点", "看一下项目盘面，用三五句话告诉我：进展到哪一步、哪些卡还是空的、下一步建议做什么。先不要动手改。")),
-    });
+    // 空白项目时中央已有引导卡，这两个入口重复，只在有对话历史后才出现
+    if (props.hasHistory) {
+      list.push({
+        label: "现状盘点",
+        hint: `${p.stage}阶段 · 进展到哪、还缺什么`,
+        run: () =>
+          void actions.send(stubPrompt("现状盘点", "看一下项目盘面，用三五句话告诉我：进展到哪一步、哪些卡还是空的、下一步建议做什么。先不要动手改。")),
+      });
 
-    list.push({
-      label: "我有一个新点子",
-      hint: p.stage === "立项" ? "还没成形也行，主编边聊边记" : "先说给主编听，再决定动不动卡",
-      run: () => setState("composerDraft", "我有一个新点子："),
-    });
+      list.push({
+        label: "我有一个新点子",
+        hint: p.stage === "立项" ? "还没成形也行，主编边聊边记" : "先说给主编听，再决定动不动卡",
+        run: () => setState("composerDraft", "我有一个新点子："),
+      });
+    }
 
     if (props.hasHistory) {
       const long = chatLen() >= LONG_CHAT;
@@ -86,7 +89,7 @@ export function QuickActions(props: { hasHistory: boolean }) {
   });
 
   return (
-    <Show when={idle() && ready()}>
+    <Show when={idle() && ready() && quicks().length > 0}>
       <div class="px-5 pb-2 flex flex-wrap gap-1.5">
         <For each={quicks()}>
           {(q) => (
