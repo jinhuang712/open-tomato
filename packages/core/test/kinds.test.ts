@@ -24,7 +24,7 @@ describe("模板由 schema 渲染", () => {
   });
 
   test("hint 渲染在待填后面", () => {
-    expect(DOC_KINDS.chapters.template).toContain("## 场景序列\n\n待填（每个场景：地点 / 在场人物 / 冲突 / 结果）\n");
+    expect(DOC_KINDS.chapters.template).toContain("## 场景序列\n\n待填（每个场景：地点 / 在场人物 / 冲突 / 谁选了什么 / 结果。没有选择的场是过场，写出来自己会看见）\n");
   });
 
   test("没有段的正文只有一个待填", () => {

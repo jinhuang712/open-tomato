@@ -196,8 +196,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     ],
     sections: [
       { name: "本章目标", required: true },
-      { name: "场景序列", required: true, hint: "每个场景：地点 / 在场人物 / 冲突 / 结果" },
-      { name: "信息控制", required: true, hint: "本章揭示什么、隐藏什么" },
+      { name: "场景序列", required: true, hint: "每个场景：地点 / 在场人物 / 冲突 / 谁选了什么 / 结果。没有选择的场是过场，写出来自己会看见" },
+      { name: "信息控制", required: true, hint: "分两个列表：揭示（本章让读者知道什么）、隐藏（读者还不能知道什么），一行一条" },
       { name: "章末钩子", required: true },
     ],
   }),
