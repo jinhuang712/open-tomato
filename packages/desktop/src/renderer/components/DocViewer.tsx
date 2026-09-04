@@ -1,5 +1,5 @@
 import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
-import type { DocContent, DocKindId } from "@opentomato/core/protocol";
+import type { DocContent, DocHeader, DocKindId } from "@opentomato/core/protocol";
 import { createEffect, createResource, createSignal, For, on, Show } from "solid-js";
 import { bridge } from "../bridge";
 import { renderMarkdown } from "../markdown";
@@ -16,6 +16,19 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [base, setBase] = createSignal<string | null>(null);
   const kindLabel = () => state.kinds.find((k) => k.id === props.kind)?.label ?? props.kind;
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
+  /** 线索卡反查：里程碑的 threads 字段里点到这条线的，按 order 排。里程碑引用写的是名字，跟 id 一样按 slug 规则对齐 */
+  const slug = (v: string) => v.trim().toLowerCase().replace(/\.md$/, "").replace(/[^\p{L}\p{N}-]+/gu, "-").replace(/^-+|-+$/g, "");
+  const orderOf = (d: DocHeader) => {
+    const n = Number(d.extra.order);
+    return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+  };
+  const milestonesOnThread = () => {
+    if (props.kind !== "threads") return [];
+    const me = slug(props.id);
+    return state.docs
+      .filter((d) => d.kind === "milestones" && Array.isArray(d.extra.threads) && d.extra.threads.some((t) => typeof t === "string" && slug(t) === me))
+      .sort((a, b) => orderOf(a) - orderOf(b));
+  };
   /** 机检给的修补请求：切到对话、预填进输入框，发不发由作者定 */
   const fixInChat = (text: string) => {
     actions.openChat("lead");
@@ -139,6 +152,19 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                     </For>
                   </div>
                   <div class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`} innerHTML={renderMarkdown(d().body)} />
+                  <Show when={milestonesOnThread().length > 0}>
+                    <div class="mt-8 pt-4 border-t border-line text-sm">
+                      <div class="text-xs text-ink-3 mb-2">挂在这条线上的里程碑</div>
+                      <For each={milestonesOnThread()}>
+                        {(m) => (
+                          <button class="w-full flex items-baseline gap-2 py-1 text-left text-ink-2 hover:text-ink" onClick={() => actions.openDoc("milestones", m.id)} title={m.summary}>
+                            <span class="w-6 shrink-0 tabular-nums text-ink-3 text-xs">{Number.isFinite(orderOf(m)) ? orderOf(m) : "—"}</span>
+                            <span class="truncate">{m.title}</span>
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
                 </div>
               }
             >
