@@ -1,6 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { docRefVersion, linkifyDocRefs } from "./doclink";
+import { shortenUrls } from "./extlink";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -23,7 +24,7 @@ export function renderMarkdown(src: string): string {
   const key = `${docRefVersion()}${src}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
-  const html = sanitizeHtml(linkifyDocRefs(marked.parse(src, { async: false }) as string));
+  const html = sanitizeHtml(shortenUrls(linkifyDocRefs(marked.parse(src, { async: false }) as string)));
   if (cache.size > 500) cache.clear();
   cache.set(key, html);
   return html;

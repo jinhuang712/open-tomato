@@ -310,6 +310,31 @@ mark {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
+/* 外链：只露域名，完整地址留在 title 和 href 里 */
+.ext-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0 0.45em;
+  margin: 0 0.1em;
+  border-radius: 6px;
+  background: var(--color-paper-3);
+  color: var(--color-ink-2);
+  font-size: 0.85em;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.ext-link::after {
+  content: "↗";
+  font-size: 0.8em;
+  color: var(--color-ink-3);
+}
+.ext-link:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
 
 .shimmer {
   background: linear-gradient(90deg, var(--color-ink-3) 0%, var(--color-ink) 50%, var(--color-ink-3) 100%);
