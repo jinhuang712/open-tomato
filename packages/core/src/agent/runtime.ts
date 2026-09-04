@@ -259,11 +259,6 @@ export class Kernel {
         if (!this.gate.resolveQuestion(questionId, answer)) this.emit({ type: "question.resolved", questionId });
         return null;
       },
-      "check.run": async () => {
-        const issues = await runCheck(this.requireStore());
-        this.emit({ type: "check.result", issues });
-        return issues;
-      },
     };
     const handler = handlers[method];
     if (!handler) throw new Error(`未知方法：${String(method)}`);
@@ -283,6 +278,7 @@ export class Kernel {
     await this.models.bindProject(store.settingsPath);
     this.emit({ type: "models.state", state: this.models.state() });
     this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
+    await this.refreshCheck();
     await this.createLead(mode);
   }
 
@@ -310,10 +306,19 @@ export class Kernel {
     }
   }
 
-  private async emitDocsChanged() {
-    if (!this.store) return;
+  /** 文档一变就重新机检：机械对账是代码的活，作者和模型都不该记着去点 */
+  private async emitDocsChanged(): Promise<CheckIssue[]> {
+    if (!this.store) return [];
     this.index = null;
     this.emit({ type: "docs.changed", docs: await this.store.listAll() });
+    return this.refreshCheck();
+  }
+
+  private async refreshCheck(): Promise<CheckIssue[]> {
+    if (!this.store) return [];
+    const issues = await runCheck(this.store);
+    this.emit({ type: "check.result", issues });
+    return issues;
   }
 
   private async searchIndex(): Promise<SearchIndex> {
@@ -352,12 +357,8 @@ export class Kernel {
       store,
       gate: this.gate,
       agentId,
-      runCheck: async () => {
-        const issues = await runCheck(store);
-        this.emit({ type: "check.result", issues });
-        return issues;
-      },
-      onDocsChanged: () => void this.emitDocsChanged(),
+      runCheck: () => this.refreshCheck(),
+      docsChanged: () => this.emitDocsChanged(),
       search: async (query, limit) => (await this.searchIndex()).query(query, limit),
     };
     if (withSpawn) {

@@ -36,7 +36,8 @@ export interface ToolContext {
   gate: Gate;
   agentId: string;
   runCheck: () => Promise<CheckIssue[]>;
-  onDocsChanged: () => void;
+  /** 落盘后调用：刷索引、广播 docs.changed，并返回最新的机检结果 */
+  docsChanged: () => Promise<CheckIssue[]>;
   search: (query: string, limit?: number) => Promise<SearchHit[]>;
   /** 只有能派单的角色才有 */
   spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
@@ -60,6 +61,8 @@ const KIND_SCHEMA = Type.String({
 });
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
+
+const fmtIssue = (i: CheckIssue) => `- [${i.level}] ${i.path ?? i.kind ?? "-"}：${i.message}`;
 
 /** 给作者 / 模型看的路径一律中文目录；单例只有名字 */
 const zhPath = (kind: DocKindId, id: string) => (DOC_KINDS[kind].singleton ? zhDir(kind) : `${DOC_KINDS[kind].dir}/${id}`);
@@ -242,14 +245,13 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
       execute: async () => {
         const issues = await ctx.runCheck();
         if (issues.length === 0) return text("机检通过，没有问题。");
-        const fmt = (i: CheckIssue) => `- [${i.level}] ${i.path ?? i.kind ?? "-"}：${i.message}`;
         const errors = issues.filter((i) => i.level === "error");
         const warnings = issues.filter((i) => i.level === "warning");
         return text(
           [
             `error ${errors.length} 条，warning ${warnings.length} 条`,
-            ...(errors.length ? ["", "## error", ...errors.map(fmt)] : []),
-            ...(warnings.length ? ["", "## warning", ...warnings.map(fmt)] : []),
+            ...(errors.length ? ["", "## error", ...errors.map(fmtIssue)] : []),
+            ...(warnings.length ? ["", "## warning", ...warnings.map(fmtIssue)] : []),
           ].join("\n"),
         );
       },
@@ -285,8 +287,9 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
         return text(`用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${how}，不要原样重试。`);
       }
       const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
-      ctx.onDocsChanged();
-      return text(`已写入 ${header.path}（${header.title}）`);
+      const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
+      const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map(fmtIssue).join("\n")}`;
+      return text(`已写入 ${header.path}（${header.title}）${tail}`);
     };
 
     tools.push(

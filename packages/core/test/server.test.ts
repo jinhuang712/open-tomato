@@ -60,7 +60,7 @@ describe("server stdio", () => {
       expect(r1.ok).toBe(true);
       const r2: any = await send("2", "doc.write", { kind: "manuscript", id: "1", raw: big });
       expect(r2.ok).toBe(true);
-      const r3: any = await send("3", "check.run", {});
+      const r3: any = await send("3", "doc.template", { kind: "chapters" });
       expect(r3.ok).toBe(true);
       // 最后一条不等待：发出就关 stdin，让它走 drain 路径
       const r4 = send("4", "doc.read", { kind: "manuscript", id: "1" });

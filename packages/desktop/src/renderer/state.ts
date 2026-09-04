@@ -403,13 +403,6 @@ export const actions = {
   async answer(questionId: string, answer: string) {
     await bridge.request("question.reply", { questionId, answer }).catch((e) => toast(errText(e), "error"));
   },
-  async runCheck() {
-    try {
-      await bridge.request("check.run", {});
-    } catch (e) {
-      toast(errText(e), "error");
-    }
-  },
   async selectModel(provider: string, id: string, thinkingLevel?: ModelsState["thinkingLevel"]) {
     try {
       await bridge.request("models.select", thinkingLevel ? { provider, id, thinkingLevel } : { provider, id });

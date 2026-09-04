@@ -49,9 +49,6 @@ export function App() {
         case "chat.new":
           if (state.project) void actions.newChat();
           break;
-        case "check.run":
-          if (state.project) void actions.runCheck();
-          break;
         case "project.exportSeed":
           if (state.project) void actions.exportSeed();
           break;

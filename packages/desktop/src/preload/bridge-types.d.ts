@@ -1,6 +1,6 @@
 import type { KernelEvent, RequestMap, RequestMethod } from "@opentomato/core/protocol";
 
-export type MenuCommand = "project.new" | "project.open" | "chat.new" | "check.run" | "project.exportSeed" | "chat.copyPath";
+export type MenuCommand = "project.new" | "project.open" | "chat.new" | "project.exportSeed" | "chat.copyPath";
 
 export interface Bridge {
   request<M extends RequestMethod>(method: M, params: RequestMap[M]["params"]): Promise<RequestMap[M]["result"]>;

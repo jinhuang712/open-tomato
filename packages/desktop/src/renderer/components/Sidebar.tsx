@@ -7,7 +7,7 @@ const ORDER: DocKindId[] = ["brief", "rules", "world", "characters", "threads", 
 /**
  * 边栏是这本书的骨架：各类材料按创作顺序排，空的类别灰显不展开。
  * 简介是单例，一行就是那份文档，不显示计数；其余类别右侧是卡片数。守则一条一卡，「必须」排在「尽量」前面。
- * 机检结果只在有问题的文档旁点一个点，不另占地方；重新机检在书名菜单里。
+ * 机检结果只在有问题的文档旁点一个点，不另占地方；机检由内核在文档变动后自动跑，没有手动入口。
  */
 export function Sidebar() {
   const [collapsed, setCollapsed] = createSignal<Record<string, boolean>>({});

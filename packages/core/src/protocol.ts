@@ -120,7 +120,7 @@ export interface RoleInfo {
   canWrite: boolean;
 }
 
-export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review" | "check";
+export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review";
 
 export interface CapabilityParam {
   name: string;
@@ -328,7 +328,6 @@ export interface RequestMap {
     result: null;
   };
   "question.reply": { params: { questionId: string; answer: string }; result: null };
-  "check.run": { params: Record<string, never>; result: CheckIssue[] };
 }
 
 export type RequestMethod = keyof RequestMap;

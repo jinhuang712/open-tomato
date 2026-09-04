@@ -50,7 +50,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派设定师设计：${p(params, "brief")}。
 
-要求：方向还没定就先让设定师出候选，我挑了再让它落卡；我已经说清要什么就直接落。落卡后 run_check 一次。`,
+要求：方向还没定就先让设定师出候选，我挑了再让它落卡；我已经说清要什么就直接落。落卡返回里带的机检 error 要修掉。`,
   },
   outline: {
     id: "outline",
@@ -62,7 +62,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     render: (params) =>
       `请派结构师编排：${p(params, "scope")}。
 
-要求：结构师动笔前读 简介、守则、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时第一轮 mode=propose 先给我候选结构让我选，选定后 continue_agent、mode=commit 让同一个结构师落盘；编排章纲直接 mode=commit 落盘走审批。结束后 run_check，把 error 修掉再向我汇报。`,
+要求：结构师动笔前读 简介、守则、里程碑、相关线索卡和人物卡。编排里程碑或卷纲时第一轮 mode=propose 先给我候选结构让我选，选定后 continue_agent、mode=commit 让同一个结构师落盘；编排章纲直接 mode=commit 落盘走审批。落盘返回里带的机检 error 修掉再向我汇报。`,
   },
   draft: {
     id: "draft",
@@ -86,13 +86,6 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
 1. 合并成一份问题清单，按「必须改 / 建议看」分级，去重
 2. 意见冲突的点派 arbiter 裁决
 3. 给我结论 + 清单，然后用 ask_user 问我要返修哪些（可多选），不要自动开始返修`,
-  },
-  check: {
-    id: "check",
-    label: "一致性机检",
-    description: "跑机械对账，报缺字段、断链、断档。",
-    params: [],
-    render: () => `请 run_check 跑一次一致性机检，把结果按 error / warning 分组汇报给我，并对每条 error 给出修法。先不要动手改，等我确认。`,
   },
 };
 

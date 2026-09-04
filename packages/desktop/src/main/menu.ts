@@ -26,7 +26,6 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         { label: "打开项目…", accelerator: "CmdOrCtrl+O", click: send("project.open") },
         { type: "separator" },
         { label: "新会话", accelerator: "CmdOrCtrl+Shift+N", click: send("chat.new") },
-        { label: "一致性机检", accelerator: "CmdOrCtrl+Shift+K", click: send("check.run") },
         { type: "separator" },
         { label: "导出故事种子…", accelerator: "CmdOrCtrl+E", click: send("project.exportSeed") },
         { label: "复制会话路径 [dev]", accelerator: "CmdOrCtrl+Shift+E", click: send("chat.copyPath") },
