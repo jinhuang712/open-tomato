@@ -24,7 +24,11 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
     if (!canReject()) return;
     void actions.reject(props.request.approvalId, reason().trim());
   };
-  const QUICK_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
+  /** 快捷理由是给作者的词汇表，不是快捷键。正文一套按写作的真难点长；
+   * 「我没感觉」合法，它是「有反应没有词」的出口，主编收到该换一批候选而不是追问 */
+  const PROSE_REASONS = ["太急", "太满", "他不会这么说", "没有事发生", "我没感觉"];
+  const MATERIAL_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
+  const QUICK_REASONS = props.request.kind === "manuscript" ? PROSE_REASONS : MATERIAL_REASONS;
   const remaining = () => state.approvals.length - 1;
 
   /** ⌘↩ / Ctrl↩ 直接批准：写东西时手不离键盘，弹窗开着随手就批了 */
