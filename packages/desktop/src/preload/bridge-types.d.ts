@@ -1,6 +1,14 @@
 import type { KernelEvent, RequestMap, RequestMethod } from "@opentomato/core/protocol";
 
-export type MenuCommand = "project.new" | "project.open" | "chat.new" | "project.exportSeed" | "chat.copyPath" | "settings.open";
+export type MenuCommand =
+  | "project.new"
+  | "project.open"
+  | "project.close"
+  | "chat.new"
+  | "project.exportSeed"
+  | "chat.copyPath"
+  | "cloud.upload"
+  | "settings.open";
 
 /** 设置页「存储 / 关于」要展示的本机信息，全部由 main 进程直接给，不经内核 */
 export interface AppInfo {

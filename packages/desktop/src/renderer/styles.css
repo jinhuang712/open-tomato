@@ -356,6 +356,25 @@ mark {
 .spin {
   animation: spin 0.9s linear infinite;
 }
+
+/* 同步指示器的「有改动」小点：慢闪，提醒但不催 */
+.pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);

@@ -390,7 +390,16 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async closeProject() {
+  /**
+   * 关闭项目。配了云端且本机有改动未同步时先弹确认；skipCloud 是确认框里选「直接关闭」。
+   * synced 还是 null（没比对完）也放行，不为一个未知状态卡住作者。
+   */
+  async closeProject(opts: { skipCloud?: boolean } = {}) {
+    if (!opts.skipCloud && state.cloud?.configured && state.cloudSync.synced === false) {
+      setState("closePromptOpen", true);
+      return;
+    }
+    setState("closePromptOpen", false);
     await bridge.request("project.close", {}).catch((e) => toast(errText(e), "error"));
   },
   /** 先弹确认，再把文件夹移到废纸篓并从最近列表摘掉 */
@@ -409,6 +418,16 @@ export const actions = {
     } catch (e) {
       toast(errText(e), "error");
     }
+  },
+  /** 确认框里的默认动作：传完再关；传失败留在框里显示原因 */
+  async syncAndClose() {
+    if (!state.project || state.cloudSync.phase === "uploading") return;
+    try {
+      await bridge.request("cloud.upload", {});
+    } catch {
+      return;
+    }
+    await actions.closeProject({ skipCloud: true });
   },
   async send(text: string, agentId?: string, deliverAs: "steer" | "followUp" = "steer") {
     const t = text.trim();

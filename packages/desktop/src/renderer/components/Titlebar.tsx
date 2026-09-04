@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { AgentBadge } from "./AgentBadge";
+import { CloudIndicator } from "./CloudIndicator";
 import { actions, setState, state } from "../state";
 
 /**
@@ -33,6 +34,9 @@ export function Titlebar() {
           </button>
         </Show>
         <AgentBadge />
+        <Show when={state.project && state.cloud?.configured}>
+          <CloudIndicator />
+        </Show>
         <button class="h-6.5 px-2.5 rounded-md text-ink-2 hover:bg-paper-3 flex items-center gap-1.5" onClick={() => setState("modelPickerOpen", true)}>
           <span>{state.models?.current ? state.models.current.id : "选择模型"}</span>
           <Show when={state.models?.thinkingLevel && state.models.thinkingLevel !== "off"}>
@@ -67,8 +71,13 @@ function BookMenu(props: { name: string }) {
           <MenuItem label="导出故事种子" hint={keyHint("project.exportSeed")} onClick={() => run(actions.exportSeed)} />
           <MenuItem label="复制会话路径" tag="dev" hint={keyHint("chat.copyPath")} onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
+          <Show when={state.cloud?.configured}>
+            <MenuItem label="同步到云端" hint="⌘S" onClick={() => run(() => actions.uploadCloud())} />
+          </Show>
+          <MenuItem label="云端存储…" onClick={() => run(() => setState("cloudSettingsOpen", true))} />
+          <div class="my-1 border-t border-line" />
           <MenuItem label="打开别的项目" onClick={() => run(() => actions.openProject())} />
-          <MenuItem label="关闭项目" onClick={() => run(actions.closeProject)} />
+          <MenuItem label="关闭项目" onClick={() => run(() => actions.closeProject())} />
           <div class="my-1 border-t border-line" />
           <MenuItem label="设置…" hint={keyHint("settings.open")} onClick={() => run(() => setState("settingsOpen", true))} />
         </div>

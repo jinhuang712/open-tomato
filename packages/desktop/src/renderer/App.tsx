@@ -2,6 +2,7 @@ import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
 import { installDocLinkHandler } from "./doclink";
 import { CapabilityDialog } from "./components/CapabilityDialog";
+import { ClosePrompt } from "./components/ClosePrompt";
 import { CloudSettings } from "./components/CloudSettings";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
@@ -60,6 +61,12 @@ export function App() {
         case "settings.open":
           setState("settingsOpen", true);
           break;
+        case "cloud.upload":
+          if (state.project && state.cloud?.configured) void actions.uploadCloud();
+          break;
+        case "project.close":
+          if (state.project) void actions.closeProject();
+          break;
       }
     });
     // 渲染层刷新过（HMR / 重新载入）时内核里可能还挂着项目和正在跑的 agent，
@@ -109,6 +116,9 @@ export function App() {
       <Show when={state.capabilityDialog}>{(c) => <CapabilityDialog capability={c()} />}</Show>
       <Show when={state.cloudSettingsOpen}>
         <CloudSettings />
+      </Show>
+      <Show when={state.closePromptOpen && state.project}>
+        <ClosePrompt />
       </Show>
       <Show when={state.searchOpen && state.project}>
         <SearchPalette />

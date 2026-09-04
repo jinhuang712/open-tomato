@@ -38,7 +38,10 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         item("project.exportSeed", "导出故事种子…"),
         item("chat.copyPath", "复制会话路径 [dev]"),
         { type: "separator" },
-        { role: "close", label: "关闭窗口" },
+        { label: "同步到云端", accelerator: "CmdOrCtrl+S", click: send("cloud.upload") },
+        { type: "separator" },
+        { label: "关闭项目", accelerator: "CmdOrCtrl+W", click: send("project.close") },
+        { role: "close", label: "关闭窗口", accelerator: "CmdOrCtrl+Shift+W" },
       ],
     },
     {
