@@ -1,11 +1,11 @@
 import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { keyHint } from "../../shared/keymap";
 import { autoGrow } from "../autogrow";
 import { actions, setState, state } from "../state";
 
 /**
- * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上：
- * 插话 ⌘↩ 在当前这步工具结束后就送到；排队 ⇧⌘↩ 等这一轮跑完再送；
- * 暂停 ⌘. 让它收尾停下来问你；停 ⇧⌘. 立刻掐断。
+ * 输入框。agent 空闲时只有「发送」；跑着的时候三个动作，快捷键都印在按钮上（符号取自 shared/keymap）：
+ * 插话在当前这步工具结束后就送到；排队等这一轮跑完再送；暂停让它收尾停下来问你；停立刻掐断。
  * 还没送到的消息列在输入框上方，可以一键撤回到输入框里改。
  * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
  */
@@ -141,11 +141,11 @@ export function Composer(props: { agentId?: string }) {
         <div class="flex items-center gap-1.5 px-3 pb-2">
           <span class="flex-1" />
           <Show when={busy()}>
-            <ActionButton label="停" keys="⇧⌘." tone="danger" onClick={() => void actions.stop(agentId())} title="立刻掐断正在跑的模型调用和工具，写了一半的东西不落盘" />
-            <ActionButton label="暂停" keys="⌘." tone="quiet" onClick={() => void actions.pause(agentId())} title="收尾当前这步，总结进度，然后停下来问你想怎么调整" />
+            <ActionButton label="停" keys={keyHint("composer.stop")} tone="danger" onClick={() => void actions.stop(agentId())} title="立刻掐断正在跑的模型调用和工具，写了一半的东西不落盘" />
+            <ActionButton label="暂停" keys={keyHint("composer.pause")} tone="quiet" onClick={() => void actions.pause(agentId())} title="收尾当前这步，总结进度，然后停下来问你想怎么调整" />
             <ActionButton
               label="排队"
-              keys="⇧⌘↩"
+              keys={keyHint("composer.followUp")}
               tone="quiet"
               disabled={!canSend() || disabled()}
               onClick={() => submit("followUp")}
@@ -154,7 +154,7 @@ export function Composer(props: { agentId?: string }) {
           </Show>
           <ActionButton
             label={busy() ? "插话" : "发送"}
-            keys="⌘↩"
+            keys={keyHint("composer.send")}
             tone="primary"
             disabled={!canSend() || disabled()}
             onClick={() => submit("steer")}

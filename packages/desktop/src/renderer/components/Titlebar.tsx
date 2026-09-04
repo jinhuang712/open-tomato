@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, Show } from "solid-js";
+import { keyHint } from "../../shared/keymap";
 import { AgentBadge } from "./AgentBadge";
 import { actions, setState, state } from "../state";
 
@@ -22,7 +23,7 @@ export function Titlebar() {
         >
           <SearchIcon />
           <span class="flex-1 text-left">搜人物、设定、章节、正文</span>
-          <kbd class="font-sans text-xs text-ink-3 border border-line-2 rounded px-1 leading-4">⌘K</kbd>
+          <kbd class="font-sans text-xs text-ink-3 border border-line-2 rounded px-1 leading-4">{keyHint("search.open")}</kbd>
         </button>
       </Show>
       <div class="no-drag flex items-center gap-1 text-xs">
@@ -63,11 +64,13 @@ function BookMenu(props: { name: string }) {
       </button>
       <Show when={open()}>
         <div class="absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
-          <MenuItem label="导出故事种子" hint="⌘E" onClick={() => run(actions.exportSeed)} />
-          <MenuItem label="复制会话路径" tag="dev" hint="⌘⇧E" onClick={() => run(actions.copyTranscriptPath)} />
+          <MenuItem label="导出故事种子" hint={keyHint("project.exportSeed")} onClick={() => run(actions.exportSeed)} />
+          <MenuItem label="复制会话路径" tag="dev" hint={keyHint("chat.copyPath")} onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
           <MenuItem label="打开别的项目" onClick={() => run(() => actions.openProject())} />
           <MenuItem label="关闭项目" onClick={() => run(actions.closeProject)} />
+          <div class="my-1 border-t border-line" />
+          <MenuItem label="设置…" hint={keyHint("settings.open")} onClick={() => run(() => setState("settingsOpen", true))} />
         </div>
       </Show>
     </div>
