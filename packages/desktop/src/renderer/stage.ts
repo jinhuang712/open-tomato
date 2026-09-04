@@ -1,4 +1,5 @@
-import type { CapabilityId, DocHeader } from "@opentomato/core/protocol";
+import { chapterRange, type CapabilityId, type DocHeader } from "@opentomato/core/protocol";
+export { chapterRange };
 import { refId } from "./refid";
 
 /** 下一步的一个候选：要么跑一条能力，要么往输入框预填一句话 */
@@ -21,15 +22,6 @@ const ADOPT: StageStep = {
   text: "我有一些现成的材料，先贴给你，帮我整理进对应的卡片，不确定的先问我：\n\n",
 };
 
-/** 卷纲 chapters 字段「1-30」「5」这类写法解析成闭区间 */
-export function chapterRange(v: unknown): [number, number] | null {
-  if (typeof v !== "string" && typeof v !== "number") return null;
-  const m = String(v).match(/(\d+)\s*(?:[-–~至到]\s*(\d+))?/);
-  if (!m) return null;
-  const a = Number(m[1]);
-  const b = m[2] === undefined ? a : Number(m[2]);
-  return a > 0 && b >= a ? [a, b] : null;
-}
 
 /**
  * 里程碑达成靠推导不落盘：一卷 chapters 范围内的正文都写完了，这卷 milestones 里的里程碑就算过了。

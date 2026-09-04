@@ -81,6 +81,16 @@ export const PROSE_REJECT_WORDS = ["太急", "太满", "他不会这么说", "�
 export const MATERIAL_REJECT_WORDS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"] as const;
 export const REJECT_WORDS: ReadonlySet<string> = new Set([...PROSE_REJECT_WORDS, ...MATERIAL_REJECT_WORDS]);
 
+/** 卷纲 chapters 字段「1-30」「5」这类写法解析成闭区间；界面的阶段判定和内核的节奏表共用 */
+export function chapterRange(v: unknown): [number, number] | null {
+  if (typeof v !== "string" && typeof v !== "number") return null;
+  const m = String(v).match(/(\d+)\s*(?:[-–~至到]\s*(\d+))?/);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = m[2] === undefined ? a : Number(m[2]);
+  return a > 0 && b >= a ? [a, b] : null;
+}
+
 export interface CheckIssue {
   level: IssueLevel;
   kind: DocKindId | null;

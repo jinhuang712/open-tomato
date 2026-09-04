@@ -1,4 +1,4 @@
-import { stubPrompt } from "@opentomato/core/protocol";
+import { PROSE_REJECT_WORDS, stubPrompt } from "@opentomato/core/protocol";
 import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
@@ -183,6 +183,21 @@ export function Composer(props: { agentId?: string }) {
                 </div>
               )}
             </For>
+            {/* 圈的是正文时给词汇表：说不出哪里不对的人也能选一个，点了填进输入框，还能接着写 */}
+            <Show when={quotes().some((q) => q.source?.path.startsWith("正文/"))}>
+              <div class="flex flex-wrap gap-1 pl-3">
+                <For each={PROSE_REJECT_WORDS}>
+                  {(w) => (
+                    <button
+                      class={`px-2 py-0.5 rounded border text-xs ${text().includes(w) ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-3 hover:text-ink"}`}
+                      onClick={() => setText((t) => (t.includes(w) ? t : [t.trim(), w].filter(Boolean).join(" ")))}
+                    >
+                      {w}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
           </div>
         </Show>
         <Show when={attachments().length > 0}>
