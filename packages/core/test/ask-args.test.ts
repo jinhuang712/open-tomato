@@ -7,6 +7,15 @@ describe("repairAskArgs", () => {
     expect(repairAskArgs(args)).toEqual(args);
   });
 
+  test("字面的反斜杠 n 还原成换行，问句和候选都还原", () => {
+    const out = repairAskArgs({
+      question: "简介定了，摘要如下：\\n\\n《书名》……\\n\\n下一步先设哪批卡？",
+      options: ["先聊聊主角", { label: "留白版", text: "第一段\\n第二段" }],
+    });
+    expect(out.question).toBe("简介定了，摘要如下：\n\n《书名》……\n\n下一步先设哪批卡？");
+    expect(out.options).toEqual(["先聊聊主角", { label: "留白版", text: "第一段\n第二段" }]);
+  });
+
   test("question 丢失时用兜底问句撑起来", () => {
     const out = repairAskArgs({ options: ["A 方向", "B 方向"] });
     expect(out.question).toBe("这些候选里，你更想要哪个方向？");

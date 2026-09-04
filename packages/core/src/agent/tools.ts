@@ -92,15 +92,18 @@ type AskOption = string | { label: string; text: string };
  * "question" 被当成值塞进 options、末尾候选粘上数组闭合符号。校验器一律判失败，
  * 一次提问就变成一条红色报错。这里在校验前把能救的救回来。
  */
+/** 模型有时把换行写成字面的反斜杠 n（双重转义）。给作者看的话里不可能真要这两个字符，一律还原成换行 */
+const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
+
 export function repairAskArgs(args: unknown): { question: string; options?: AskOption[]; allowFreeText?: boolean } {
   const raw = (args ?? {}) as Record<string, unknown>;
-  const question = typeof raw.question === "string" && raw.question.trim() ? raw.question : "";
+  const question = typeof raw.question === "string" && raw.question.trim() ? unescapeNewlines(raw.question) : "";
   const damaged = !question;
 
   const options: AskOption[] = [];
   for (const item of Array.isArray(raw.options) ? raw.options : []) {
     if (typeof item === "string") {
-      const trimmed = item.trim();
+      const trimmed = unescapeNewlines(item).trim();
       if (!trimmed || ASK_ARG_KEYS.has(trimmed)) continue;
       // 闭合符号只在实参已判损坏时才剥，正常候选不动
       const cleaned = damaged ? trimmed.replace(/\\?["'”]?\s*\]\s*$/, "").trim() : trimmed;
@@ -109,7 +112,7 @@ export function repairAskArgs(args: unknown): { question: string; options?: AskO
     }
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
-      if (typeof o.label === "string" && typeof o.text === "string") options.push({ label: o.label, text: o.text });
+      if (typeof o.label === "string" && typeof o.text === "string") options.push({ label: unescapeNewlines(o.label), text: unescapeNewlines(o.text) });
     }
   }
 
