@@ -1,5 +1,7 @@
 import { For, Show } from "solid-js";
 import { actions, state } from "../state";
+import { DownArrowIcon } from "./CloudIcons";
+import { CloudProjects } from "./CloudProjects";
 import { PixelWordmark } from "./PixelArt";
 import logo from "../assets/logo-64.png";
 
@@ -23,34 +25,49 @@ export function Welcome() {
 
         <Show when={state.recent.length > 0}>
           <div class="text-xs text-ink-3 mb-2">最近打开</div>
-          <div class="space-y-1">
+          <div class="space-y-1 mb-7">
             <For each={state.recent}>
-              {(r) => (
-                <div class="group flex items-center rounded-lg hover:bg-paper-2">
-                  <button class="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-3" onClick={() => void actions.openProject(r)}>
-                    <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
-                    <span class="text-ink-3 text-xs truncate">{r}</span>
-                  </button>
-                  <div class="mr-2 flex gap-1 opacity-0 group-hover:opacity-100">
-                    <button
-                      class="px-2 py-1 rounded text-xs text-ink-3 hover:text-ink hover:bg-paper"
-                      title="从最近列表移除（不删文件）"
-                      onClick={() => void actions.forgetProject(r)}
-                    >
-                      移除
+              {(r) => {
+                // 云端有更新的本机项目，行尾标一下；点行本身仍是直接打开
+                const behind = () => state.cloudRows?.some((c) => c.local?.root === r && !c.local.synced) ?? false;
+                return (
+                  <div class="group flex items-center rounded-lg hover:bg-paper-2">
+                    <button class="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-3" onClick={() => void actions.openProject(r)}>
+                      <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
+                      <span class="text-ink-3 text-xs truncate">{r}</span>
+                      <span class="flex-1" />
+                      <Show when={behind()}>
+                        <span class="text-xs text-accent flex items-center gap-1 shrink-0">
+                          <DownArrowIcon />
+                          云端有更新
+                        </span>
+                      </Show>
                     </button>
-                    <button
-                      class="px-2 py-1 rounded text-xs text-ink-3 hover:text-danger hover:bg-danger-soft"
-                      title="把项目文件夹移到废纸篓"
-                      onClick={() => void actions.deleteProject(r)}
-                    >
-                      删除…
-                    </button>
+                    <div class="mr-2 flex gap-1 opacity-0 group-hover:opacity-100">
+                      <button
+                        class="px-2 py-1 rounded text-xs text-ink-3 hover:text-ink hover:bg-paper"
+                        title="从最近列表移除（不删文件）"
+                        onClick={() => void actions.forgetProject(r)}
+                      >
+                        移除
+                      </button>
+                      <button
+                        class="px-2 py-1 rounded text-xs text-ink-3 hover:text-danger hover:bg-danger-soft"
+                        title="把项目文件夹移到废纸篓"
+                        onClick={() => void actions.deleteProject(r)}
+                      >
+                        删除…
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              }}
             </For>
           </div>
+        </Show>
+
+        <Show when={state.ready}>
+          <CloudProjects />
         </Show>
 
         <Show when={!state.ready && !state.kernelError}>

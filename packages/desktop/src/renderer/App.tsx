@@ -2,6 +2,7 @@ import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
 import { installDocLinkHandler } from "./doclink";
 import { CapabilityDialog } from "./components/CapabilityDialog";
+import { CloudSettings } from "./components/CloudSettings";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
@@ -106,6 +107,9 @@ export function App() {
         <Settings />
       </Show>
       <Show when={state.capabilityDialog}>{(c) => <CapabilityDialog capability={c()} />}</Show>
+      <Show when={state.cloudSettingsOpen}>
+        <CloudSettings />
+      </Show>
       <Show when={state.searchOpen && state.project}>
         <SearchPalette />
       </Show>

@@ -5,6 +5,9 @@ import type {
   ApprovalRequest,
   CapabilityInfo,
   CheckIssue,
+  CloudProject,
+  CloudProjectRow,
+  CloudStatus,
   DocHeader,
   DocKindId,
   DocKindInfo,
@@ -27,6 +30,16 @@ export interface Toast {
   text: string;
 }
 
+
+/** 云端同步的即时状态：内核 cloud.sync 事件归约而来 */
+export interface CloudSyncState {
+  phase: "uploading" | "idle" | "error";
+  message: string | null;
+  /** 云端最近一次快照（已知的话） */
+  last: CloudProject | null;
+  /** 本地是否已在云端：null = 未知 */
+  synced: boolean | null;
+}
 
 export interface ComposerQuote {
   id: string;
@@ -69,7 +82,21 @@ export interface State {
   composerQuotes: ComposerQuote[];
   /** 正在弹窗审阅的 approvalId */
   reviewOpen: string | null;
+  /** 云端配置状态；null = 还没问过内核 */
+  cloud: CloudStatus | null;
+  /** 云端项目列表；null = 还没拉过 */
+  cloudRows: CloudProjectRow[] | null;
+  cloudListing: "idle" | "loading" | "error";
+  cloudListError: string | null;
+  cloudSync: CloudSyncState;
+  cloudSettingsOpen: boolean;
+  /** 正在下载的云端项目 slug */
+  cloudDownloading: string | null;
+  /** 关闭项目前的「同步到云端？」确认 */
+  closePromptOpen: boolean;
 }
+
+const idleCloudSync: CloudSyncState = { phase: "idle", message: null, last: null, synced: null };
 
 const initial: State = {
   ready: false,
@@ -99,6 +126,14 @@ const initial: State = {
   composerDraft: null,
   composerQuotes: [],
   reviewOpen: null,
+  cloud: null,
+  cloudRows: null,
+  cloudListing: "idle",
+  cloudListError: null,
+  cloudSync: idleCloudSync,
+  cloudSettingsOpen: false,
+  cloudDownloading: null,
+  closePromptOpen: false,
 };
 
 export const [state, setState] = createStore<State>(initial);
@@ -139,11 +174,23 @@ export function applyEvent(ev: KernelEvent) {
         questions: [],
         issues: null,
         view: { type: "chat", agentId: "lead" },
+        cloudSync: idleCloudSync,
+        closePromptOpen: false,
       });
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
-      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, approvals: [], questions: [], issues: null });
+      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
+      // 回到欢迎页，云端列表重新拉一遍：刚关掉的项目可能刚同步过
+      void actions.refreshCloud();
+      return;
+    case "cloud.sync":
+      setState("cloudSync", (prev) => ({
+        phase: ev.phase,
+        message: ev.message,
+        last: ev.last ?? prev.last,
+        synced: ev.synced,
+      }));
       return;
     case "docs.changed":
       setState("docs", ev.docs);
@@ -316,6 +363,7 @@ async function refreshAfterReady() {
   } catch (e) {
     toast(errText(e), "error");
   }
+  void actions.refreshCloud();
 }
 
 export function errText(e: unknown): string {
@@ -478,5 +526,71 @@ export const actions = {
   },
   openChat(agentId: string) {
     setState("view", { type: "chat", agentId });
+  },
+
+  // ───────────── 云端 ─────────────
+
+  /** 问一遍配置状态；配好了就拉云端项目列表 */
+  async refreshCloud() {
+    let status: CloudStatus;
+    try {
+      status = await bridge.request("cloud.status", {});
+    } catch {
+      return;
+    }
+    setState("cloud", status);
+    if (!status.configured) {
+      setState({ cloudRows: null, cloudListing: "idle", cloudListError: null });
+      return;
+    }
+    setState({ cloudListing: "loading", cloudListError: null });
+    try {
+      const rows = await bridge.request("cloud.list", {});
+      setState({ cloudRows: rows, cloudListing: "idle" });
+    } catch (e) {
+      setState({ cloudListing: "error", cloudListError: errText(e) });
+    }
+  },
+  /** 连接并保存凭据；内核先连一次 Supabase 再落盘，失败原样抛给弹窗显示 */
+  async configureCloud(url: string, serviceKey: string, bucket: string) {
+    const status = await bridge.request("cloud.configure", { url, serviceKey, ...(bucket.trim() ? { bucket: bucket.trim() } : {}) });
+    setState("cloud", status);
+    void actions.refreshCloud();
+    return status;
+  },
+  async clearCloud() {
+    try {
+      const status = await bridge.request("cloud.clear", {});
+      setState({ cloud: status, cloudRows: null, cloudListing: "idle", cloudSync: idleCloudSync });
+      toast("已断开云端存储，本机凭据已删除");
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /**
+   * 把云端项目落到本机并打开。本机没有：弹目录选择器选个空目录；本机有但落后：覆盖那份。
+   * 覆盖前由界面确认过，这里不再问。
+   */
+  async downloadCloud(row: CloudProjectRow) {
+    let dest: string | null;
+    if (row.local) dest = row.local.root;
+    else dest = await bridge.pickFolder({ title: `把「${row.name}」下载到哪个空文件夹`, create: true });
+    if (!dest) return;
+    setState("cloudDownloading", row.slug);
+    try {
+      await bridge.request("cloud.download", { slug: row.slug, dest, ...(row.local ? { replace: true } : {}) });
+    } catch (e) {
+      toast(errText(e), "error");
+    } finally {
+      setState("cloudDownloading", null);
+    }
+  },
+  async uploadCloud(force = false) {
+    if (!state.project || state.cloudSync.phase === "uploading") return;
+    try {
+      await bridge.request("cloud.upload", force ? { force } : {});
+    } catch (e) {
+      toast(errText(e), "error");
+    }
   },
 };
