@@ -165,6 +165,24 @@ describe("runCheck", () => {
     expect(hit?.message).toBe("章纲断档：2");
   });
 
+  test("缺必填段按 tier 条件算：主角缺语音签名报，配角不报", async () => {
+    const mk = (tier: string) => `---\ntitle: 甲\nsummary: s\nkeywords: []\nstatus: draft\ntier: ${tier}\n---\n\n## 一句话\n\nx\n\n## 外在\n\nx\n\n## 内在与欲望\n\nx\n`;
+    await store.write("characters", "lead", mk("主角"));
+    await store.write("characters", "extra", mk("一般配角"));
+    const issues = await runCheck(store);
+    const of = (id: string) => issues.filter((i) => i.kind === "characters" && i.id === id).map((i) => i.message);
+    expect(of("lead")).toEqual(["缺必填段：语音签名"]);
+    expect(of("extra")).toEqual([]);
+  });
+
+  test("段落只写了「待定」报 warning，点名段", async () => {
+    await store.write("characters", "a", "---\ntitle: 甲\nsummary: s\nkeywords: []\nstatus: draft\ntier: 一般配角\n---\n\n## 一句话\n\nx\n\n## 外在\n\nx\n\n## 内在与欲望\n\nx\n\n## 关系\n\n待定\n\n## 弧光\n\n待定（以后再说）\n");
+    const issues = await runCheck(store);
+    const hit = issues.find((i) => i.kind === "characters" && i.message.includes("待定"));
+    expect(hit?.level).toBe("warning");
+    expect(hit?.message).toContain("关系、弧光");
+  });
+
   test("残留待填", async () => {
     await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: s\nkeywords: []\nstatus: draft\n---\n\n待填\n");
     const issues = await runCheck(store);

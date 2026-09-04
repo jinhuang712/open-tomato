@@ -1,14 +1,16 @@
 import type { CheckIssue, DocHeader, DocKindId } from "../protocol.js";
-import { asStringArray } from "./frontmatter.js";
-import { DOC_KINDS, PLACEHOLDER, requiredFieldsOf } from "./kinds.js";
+import { asStringArray, splitSections } from "./frontmatter.js";
+import { DOC_KINDS, PLACEHOLDER, requiredFieldsOf, requiredSectionsOf } from "./kinds.js";
 import type { ProjectStore } from "./store.js";
 
 export { PLACEHOLDER };
+/** 旧写法里的软占位。现在没想好的段不落盘，作者明确搁置的决定记在 frontmatter open 里 */
+export const DEFERRED = "待定";
 
 /**
  * 机械对账。只报不拦：
  * - frontmatter 缺必填字段 / 仍是「待填」
- * - 正文残留「待填」
+ * - 正文残留「待填」；段落只写了「待定」；缺必填段（按 frontmatter 条件算）
  * - 章纲引用的人物 / 线索 / 卷不存在
  * - 正文没有对应章纲
  * - 章号 / 里程碑 order 断档或重复
@@ -24,7 +26,8 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
 
   for (const [kind, headers] of byKind) {
     for (const h of headers) {
-      const required = requiredFieldsOf(kind, { title: h.title, summary: h.summary, status: h.status, ...h.extra });
+      const fm = { title: h.title, summary: h.summary, status: h.status, ...h.extra };
+      const required = requiredFieldsOf(kind, fm);
       if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填");
       if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填");
       for (const f of required) {
@@ -32,10 +35,17 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
         if (v === undefined || v === null || v === "" || v === PLACEHOLDER) push("error", h, `缺必填字段 ${f}`);
       }
       const doc = await store.read(kind, h.id);
-      if (doc && doc.body.includes(PLACEHOLDER)) {
+      if (!doc) continue;
+      if (doc.body.includes(PLACEHOLDER)) {
         const count = doc.body.split(PLACEHOLDER).length - 1;
         push(kind === "manuscript" ? "error" : "warning", h, `正文残留 ${count} 处「${PLACEHOLDER}」`);
       }
+      // 「待定」不是内容：没想好的段不该出现，先放一放的决定记在 frontmatter open 里
+      const deferred = splitSections(doc.body).filter((s) => s.heading !== "" && s.content.startsWith(DEFERRED));
+      if (deferred.length > 0) push("warning", h, `段落只写了「${DEFERRED}」：${deferred.map((s) => s.heading).join("、")}，没想好就删掉这一段`);
+      const present = new Set(doc.sections);
+      const missing = requiredSectionsOf(kind, fm).filter((s) => !present.has(s.name));
+      if (missing.length > 0) push("warning", h, `缺必填段：${missing.map((s) => s.name).join("、")}`);
     }
   }
 
