@@ -11,5 +11,5 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/renderer/*"] }
   },
-  "include": ["src/renderer", "src/preload/bridge-types.d.ts"]
+  "include": ["src/renderer", "src/shared", "src/preload/bridge-types.d.ts"]
 }

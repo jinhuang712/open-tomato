@@ -1,14 +1,22 @@
 import { app, type BrowserWindow, Menu, type MenuItemConstructorOptions, shell } from "electron";
 import type { MenuCommand } from "../preload/bridge-types";
+import { binding } from "../shared/keymap";
 
 export function installMenu(getWindow: () => BrowserWindow | null) {
   const send = (command: MenuCommand) => () => getWindow()?.webContents.send("menu:command", command);
+  // 带快捷键的菜单项：按键从 keymap 单源取，菜单栏和设置页展示的永远是同一份
+  const item = (id: string, label: string): MenuItemConstructorOptions => {
+    const b = binding(id);
+    return { label, accelerator: b.keys[0]!, click: send(b.menuCommand!) };
+  };
 
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
       submenu: [
         { role: "about", label: `关于 ${app.name}` },
+        { type: "separator" },
+        item("settings.open", "设置…"),
         { type: "separator" },
         { role: "services", label: "服务" },
         { type: "separator" },
@@ -22,13 +30,13 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
     {
       label: "文件",
       submenu: [
-        { label: "新建项目…", accelerator: "CmdOrCtrl+N", click: send("project.new") },
-        { label: "打开项目…", accelerator: "CmdOrCtrl+O", click: send("project.open") },
+        item("project.new", "新建项目…"),
+        item("project.open", "打开项目…"),
         { type: "separator" },
-        { label: "新会话", accelerator: "CmdOrCtrl+Shift+N", click: send("chat.new") },
+        item("chat.new", "新会话"),
         { type: "separator" },
-        { label: "导出故事种子…", accelerator: "CmdOrCtrl+E", click: send("project.exportSeed") },
-        { label: "复制会话路径 [dev]", accelerator: "CmdOrCtrl+Shift+E", click: send("chat.copyPath") },
+        item("project.exportSeed", "导出故事种子…"),
+        item("chat.copyPath", "复制会话路径 [dev]"),
         { type: "separator" },
         { role: "close", label: "关闭窗口" },
       ],

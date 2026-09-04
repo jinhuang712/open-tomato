@@ -19,6 +19,8 @@ import { bridge } from "./bridge";
 
 export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string };
 
+export type SettingsTab = "keymap" | "models" | "storage" | "about";
+
 export interface Toast {
   id: number;
   level: "info" | "error";
@@ -56,6 +58,9 @@ export interface State {
   recent: string[];
   toasts: Toast[];
   modelPickerOpen: boolean;
+  settingsOpen: boolean;
+  /** 设置页当前分组 */
+  settingsTab: SettingsTab;
   capabilityDialog: CapabilityInfo | null;
   searchOpen: boolean;
   /** 快捷按钮往输入框里预填的文字；Composer 消费后清空 */
@@ -87,6 +92,8 @@ const initial: State = {
   recent: [],
   toasts: [],
   modelPickerOpen: false,
+  settingsOpen: false,
+  settingsTab: "keymap",
   capabilityDialog: null,
   searchOpen: false,
   composerDraft: null,

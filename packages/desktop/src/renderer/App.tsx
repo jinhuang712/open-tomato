@@ -55,6 +55,9 @@ export function App() {
         case "chat.copyPath":
           if (state.project) void actions.copyTranscriptPath();
           break;
+        case "settings.open":
+          setState("settingsOpen", true);
+          break;
       }
     });
     // 渲染层刷新过（HMR / 重新载入）时内核里可能还挂着项目和正在跑的 agent，
