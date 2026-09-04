@@ -170,11 +170,9 @@ export function applyEvent(ev: KernelEvent) {
         agentOrder: [],
         transcripts: {},
         interruptedAfter: {},
-        // 上个项目的排队消息、引用、草稿、待审弹窗不能带进新项目：
-        // 排队文本发给新主编是串台，旧 reviewOpen 还会挡住新审批自动弹出来
+        // 上个内核的排队消息与待审弹窗已经失效，重开项目时必须清；
+        // composerDraft / composerQuotes 刻意保留：内核崩溃后会自动重开同一项目，不能丢用户未发送的文字
         queues: {},
-        composerDraft: null,
-        composerQuotes: [],
         reviewOpen: null,
         approvals: [],
         questions: [],
