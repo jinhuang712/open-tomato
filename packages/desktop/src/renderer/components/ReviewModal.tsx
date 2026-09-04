@@ -1,5 +1,5 @@
 import type { ApprovalRequest } from "@opentomato/core/protocol";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
@@ -32,6 +32,18 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   };
   const QUICK_REASONS = ["还没讨论到这一步，先别落盘", "方向不对，先回复里给候选", "内容大致可以，细节要改"];
   const remaining = () => state.approvals.length - 1;
+
+  /** ⌘↩ / Ctrl↩ 直接批准：写东西时手不离键盘，弹窗开着随手就批了 */
+  createEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !rejecting()) {
+        e.preventDefault();
+        approve();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
+  });
 
   /** 打开或切回审阅视图时，滚到第一处改动；整篇都没改动就留在顶部 */
   let scroller: HTMLDivElement | undefined;
@@ -104,8 +116,9 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 <button class="px-3 py-1.5 rounded-lg border border-line hover:bg-paper-3" onClick={() => setRejecting(true)}>
                   拒绝…
                 </button>
-                <button class="px-4 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110" onClick={approve}>
-                  批准写入
+                <button class="px-4 py-1.5 rounded-lg bg-ink text-paper font-medium hover:brightness-110 flex items-center gap-2" onClick={approve} title="批准写入（⌘↩）">
+                  <span>批准写入</span>
+                  <kbd class="font-sans text-[10px] leading-4 px-1 rounded border border-paper/30 text-paper/70">⌘↩</kbd>
                 </button>
               </>
             }
