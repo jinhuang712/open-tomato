@@ -2,10 +2,21 @@ import { For } from "solid-js";
 
 type Cell = { color: string };
 
-/** 按行主序铺一组色块。columns 是 grid-template-columns 的字面量，行高由 rowHeight 定 */
-export function PixelGrid(props: { cells: Cell[]; columns: string; rowHeight: number }) {
+/**
+ * 按行主序铺一组色块。columns 是 grid-template-columns 的字面量。
+ * 列用 fr、行用 1fr，整块跟着外层容器宽度缩放，靠 aspect-ratio 锁住比例——窄窗口不会撑破。
+ */
+export function PixelGrid(props: { cells: Cell[]; columns: string; rows: number; aspectRatio: string }) {
   return (
-    <div style={{ display: "grid", "grid-template-columns": props.columns, "grid-auto-rows": `${props.rowHeight}px` }}>
+    <div
+      style={{
+        display: "grid",
+        width: "100%",
+        "aspect-ratio": props.aspectRatio,
+        "grid-template-columns": props.columns,
+        "grid-template-rows": `repeat(${props.rows}, 1fr)`,
+      }}
+    >
       <For each={props.cells}>{(c) => <div style={{ background: c.color }} />}</For>
     </div>
   );
@@ -73,8 +84,15 @@ export function PixelWordmark(props: { cellWidth?: number; cellHeight?: number; 
     }
   }
 
+  // cellWidth / cellHeight / gap 只定比例和最大尺寸；实际大小由外层容器决定，最宽不超过设计尺寸
   const tracks: string[] = [];
-  for (let c = 0; c < cols; c++) tracks.push(c % stride === GLYPH_COLS ? `${gap}px` : `${cellWidth}px`);
+  for (let c = 0; c < cols; c++) tracks.push(c % stride === GLYPH_COLS ? `${gap}fr` : `${cellWidth}fr`);
+  const totalWidth = word.length * GLYPH_COLS * cellWidth + (word.length - 1) * gap;
+  const totalHeight = GLYPH_ROWS * cellHeight;
 
-  return <PixelGrid cells={cells} columns={tracks.join(" ")} rowHeight={cellHeight} />;
+  return (
+    <div style={{ width: "100%", "max-width": `${totalWidth}px` }}>
+      <PixelGrid cells={cells} columns={tracks.join(" ")} rows={GLYPH_ROWS} aspectRatio={`${totalWidth} / ${totalHeight}`} />
+    </div>
+  );
 }

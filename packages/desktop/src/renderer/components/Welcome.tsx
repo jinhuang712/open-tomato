@@ -7,11 +7,12 @@ import logo from "../assets/logo-64.png";
 
 export function Welcome() {
   return (
-    <div class="h-full flex flex-col items-center">
-      <div class="mt-24">
+    // 整页可滚，上下留白随窗口高度缩放；内容列最宽 560，窄窗口跟着收，底部 logo 卡片永远排在内容之后
+    <div class="h-full overflow-y-auto flex flex-col items-center px-6">
+      <div class="w-full max-w-[560px] mt-[min(6rem,_12vh)] shrink-0">
         <PixelWordmark />
       </div>
-      <div class="w-[560px] mt-20">
+      <div class="w-full max-w-[560px] mt-[min(5rem,_10vh)] shrink-0">
         <div class="text-ink-2 mb-8">从一句话到一本书。</div>
 
         <div class="flex gap-2 mb-8">
@@ -33,8 +34,8 @@ export function Welcome() {
                 return (
                   <div class="group flex items-center rounded-lg hover:bg-paper-2">
                     <button class="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-3" onClick={() => void actions.openProject(r)}>
-                      <span class="font-medium">{r.split("/").filter(Boolean).pop()}</span>
-                      <span class="text-ink-3 text-xs truncate">{r}</span>
+                      <span class="font-medium truncate shrink-0 max-w-[60%]">{r.split("/").filter(Boolean).pop()}</span>
+                      <span class="text-ink-3 text-xs truncate min-w-0">{r}</span>
                       <span class="flex-1" />
                       <Show when={behind()}>
                         <span class="text-xs text-accent flex items-center gap-1 shrink-0">
@@ -77,8 +78,8 @@ export function Welcome() {
           <div class="mt-8 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable">{state.kernelError}</div>
         </Show>
       </div>
-      <div class="flex-1" />
-      <div class="mb-12 flex flex-col items-center gap-2 px-6 pt-4 pb-3 rounded-lg border border-line">
+      <div class="flex-1 min-h-12 shrink-0" />
+      <div class="mb-12 shrink-0 flex flex-col items-center gap-2 px-6 pt-4 pb-3 rounded-lg border border-line">
         <img src={logo} alt="" class="w-12 h-12" style={{ "image-rendering": "pixelated" }} />
         <span class="text-xs text-ink-2">OpenTomato</span>
       </div>
