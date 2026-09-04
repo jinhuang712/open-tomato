@@ -1,5 +1,6 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
+import { registerEscape } from "../escape";
 import { AgentBadge } from "./AgentBadge";
 import { CloudIndicator } from "./CloudIndicator";
 import { actions, setState, state } from "../state";
@@ -56,6 +57,7 @@ function BookMenu(props: { name: string }) {
   };
   document.addEventListener("mousedown", onDown);
   onCleanup(() => document.removeEventListener("mousedown", onDown));
+  registerEscape(() => open() && (setOpen(false), true));
   const run = (fn: () => unknown) => {
     setOpen(false);
     void fn();

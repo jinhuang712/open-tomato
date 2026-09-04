@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, Show } from "solid-js";
+import { registerEscape } from "../escape";
 import { formatBytes, relativeTime } from "../format";
 import { actions, setState, state } from "../state";
 import { CloudIcon, SpinnerIcon } from "./CloudIcons";
@@ -16,6 +17,7 @@ export function CloudIndicator() {
   };
   document.addEventListener("mousedown", onDown);
   onCleanup(() => document.removeEventListener("mousedown", onDown));
+  registerEscape(() => open() && (setOpen(false), true));
 
   const sync = () => state.cloudSync;
   const face = () => {
