@@ -7,6 +7,7 @@ import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
 import { ReviewModal } from "./components/ReviewModal";
 import { SearchPalette } from "./components/SearchPalette";
+import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
 import { Welcome } from "./components/Welcome";
@@ -100,6 +101,9 @@ export function App() {
       </Show>
       <Show when={state.modelPickerOpen}>
         <ModelPicker />
+      </Show>
+      <Show when={state.settingsOpen}>
+        <Settings />
       </Show>
       <Show when={state.capabilityDialog}>{(c) => <CapabilityDialog capability={c()} />}</Show>
       <Show when={state.searchOpen && state.project}>

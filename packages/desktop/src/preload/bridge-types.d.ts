@@ -2,7 +2,23 @@ import type { KernelEvent, RequestMap, RequestMethod } from "@opentomato/core/pr
 
 export type MenuCommand = "project.new" | "project.open" | "chat.new" | "project.exportSeed" | "chat.copyPath" | "settings.open";
 
+/** 设置页「存储 / 关于」要展示的本机信息，全部由 main 进程直接给，不经内核 */
+export interface AppInfo {
+  version: string;
+  electron: string;
+  chrome: string;
+  node: string;
+  /** Electron userData，内核的 OPENTOMATO_HOME */
+  home: string;
+  /** pi 的配置目录，凭据与自定义 provider 在这里 */
+  piAgentDir: string;
+  logsDir: string;
+}
+
 export interface Bridge {
+  appInfo(): Promise<AppInfo>;
+  /** 在 Finder 里选中这个路径 */
+  showInFolder(path: string): Promise<void>;
   request<M extends RequestMethod>(method: M, params: RequestMap[M]["params"]): Promise<RequestMap[M]["result"]>;
   onEvent(listener: (event: KernelEvent) => void): () => void;
   onMenu(listener: (command: MenuCommand) => void): () => void;

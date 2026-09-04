@@ -1,7 +1,9 @@
 import { writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
+import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
 import { installMenu } from "./menu";
 
@@ -132,6 +134,21 @@ ipcMain.handle("shell:trashProject", async (_e, root: string) => {
   await shell.trashItem(root);
   return true;
 });
+
+ipcMain.handle("shell:showInFolder", (_e, path: string) => shell.showItemInFolder(path));
+
+ipcMain.handle(
+  "app:info",
+  (): AppInfo => ({
+    version: app.getVersion(),
+    electron: process.versions.electron ?? "",
+    chrome: process.versions.chrome ?? "",
+    node: process.versions.node ?? "",
+    home: app.getPath("userData"),
+    piAgentDir: join(homedir(), ".pi", "agent"),
+    logsDir: app.getPath("logs"),
+  }),
+);
 
 ipcMain.handle("dialog:saveText", async (_e, { defaultName, content }: { defaultName: string; content: string }) => {
   if (!mainWindow) return null;

@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { Bridge } from "./bridge-types";
 
 const bridge: Bridge = {
+  appInfo: () => ipcRenderer.invoke("app:info"),
+  showInFolder: (path) => ipcRenderer.invoke("shell:showInFolder", path),
   request: (method, params) => ipcRenderer.invoke("kernel:request", { method, params }),
   onEvent: (listener) => {
     const handler = (_e: unknown, event: Parameters<typeof listener>[0]) => listener(event);
