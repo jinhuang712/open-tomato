@@ -117,18 +117,28 @@ function AskCard(props: { part: ToolPart }) {
   );
 }
 
+/**
+ * 拒因只取作者写的那一句：模型看的操作指引（write_doc/read_doc…）一个字都不能漏出来。
+ * 之前用 `\S+` 剥路径，中文里没空格就一直贪到指引里的第一个英文空格，整段技术文案直接甩给了作者。
+ */
+function rejectReason(output: string): string {
+  const m = output.match(/，原因：([\s\S]*?)。文件(?:没有创建|保持原样)/);
+  return m?.[1]?.trim() ?? "";
+}
+
 /** 写文档：路径 + 落盘结果，diff 已经在审批时看过，这里不重复 */
 function WriteCard(props: { part: ToolPart }) {
   const a = () => args(props.part);
   const running = () => props.part.status === "running";
   const rejected = () => props.part.output.startsWith("用户拒绝");
+  const reason = () => rejectReason(props.part.output);
   return (
     <div class={`my-1 h-7 flex items-center gap-2 text-xs ${running() ? "px-3 rounded-md bg-warn-soft text-warn" : "text-ink-3"}`}>
       <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || props.part.status === "error" ? "bg-danger" : "bg-ok"}`} />
       <span class={`shrink-0 ${running() ? "font-medium" : "text-ink-2"}`}>{running() ? "等待审批" : rejected() ? "已拒绝" : "已写入"}</span>
       <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs shrink-0" />
-      <Show when={rejected()}>
-        <span class="text-ink-3 truncate selectable">{props.part.output.replace(/^用户拒绝写入 \S+/, "").replace(/^，原因：/, "").replace(/。文件(没有创建|保持原样).*$/, "")}</span>
+      <Show when={rejected() && reason()}>
+        <span class="text-ink-3 truncate selectable">拒因：{reason()}</span>
       </Show>
     </div>
   );
