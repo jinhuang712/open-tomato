@@ -1029,6 +1029,8 @@ export class Kernel {
         return;
       case "tool_execution_end":
         if ((ev.toolName === "spawn_agents" || ev.toolName === "continue_agent") && !ev.isError) live.unexplained = true;
+        // ask_user 被打回（先解释再问 / 参数不合法）不算问过：不然主编解释完就停，轮末以为已问过而不补，作者面前没有问题卡
+        if (ev.toolName === "ask_user" && ev.isError) live.asked = false;
         this.send(live, {
           type: "tool_end",
           toolCallId: String(ev.toolCallId),
