@@ -24,6 +24,7 @@ import type {
   UiPart,
 } from "../protocol.js";
 import { STUB_PATTERN, stubPrompt } from "../protocol.js";
+import { stubStripExtension } from "./stub-strip.js";
 import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfig, writeCloudConfig, type CloudConfig } from "../cloud/config.js";
 import { CloudSync } from "../cloud/sync.js";
 import { runCheck } from "../project/check.js";
@@ -534,7 +535,7 @@ export class Kernel {
 
   private loaderFor(systemPrompt: string): ResourceLoader {
     return {
-      getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
+      getExtensions: () => ({ extensions: [stubStripExtension()], errors: [], runtime: createExtensionRuntime() }),
       getSkills: () => ({ skills: [], diagnostics: [] }),
       getPrompts: () => ({ prompts: [], diagnostics: [] }),
       getThemes: () => ({ themes: [], diagnostics: [] }),
