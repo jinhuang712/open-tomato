@@ -170,6 +170,12 @@ export function applyEvent(ev: KernelEvent) {
         agentOrder: [],
         transcripts: {},
         interruptedAfter: {},
+        // 上个项目的排队消息、引用、草稿、待审弹窗不能带进新项目：
+        // 排队文本发给新主编是串台，旧 reviewOpen 还会挡住新审批自动弹出来
+        queues: {},
+        composerDraft: null,
+        composerQuotes: [],
+        reviewOpen: null,
         approvals: [],
         questions: [],
         issues: null,
@@ -180,7 +186,7 @@ export function applyEvent(ev: KernelEvent) {
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
-      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
+      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
       // 回到欢迎页，云端列表重新拉一遍：刚关掉的项目可能刚同步过
       void actions.refreshCloud();
       return;
