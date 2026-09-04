@@ -1,3 +1,4 @@
+import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { autoGrow } from "../autogrow";
@@ -21,11 +22,6 @@ async function readFiles(files: Iterable<File>): Promise<{ name: string; content
     out.push({ name: f.name, content: await f.text() });
   }
   return out;
-}
-
-/** 附件按 markdown 围栏拼进消息末尾，主编一眼看出哪段是作者说的、哪段是带来的材料 */
-export function inlineAttachments(atts: { name: string; content: string }[]): string[] {
-  return atts.map((a) => `附件「${a.name}」：\n\n\`\`\`\`markdown\n${a.content.trim()}\n\`\`\`\``);
 }
 
 /**
