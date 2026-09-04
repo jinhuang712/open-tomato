@@ -32,15 +32,23 @@ export class SupabaseStorage {
     return this.config.bucket;
   }
 
-  /** bucket 不存在就建成私有的；已存在视为成功 */
+  /**
+   * bucket 已存在就直接过；不存在才建成私有的。
+   * 先 GET 再 POST，不靠「重复建」的报错文案判断，Supabase 各版本这句话不一样。
+   */
   async ensureBucket(): Promise<void> {
+    const got = await this.request("GET", `/storage/v1/bucket/${enc(this.config.bucket)}`);
+    if (got.ok) return;
+    if (got.status === 401 || got.status === 403) {
+      throw new StorageError(got.status, `查 bucket 被拒（${got.status}）：service key 不对或没权限`);
+    }
     const res = await this.request("POST", "/storage/v1/bucket", {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: this.config.bucket, name: this.config.bucket, public: false }),
     });
     if (res.ok || res.status === 409) return;
     const text = await res.text();
-    if (res.status === 400 && /already exists/i.test(text)) return;
+    if (/already exists|duplicate/i.test(text)) return;
     throw new StorageError(res.status, `建 bucket 失败（${res.status}）：${short(text)}`);
   }
 

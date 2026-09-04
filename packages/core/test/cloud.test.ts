@@ -78,10 +78,12 @@ function fakeSupabase() {
     if ((init.headers as Record<string, string>).authorization !== "Bearer secret") return new Response("nope", { status: 401 });
     const m = url.pathname.match(/^\/storage\/v1\/(bucket|object)(?:\/(list))?(?:\/([^/]+))?(?:\/(.*))?$/);
     if (!m) return new Response("bad", { status: 404 });
-    const [, kind, isList, , rest] = m;
+    const [, kind, isList, name, rest] = m;
     if (kind === "bucket") {
+      if (method === "GET") return buckets.has(name ?? "") ? Response.json({ id: name }) : new Response("Bucket not found", { status: 404 });
       const body = JSON.parse(init.body as string) as { id: string };
-      if (buckets.has(body.id)) return new Response(JSON.stringify({ message: "The resource already exists" }), { status: 409 });
+      // 真实 Supabase 对重复建返回 400 + 一句措辞不固定的话；这里故意用一句代码没匹配的，逼 ensureBucket 走 GET 判断
+      if (buckets.has(body.id)) return new Response(JSON.stringify({ message: "Bucket name taken" }), { status: 400 });
       buckets.add(body.id);
       return new Response("{}", { status: 200 });
     }
@@ -124,11 +126,12 @@ describe("storage", () => {
     await expect(s.list("")).rejects.toThrow(/service key 不对/);
   });
 
-  test("bucket 已存在视为成功", async () => {
+  test("bucket 已存在视为成功，且不再重复 POST 建", async () => {
     const fake = fakeSupabase();
     const s = new SupabaseStorage(config, fake.fetchImpl);
     await s.ensureBucket();
     await s.ensureBucket();
+    expect(fake.calls.filter((c) => c === "POST /storage/v1/bucket")).toHaveLength(1);
   });
 });
 
