@@ -24,6 +24,8 @@ import type {
   UiPart,
 } from "../protocol.js";
 import { STUB_PATTERN, stubPrompt } from "../protocol.js";
+import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfig, writeCloudConfig, type CloudConfig } from "../cloud/config.js";
+import { CloudSync } from "../cloud/sync.js";
 import { runCheck } from "../project/check.js";
 import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
@@ -84,6 +86,8 @@ interface LiveAgent {
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
 const HEAD_BUFFER_LIMIT = 48;
+/** 定期云端同步间隔：10 分钟 */
+const CLOUD_SYNC_INTERVAL_MS = 10 * 60_000;
 
 /**
  * 内核：一个项目 + 一个主编会话 + 若干子 agent。
@@ -99,6 +103,10 @@ export class Kernel {
   /** 早期版本把所有项目的会话混放在这个全局目录；现在只用来迁移 */
   private readonly legacySessionsDir: string;
   private readonly ready: Promise<void>;
+  /** 云端快照凭据；null 表示未配置 */
+  private cloudConfig: CloudConfig | null = null;
+  private cloudTimer: ReturnType<typeof setInterval> | null = null;
+  private cloudBusy = false;
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
 
@@ -126,6 +134,7 @@ export class Kernel {
       this.failReady(e instanceof Error ? e : new Error(String(e)));
       throw e;
     }
+    this.cloudConfig = await readCloudConfig(cloudConfigPath(this.home));
     this.markReady();
     this.emit({ type: "kernel.ready", version, home: this.home });
     this.emit({ type: "models.state", state: this.models.state() });
@@ -269,6 +278,34 @@ export class Kernel {
         if (!this.gate.resolveQuestion(questionId, answer)) this.emit({ type: "question.resolved", questionId });
         return null;
       },
+      "cloud.status": async () => this.cloudStatus(),
+      "cloud.configure": async ({ url, serviceKey, bucket }) => {
+        const candidate: CloudConfig = { url, serviceKey, bucket: bucket ?? "" };
+        const next = normalizeCloudConfig(candidate);
+        // 先连一次再落盘：连不上就不留下坏配置，旧配置原样保留
+        await new CloudSync(next).verify();
+        await writeCloudConfig(cloudConfigPath(this.home), next);
+        this.cloudConfig = next;
+        this.startCloudTimer();
+        return this.cloudStatus();
+      },
+      "cloud.clear": async () => {
+        await clearCloudConfig(cloudConfigPath(this.home));
+        this.cloudConfig = null;
+        this.stopCloudTimer();
+        return this.cloudStatus();
+      },
+      "cloud.list": async () => this.requireCloud().list(),
+      "cloud.check": async () => this.requireCloud().check(this.requireStore().info),
+      "cloud.upload": async ({ force }) => this.cloudUpload(force === true),
+      "cloud.download": async ({ slug, dest }) => {
+        const { root } = await this.requireCloud().download(slug, dest);
+        const store = await ProjectStore.open(root);
+        await this.closeProject();
+        this.store = store;
+        await this.afterOpen("continue");
+        return store.info;
+      },
     };
     const handler = handlers[method];
     if (!handler) throw new Error(`未知方法：${String(method)}`);
@@ -290,16 +327,67 @@ export class Kernel {
     this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
     await this.refreshCheck();
     await this.createLead(mode);
+    this.startCloudTimer();
   }
 
   private async closeProject() {
     if (!this.store) return;
+    this.stopCloudTimer();
     await this.disposeAgents();
     this.store = null;
     this.index = null;
     this.models.unbindProject();
     this.emit({ type: "project.closed" });
     this.emit({ type: "models.state", state: this.models.state() });
+  }
+
+  // ───────────────────────── 云端快照 ─────────────────────────
+
+  private cloudStatus() {
+    return {
+      configured: this.cloudConfig !== null,
+      url: this.cloudConfig?.url ?? null,
+      bucket: this.cloudConfig?.bucket ?? null,
+    };
+  }
+
+  private requireCloud(): CloudSync {
+    if (!this.cloudConfig) throw new Error("还没有配置云端存储");
+    return new CloudSync(this.cloudConfig);
+  }
+
+  /** 上传当前项目；同一时刻只跑一份，进度用 cloud.sync 事件广播 */
+  private async cloudUpload(force: boolean) {
+    const info = this.requireStore().info;
+    const cloud = this.requireCloud();
+    if (this.cloudBusy) throw new Error("上一次同步还没结束");
+    this.cloudBusy = true;
+    this.emit({ type: "cloud.sync", phase: "uploading", message: null, last: null });
+    try {
+      const last = await cloud.upload(info, { force });
+      this.emit({ type: "cloud.sync", phase: "idle", message: null, last });
+      return last;
+    } catch (e) {
+      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null });
+      throw e;
+    } finally {
+      this.cloudBusy = false;
+    }
+  }
+
+  /** 项目打开且配好云端时，每 CLOUD_SYNC_INTERVAL_MS 静默同步一次；内容没变不会真的上传 */
+  private startCloudTimer() {
+    this.stopCloudTimer();
+    if (!this.store || !this.cloudConfig) return;
+    this.cloudTimer = setInterval(() => {
+      if (!this.store || this.cloudBusy) return;
+      void this.cloudUpload(false).catch(() => {});
+    }, CLOUD_SYNC_INTERVAL_MS);
+  }
+
+  private stopCloudTimer() {
+    if (this.cloudTimer) clearInterval(this.cloudTimer);
+    this.cloudTimer = null;
   }
 
   private async disposeAgents() {

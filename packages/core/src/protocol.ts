@@ -100,6 +100,36 @@ export interface ModelsState {
   thinkingLevel: ThinkingLevel;
 }
 
+// ───────────────────────── 云端快照 ─────────────────────────
+
+/** 云端配置状态；service key 永远不回给渲染层 */
+export interface CloudStatus {
+  configured: boolean;
+  url: string | null;
+  bucket: string | null;
+}
+
+export interface CloudProject {
+  /** bucket 内目录名，由项目名 hash 得来 */
+  slug: string;
+  name: string;
+  uploadedAt: string;
+  /** 快照 tar.gz 字节数 */
+  size: number;
+  /** 上传机器的主机名 */
+  host: string;
+  fingerprint: string;
+}
+
+export interface CloudCheck {
+  slug: string;
+  localFingerprint: string;
+  /** 云端没有该项目时为 null */
+  remote: CloudProject | null;
+  /** 本地内容与云端最新快照完全一致 */
+  synced: boolean;
+}
+
 // ───────────────────────── 角色 / 能力 ─────────────────────────
 
 export type RoleId =
@@ -278,7 +308,9 @@ export type KernelEvent =
   | { type: "approval.resolved"; approvalId: string; decision: ApprovalDecision }
   | { type: "question.requested"; request: QuestionRequest }
   | { type: "question.resolved"; questionId: string }
-  | { type: "check.result"; issues: CheckIssue[] };
+  | { type: "check.result"; issues: CheckIssue[] }
+  /** 云端同步进度：定时同步与手动上传都发；idle 表示这轮结束 */
+  | { type: "cloud.sync"; phase: "uploading" | "idle" | "error"; message: string | null; last: CloudProject | null };
 
 // ───────────────────────── 请求（渲染层 → 内核） ─────────────────────────
 
@@ -331,6 +363,17 @@ export interface RequestMap {
     result: null;
   };
   "question.reply": { params: { questionId: string; answer: string }; result: null };
+  "cloud.status": { params: Record<string, never>; result: CloudStatus };
+  /** 保存凭据前先连一次 Supabase 校验；bucket 省略用默认 */
+  "cloud.configure": { params: { url: string; serviceKey: string; bucket?: string }; result: CloudStatus };
+  "cloud.clear": { params: Record<string, never>; result: CloudStatus };
+  "cloud.list": { params: Record<string, never>; result: CloudProject[] };
+  /** 当前项目与云端比对 */
+  "cloud.check": { params: Record<string, never>; result: CloudCheck };
+  /** 上传当前项目；内容未变时不重传 */
+  "cloud.upload": { params: { force?: boolean }; result: CloudProject };
+  /** 下载到 dest（须为空目录或不存在）并打开 */
+  "cloud.download": { params: { slug: string; dest: string }; result: ProjectInfo };
 }
 
 export type RequestMethod = keyof RequestMap;
