@@ -12,4 +12,4 @@ export async function hasOneLineStory(store: ProjectStore): Promise<boolean> {
   return body !== "" && !body.includes(PLACEHOLDER);
 }
 
-export const ONE_LINE_STORY_GATE_MESSAGE = "简介 的「一句话故事」还是「待填」，先和作者聊清故事并落盘，再排大纲 / 写正文";
+export const ONE_LINE_STORY_GATE_MESSAGE = "简介 还没有「一句话故事」这一段，先和作者聊清故事并落盘，再排大纲 / 写正文";

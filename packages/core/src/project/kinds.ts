@@ -10,7 +10,7 @@ export type Requirement = boolean | ((fm: Frontmatter) => boolean);
 export interface FieldSpec {
   name: string;
   required?: Requirement;
-  /** 模板里预置的值；没有值的必填字段渲染成「待填」，没有值的可选字段不出现 */
+  /** 模板里预置的值；没有值的字段不出现在模板里，必填的由附注说明、机检报缺 */
   value?: string;
   /** 渲染成行尾注释，给填的人看取值范围 */
   comment?: string;
@@ -22,7 +22,7 @@ export interface FieldSpec {
 export interface SectionSpec {
   name: string;
   required: Requirement;
-  /** 渲染成「待填（hint）」，或在可选段清单里说明这一段写什么 */
+  /** 在附注的必填 / 可选段清单里说明这一段写什么 */
   hint?: string;
 }
 
@@ -31,7 +31,7 @@ export interface DocKind extends DocKindInfo {
   normalizeId: (id: string) => string;
   fields: FieldSpec[];
   sections: SectionSpec[];
-  /** 空白模板（完整文件文本，含 frontmatter）：只出现必填字段和必填段 */
+  /** 空白模板（完整文件文本，含 frontmatter）：只出现有默认值的字段，不预置任何段 */
   template: string;
   /** 不传 id 时由 store 分配下一个编号（一条一卡、只追加的类型） */
   autoId?: boolean;
@@ -72,20 +72,26 @@ function templateFrontmatter(fields: FieldSpec[]): Frontmatter {
   return fm;
 }
 
-function renderTemplate(fields: FieldSpec[], sections: SectionSpec[], overrides: Partial<Record<string, string>> = {}): string {
-  const fm = templateFrontmatter(fields);
+/**
+ * 模板只出有值的字段，段一律不预置：必填 / 可选记在 schema 里，文档里不留桩。
+ * 哪些字段、哪些段必填，由 templateNotes 附在模板后面告诉模型；没写的机检报「缺必填字段 / 缺必填段」。
+ */
+function renderTemplate(fields: FieldSpec[], _sections: SectionSpec[], overrides: Partial<Record<string, string>> = {}): string {
   const head: string[] = [];
   for (const f of fields) {
-    const value = overrides[f.name] ?? f.value ?? (isRequired(f.required, fm) ? PLACEHOLDER : undefined);
+    const value = overrides[f.name] ?? f.value;
     if (value === undefined) continue;
-    const comment = f.comment ?? f.options?.join(" / ");
-    head.push(`${f.name}: ${value}${comment ? `  # ${comment}` : ""}`);
+    head.push(`${f.name}: ${value}`);
   }
-  const body = sections
-    .filter((s) => isRequired(s.required, fm))
-    .map((s) => `## ${s.name}\n\n${PLACEHOLDER}${s.hint ? `（${s.hint}）` : ""}\n`);
-  return `---\n${head.join("\n")}\n---\n${body.length > 0 ? `\n${body.join("\n")}` : ""}`;
+  return `---\n${head.join("\n")}\n---\n`;
 }
+
+/** 字段给填的人看的说明：取值范围或备注 */
+const fieldNote = (f: FieldSpec) => {
+  const c = f.comment ?? f.options?.join(" / ");
+  return c ? `${f.name}（${c}）` : f.name;
+};
+const sectionNote = (s: SectionSpec) => (s.hint ? `${s.name}（${s.hint}）` : s.name);
 
 type KindDef = Omit<DocKind, "template" | "fields"> & { fields?: FieldSpec[]; templateOverrides?: Partial<Record<string, string>> };
 
@@ -251,9 +257,6 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
   }),
 };
 
-/** 正文不分段标题，模板只给一个「待填」占位 */
-DOC_KINDS.manuscript.template = `${DOC_KINDS.manuscript.template}\n${PLACEHOLDER}\n`;
-
 /** 简介的空白稿（立项时预置在项目根 简介.md） */
 export const BRIEF_SEED_BODY = DOC_KINDS.brief.template;
 
@@ -281,15 +284,20 @@ export function optionalSectionsOf(kind: DocKindId, fm: Frontmatter): SectionSpe
   return DOC_KINDS[kind].sections.filter((s) => !isRequired(s.required, fm));
 }
 
-/** 附在模板后面给模型看的说明：哪些字段 / 段是可选的、什么条件下转必填 */
+/** 附在模板后面给模型看的说明：哪些字段 / 段必填、哪些可选、什么条件下转必填。模板本身不留桩，全靠这段说 */
 export function templateNotes(kind: DocKindId): string {
   const def = DOC_KINDS[kind];
+  const fm = templateFrontmatter(def.fields);
   const lines: string[] = [];
+  const requiredFields = def.fields.filter((f) => isRequired(f.required, fm) && f.value === undefined);
+  if (requiredFields.length > 0) lines.push(`必填字段（写进 frontmatter，缺了机检报）：${requiredFields.map(fieldNote).join("、")}`);
   const optionalFields = def.fields.filter((f) => !isCommonField(f.name) && !isRequired(f.required, {}) && f.value === undefined);
-  if (optionalFields.length > 0) lines.push(`可选字段（有值再加）：${optionalFields.map((f) => (f.comment ? `${f.name}（${f.comment}）` : f.name)).join("、")}`);
+  if (optionalFields.length > 0) lines.push(`可选字段（有值再加）：${optionalFields.map(fieldNote).join("、")}`);
+  const required = def.sections.filter((s) => isRequired(s.required, fm));
+  if (required.length > 0) lines.push(`必填段（写到了再新增 ## 段，不要预置占位，缺了机检报）：${required.map(sectionNote).join("、")}`);
   const optional = def.sections.filter((s) => !isRequired(s.required, {}));
   if (optional.length > 0) {
-    lines.push(`可选段（写到了再新增 ## 段，不要预置占位）：${optional.map((s) => (s.hint ? `${s.name}（${s.hint}）` : s.name)).join("、")}`);
+    lines.push(`可选段（写到了再新增 ## 段，不要预置占位）：${optional.map(sectionNote).join("、")}`);
   }
   const conditional = def.sections.filter((s) => typeof s.required === "function").map((s) => s.name);
   if (kind === "characters" && conditional.length > 0) lines.push(`tier 为 主角 / 关键对手 时必填：${conditional.join("、")}`);

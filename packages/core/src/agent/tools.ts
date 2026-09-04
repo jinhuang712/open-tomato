@@ -233,7 +233,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     defineTool({
       name: "doc_template",
       label: "文档模板",
-      description: "拿某一类文档的空白模板（完整文件文本，只含必填字段和必填段），后面附可选字段和可选段清单：写到了再加，不要预置占位。新建文档时以它为底改。",
+      description: "拿某一类文档的空白模板（完整文件文本，只含有默认值的字段，不预置任何段），后面附必填 / 可选的字段与段清单：必填的要写，可选的写到了再加，都不预置占位。新建文档时以它为底改。",
       parameters: Type.Object({ kind: KIND_SCHEMA }),
       execute: async (_id, params) => {
         const kind = assertKind(params.kind);

@@ -34,7 +34,7 @@ ${story}
 `;
 
 describe("hasOneLineStory", () => {
-  test("新建项目的简介是「待填」，不过门", async () => {
+  test("新建项目的简介还没有一句话故事这一段，不过门", async () => {
     expect(await hasOneLineStory(store)).toBe(false);
   });
 
