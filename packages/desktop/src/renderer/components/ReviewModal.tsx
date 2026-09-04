@@ -105,6 +105,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} maxHeight="70vh" />}>
             <Show when={notes().length > 0}>
               <div class="mb-4 flex flex-col gap-1 text-sm">
+                <div class="px-2 text-xs text-ink-3">批注会在你批准或拒绝这份稿之后送到主编：批准了写手照批注改那段再提一份，拒绝了批注就是理由</div>
                 <For each={notes()}>
                   {(n) => (
                     <button class="text-left flex items-start gap-2 px-2 py-1 rounded-md hover:bg-paper-3" onClick={() => focusQuote(n.quotes[0] ?? "")} title="滚到这段">
