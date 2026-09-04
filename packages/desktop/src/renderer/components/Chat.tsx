@@ -87,7 +87,7 @@ export function Chat(props: { agentId: string }) {
       <AgentStrip />
       {/* 会话区头一行：左边是会动的徽章（等你拍板 / 子 agent），右边是暂停；两边都没有就不占高度 */}
       <Show when={running() || pausePending() || liveBadgeCount() > 0}>
-        <div class="shrink-0 flex items-center justify-between gap-2 px-5 pt-2">
+        <div class="shrink-0 flex items-start justify-between gap-2 px-5 pt-2">
           <LiveBadges />
           <Show when={running() || pausePending()} fallback={<span />}>
           <button

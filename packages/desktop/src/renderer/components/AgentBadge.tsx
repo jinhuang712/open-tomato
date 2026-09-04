@@ -46,7 +46,7 @@ export function AgentBadge() {
           {text()}
         </button>
         <Show when={open()}>
-          <div class="absolute right-0 top-8 z-30 w-72 py-1 rounded-lg border border-line bg-paper-2 shadow-xl">
+          <div class="absolute left-0 top-8 z-30 w-72 py-1 rounded-lg border border-line bg-paper-2 shadow-xl">
             <For each={subs()}>
               {(a) => (
                 <button class="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-paper-3" onClick={() => actions.openChat(a.agentId)}>

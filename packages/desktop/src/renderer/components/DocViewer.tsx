@@ -121,7 +121,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         <Show when={!state.kinds.find((k) => k.id === props.kind)?.singleton}>
           <span class="text-ink-2">{props.kind === "rules" ? (doc()?.title ?? props.id) : props.id}</span>
         </Show>
-        <LiveBadges />
+        <LiveBadges row />
         <span class="flex-1" />
         <Show when={doc()}>
           {(d) => (
