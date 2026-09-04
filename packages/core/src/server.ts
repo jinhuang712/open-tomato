@@ -8,6 +8,7 @@ import { createInterface } from "node:readline";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { setupOutboundHttp } from "./agent/http.js";
 import { Kernel } from "./agent/runtime.js";
 import type { Outbound, RequestEnvelope } from "./protocol.js";
 
@@ -33,6 +34,9 @@ const send = (msg: Outbound) => {
   if (parentPort) parentPort.postMessage(msg);
   else process.stdout.write(`${JSON.stringify(msg)}\n`);
 };
+
+// 任何模型请求发出前先把代理装好
+setupOutboundHttp();
 
 const kernel = new Kernel(home, (event) => send({ kind: "event", event }));
 
