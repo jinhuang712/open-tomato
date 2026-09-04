@@ -2,7 +2,7 @@
 
 # OpenTomato
 
-macOS 桌面小说写作工具。
+从一句话到一本书。macOS 桌面小说写作工具。
 
 - 内核：[pi](https://github.com/badlogic/pi-mono) agent harness，50+ 模型提供方统一接入
 - 方法论：立项访谈 → 卡片库（世界 / 人物 / 线索）→ 三层大纲（里程碑 → 卷纲 → 章纲）→ 章节写作 → 多路审稿，一致性机检随文档变动自动跑

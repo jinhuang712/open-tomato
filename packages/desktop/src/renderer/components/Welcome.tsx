@@ -10,7 +10,7 @@ export function Welcome() {
         <PixelWordmark />
       </div>
       <div class="w-[560px] mt-20">
-        <div class="text-ink-2 mb-8">从一句话到一本书。每一次落笔，你先看 diff 再点头。</div>
+        <div class="text-ink-2 mb-8">从一句话到一本书。</div>
 
         <div class="flex gap-2 mb-8">
           <button class="px-4 py-2 rounded-lg bg-ink text-paper font-medium hover:brightness-110" onClick={() => void actions.newProject()}>
