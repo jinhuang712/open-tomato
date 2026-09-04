@@ -4,6 +4,8 @@ import { actions, state } from "../state";
 
 const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
+export const subAgentCount = () => state.agentOrder.filter((id) => state.agents[id] !== undefined && state.agents[id]!.parentId !== null).length;
+
 /**
  * 顶栏的子 agent 徽章：只要有子 agent 就常驻，跟「等你拍板」同一套语言。
  * 在跑的用 accent，出错的用 danger，都没有就是一句静态的「N 个子 agent」。

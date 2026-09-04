@@ -1,6 +1,7 @@
 import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { actions, state } from "../state";
 import { AgentStrip } from "./AgentStrip";
+import { LiveBadges, liveBadgeCount } from "./LiveBadges";
 import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
 import { EmptyStart } from "./EmptyStart";
@@ -84,8 +85,11 @@ export function Chat(props: { agentId: string }) {
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
-      <Show when={running() || pausePending()}>
-        <div class="shrink-0 flex justify-end px-5 pt-2">
+      {/* 会话区头一行：左边是会动的徽章（等你拍板 / 子 agent），右边是暂停；两边都没有就不占高度 */}
+      <Show when={running() || pausePending() || liveBadgeCount() > 0}>
+        <div class="shrink-0 flex items-center justify-between gap-2 px-5 pt-2">
+          <LiveBadges />
+          <Show when={running() || pausePending()} fallback={<span />}>
           <button
             class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border"
             classList={{
@@ -98,6 +102,7 @@ export function Chat(props: { agentId: string }) {
             <span>{pausePending() ? "■" : "❙❙"}</span>
             {pausePending() ? "停止" : "暂停"}
           </button>
+          </Show>
         </div>
       </Show>
       <Show when={isLead()}>

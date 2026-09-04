@@ -5,6 +5,7 @@ import { clearFocus, focusText, hasText } from "../annotate";
 import { bridge } from "../bridge";
 import { refId } from "../refid";
 import { renderMarkdown } from "../markdown";
+import { LiveBadges } from "./LiveBadges";
 import { actions, errText, setState, state, toast, type QuoteSource } from "../state";
 import { QuotePill } from "./QuotePill";
 
@@ -120,6 +121,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         <Show when={!state.kinds.find((k) => k.id === props.kind)?.singleton}>
           <span class="text-ink-2">{props.kind === "rules" ? (doc()?.title ?? props.id) : props.id}</span>
         </Show>
+        <LiveBadges />
         <span class="flex-1" />
         <Show when={doc()}>
           {(d) => (

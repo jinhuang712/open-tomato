@@ -1,7 +1,6 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { registerEscape } from "../escape";
-import { AgentBadge } from "./AgentBadge";
 import { CloudIndicator } from "./CloudIndicator";
 import { actions, setState, state } from "../state";
 
@@ -10,7 +9,6 @@ import { actions, setState, state } from "../state";
  * 拍板徽章把待答和待审合成一个数，点进主编会话处理。子 agent 徽章常驻，跑着的和出错的一眼可见。
  */
 export function Titlebar() {
-  const pending = () => state.questions.length + state.approvals.length;
   return (
     // 三列网格：两侧等宽，中间是「边栏宽的占位 + 搜索框」，搜索框因此正对边栏右侧的正文列中心。
     // 空间不够时占位先缩、再缩搜索框，两侧内容永远不会被压住；一侧太宽时中间整体挪开而不是重叠。
@@ -34,14 +32,8 @@ export function Titlebar() {
           </button>
         </Show>
       </div>
-      {/* 右侧一律不折行：徽章/云端固定宽，空间不够时只截模型名 */}
+      {/* 右侧只放静态项（云端、模型），会动的徽章在会话区左上角（LiveBadges）；一律不折行，空间不够只截模型名 */}
       <div class="no-drag flex items-center justify-end gap-1 text-xs min-w-0 whitespace-nowrap">
-        <Show when={pending() > 0}>
-          <button class="h-6.5 px-2.5 rounded-md bg-warn-soft text-warn font-medium hover:brightness-110 shrink-0" onClick={() => actions.openChat("director")}>
-            {pending()} 项等你拍板
-          </button>
-        </Show>
-        <AgentBadge />
         <Show when={state.project && state.cloud?.configured}>
           <CloudIndicator />
         </Show>
