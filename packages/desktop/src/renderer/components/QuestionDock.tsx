@@ -16,7 +16,7 @@ interface Escape {
  * - 没给候选：让主编先想几个
  * - 给了短候选：都不对就换一批；也可以把这个决定交给主编
  * - 给了长稿（两版写法、两版小传）：可以混搭、可以换思路
- * 「先放一放」永远都有，不确定的留白是合法的。
+ * 「先放一放」永远都有：不确定的段不落盘，搁置的决定记进卡的 open 清单。
  */
 function escapesFor(req: QuestionRequest): Escape[] {
   const n = req.options.length;
@@ -30,7 +30,7 @@ function escapesFor(req: QuestionRequest): Escape[] {
     list.push({ label: "换一批", hint: "这几个方向都不太对，再来 3 个", answer: "这几个都不太对，换 3 个不同方向再给我一批。" });
     if (n >= 2) list.push({ label: "你替我定", hint: "主编从这几个里挑一个，说明理由", answer: "这个你替我定，从这几个里挑一个，说清为什么，然后接着往下。" });
   }
-  list.push({ label: "先放一放", hint: "这一项记「待定」，不为它停下", answer: "这一项先记「待定」，不为它停下，接着往下。" });
+  list.push({ label: "先放一放", hint: "记进这张卡的 open 清单，不为它停下", answer: "这一项先放一放，记进对应卡的 open 清单，不为它停下，接着往下。" });
   return list;
 }
 

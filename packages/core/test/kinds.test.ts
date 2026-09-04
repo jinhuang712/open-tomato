@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseFrontmatter, splitSections } from "../src/project/frontmatter.js";
-import { BRIEF_SEED_BODY, DOC_KINDS, optionalSectionsOf, requiredFieldsOf, requiredSectionsOf } from "../src/project/kinds.js";
+import { BRIEF_SEED_BODY, DOC_KINDS, optionalSectionsOf, requiredFieldsOf, requiredSectionsOf, templateNotes } from "../src/project/kinds.js";
 
 const headings = (raw: string) => splitSections(parseFrontmatter(raw).body).map((s) => s.heading);
 
@@ -42,6 +42,22 @@ describe("模板由 schema 渲染", () => {
       const { frontmatter } = parseFrontmatter(k.template);
       expect(frontmatter.status).toBe("draft");
     }
+  });
+});
+
+describe("模板附注", () => {
+  test("人物卡附注列出可选字段、可选段和 tier 条件", () => {
+    const n = templateNotes("characters");
+    expect(n).toContain("可选字段（有值再加）：faction（所属势力）");
+    expect(n).toContain("可选段（写到了再新增 ## 段，不要预置占位）：语音签名（口头禅、句长、称呼习惯、避讳词）、关系");
+    expect(n).toContain("tier 为 主角 / 关键对手 时必填：语音签名");
+    expect(n).toContain("open: [项名]");
+  });
+
+  test("附注是 HTML 注释，拼在模板后不影响 frontmatter 解析", () => {
+    const raw = `${DOC_KINDS.rules.template}\n${templateNotes("rules")}`;
+    expect(parseFrontmatter(raw).frontmatter.level).toBe("待填");
+    expect(raw).toMatch(/<!-- 可选段.*展开（规则的边界、例外）、例子（正例 \/ 反例） -->/);
   });
 });
 

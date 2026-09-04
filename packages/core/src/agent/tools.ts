@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../protocol.js";
 import { applyEdits } from "../project/edits.js";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../project/gates.js";
-import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../project/kinds.js";
+import { DOC_KIND_IDS, DOC_KINDS, resolveKind, templateNotes } from "../project/kinds.js";
 import type { ProjectStore } from "../project/store.js";
 import type { Gate } from "./gate.js";
 import { ROLE_IDS, ROLES, isRoleId } from "./roles.js";
@@ -224,9 +224,12 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     defineTool({
       name: "doc_template",
       label: "文档模板",
-      description: "拿某一类文档的空白模板（完整文件文本），新建文档时以它为底改。",
+      description: "拿某一类文档的空白模板（完整文件文本，只含必填字段和必填段），后面附可选字段和可选段清单：写到了再加，不要预置占位。新建文档时以它为底改。",
       parameters: Type.Object({ kind: KIND_SCHEMA }),
-      execute: async (_id, params) => text(store.template(assertKind(params.kind))),
+      execute: async (_id, params) => {
+        const kind = assertKind(params.kind);
+        return text(`${store.template(kind)}\n${templateNotes(kind)}`);
+      },
     }),
   );
 
@@ -234,7 +237,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     defineTool({
       name: "run_check",
       label: "一致性机检",
-      description: "机械对账：缺必填字段、残留「待填」、章纲引用不存在的卡、章号断档、里程碑 order 重复。",
+      description: "机械对账：缺必填字段、缺必填段、残留「待填」、段落只写「待定」、章纲引用不存在的卡、章号断档、里程碑 order 重复。",
       parameters: Type.Object({}),
       execute: async () => {
         const issues = await ctx.runCheck();

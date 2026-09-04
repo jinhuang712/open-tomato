@@ -272,6 +272,22 @@ export function optionalSectionsOf(kind: DocKindId, fm: Frontmatter): SectionSpe
   return DOC_KINDS[kind].sections.filter((s) => !isRequired(s.required, fm));
 }
 
+/** 附在模板后面给模型看的说明：哪些字段 / 段是可选的、什么条件下转必填 */
+export function templateNotes(kind: DocKindId): string {
+  const def = DOC_KINDS[kind];
+  const lines: string[] = [];
+  const optionalFields = def.fields.filter((f) => !isCommonField(f.name) && !isRequired(f.required, {}) && f.value === undefined);
+  if (optionalFields.length > 0) lines.push(`可选字段（有值再加）：${optionalFields.map((f) => (f.comment ? `${f.name}（${f.comment}）` : f.name)).join("、")}`);
+  const optional = def.sections.filter((s) => !isRequired(s.required, {}));
+  if (optional.length > 0) {
+    lines.push(`可选段（写到了再新增 ## 段，不要预置占位）：${optional.map((s) => (s.hint ? `${s.name}（${s.hint}）` : s.name)).join("、")}`);
+  }
+  const conditional = def.sections.filter((s) => typeof s.required === "function").map((s) => s.name);
+  if (kind === "characters" && conditional.length > 0) lines.push(`tier 为 主角 / 关键对手 时必填：${conditional.join("、")}`);
+  lines.push("作者明确说先放一放的项记进 frontmatter open: [项名]，拍板后去掉。");
+  return lines.map((l) => `<!-- ${l} -->`).join("\n");
+}
+
 export function isDocKindId(v: unknown): v is DocKindId {
   return typeof v === "string" && v in DOC_KINDS;
 }
