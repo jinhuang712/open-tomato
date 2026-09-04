@@ -62,6 +62,20 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       ],
     };
   }
+  // 里程碑 / 卷纲有了，还没排章纲：大纲排了一半。不能掉进下面的「审稿」
+  //（written===0 才进；已有无纲正文 written>0 的保持原样，照样审稿）。
+  // 能到这里 outlines 一定 >0（为 0 的前面已接住）。
+  if (chapters === 0 && written === 0) {
+    return {
+      stage: "设卡",
+      line: `大纲起了个头（里程碑 / 卷纲 ${outlines} 处），还没排章纲。先把章纲排出来，卡不够顺手补。`,
+      steps: [
+        { title: "继续排章纲", desc: "结构师接着把施工单排出来", kind: "capability", cap: "outline", primary: true },
+        { title: "继续设卡", desc: "补人物 / 世界设定 / 线索", kind: "capability", cap: "design" },
+        TALK,
+      ],
+    };
+  }
   if (written < chapters) {
     const next = written + 1;
     const review: StageStep[] =
