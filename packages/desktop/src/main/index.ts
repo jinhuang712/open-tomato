@@ -8,6 +8,7 @@ import windowStateKeeper from "electron-window-state";
 import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
 import { installMenu } from "./menu";
+import { inheritShellProxyEnv } from "./shell-env";
 
 const kernel = new KernelHost();
 let mainWindow: BrowserWindow | null = null;
@@ -212,6 +213,8 @@ void app.whenReady().then(() => {
   }
   installMenu(() => mainWindow);
   createWindow();
+  // 内核 fork 时透传 process.env，代理变量得在这之前补齐
+  inheritShellProxyEnv();
   try {
     kernel.start();
   } catch (e) {
