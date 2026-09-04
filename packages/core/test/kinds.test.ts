@@ -61,7 +61,7 @@ describe("模板附注", () => {
   test("附注是 HTML 注释，拼在模板后不影响 frontmatter 解析", () => {
     const raw = `${DOC_KINDS.rules.template}\n${templateNotes("rules")}`;
     expect(parseFrontmatter(raw).frontmatter.level).toBe("待填");
-    expect(raw).toMatch(/<!-- 可选段.*展开（规则的边界、例外）、例子（正例 \/ 反例） -->/);
+    expect(raw).toMatch(/<!-- 可选段.*展开（规则的边界、例外）、例子（这条规则写出来长什么样.*） -->/);
   });
 });
 

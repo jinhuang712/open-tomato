@@ -146,7 +146,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "起点", required: true },
       { name: "终点", required: true },
       { name: "推进阶段", required: false, hint: "按顺序列出关键节点" },
-      { name: "钩子", required: false, hint: "挂在这条线上的悬念" },
+      { name: "钩子", required: false, hint: "挂在这条线上的悬念，一行一条，开头写埋在第几章（如「第 8 章：」）。收了的删掉这行，悬着的才留" },
     ],
   }),
   milestones: defineKind({
@@ -246,7 +246,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     ],
     sections: [
       { name: "展开", required: false, hint: "规则的边界、例外" },
-      { name: "例子", required: false, hint: "正例 / 反例" },
+      { name: "例子", required: false, hint: "这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范挂在规则上才知道学的是哪一处" },
     ],
   }),
 };
