@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
+import { fill, loadPrompt } from "./prompt-text.js";
 
 /**
  * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
@@ -11,27 +12,7 @@ export function reviewGuide(name: "文编" | "运营" | "校对"): string {
   return readFileSync(new URL(`../../guides/评审-${name}.md`, import.meta.url), "utf8").trim();
 }
 
-/**
- * 角色正文随应用发布，在 packages/core/prompts/ 下，一 role 一份 markdown。
- * md 里只写这个角色独有的部分，共享片段用占位符，组装时由代码注入：
- * - {{PROJECT_LAYOUT}}：项目结构 + 读取纪律 + 联网查证（含 KIND_TABLE，schema 生成）
- * - {{WRITE_DISCIPLINE}}：落盘纪律
- * - {{REVIEW_INTENT}}：评审先读章纲
- * - {{REVIEW_SAVE}}：评审交付约定
- * - {{GUIDE}}：三路评审各自的手册（reviewGuide）
- * 占位符缺值就抛错，别让没拼好的提示词上线。
- */
-function loadPrompt(name: string): string {
-  return readFileSync(new URL(`../../prompts/${name}.md`, import.meta.url), "utf8").trim();
-}
-
-function fill(tpl: string, vars: Record<string, string>): string {
-  return tpl.replace(/{{(\w+)}}/g, (_, k: string) => {
-    const v = vars[k];
-    if (v === undefined) throw new Error(`prompt 占位符缺值：${k}`);
-    return v;
-  });
-}
+// 角色正文在 prompts/ 下、共享片段在 prompts/shared/ 下，占位符约定见 prompt-text.ts。
 
 export interface RoleDef extends RoleInfo {
   canSpawn: boolean;
