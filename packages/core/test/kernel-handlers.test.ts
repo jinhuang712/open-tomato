@@ -237,6 +237,15 @@ describe("models.*", () => {
     expect(s.current).not.toBeNull();
   });
 
+  test("OpenAI 目录包含 GPT-6 Astra", async () => {
+    const s = await kernel.handle("models.list", {});
+    expect(s.models.find((m) => m.provider === "openai" && m.id === "gpt-6-astra")).toMatchObject({
+      name: "GPT-6 Astra",
+      reasoning: true,
+      contextWindow: 272000,
+    });
+  });
+
   test("select 不存在的模型抛错；切真实存在的模型换 current 并广播", async () => {
     await expect(kernel.handle("models.select", { provider: "nope", id: "nope" })).rejects.toThrow("没有这个模型");
     const s = await kernel.handle("models.list", {});
