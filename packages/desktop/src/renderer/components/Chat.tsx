@@ -118,7 +118,7 @@ export function Chat(props: { agentId: string }) {
         <For each={messages()}>
           {(m) => (
             <>
-              <Message message={m} />
+              <Message message={m} dimText={isLead()} />
               <Show when={state.interruptedAfter[props.agentId] === m.id}>
                 <div class="flex items-center gap-3 px-5 py-3 text-xs text-ink-3 select-none">
                   <span class="flex-1 border-t border-line" />

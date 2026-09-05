@@ -41,8 +41,11 @@ function UserText(props: { text: string }) {
   );
 }
 
-/** 思考过程不展示，只靠状态行告诉作者在干什么 */
-export function Message(props: { message: UiMessage }) {
+/**
+ * 思考过程不展示，只靠状态行告诉作者在干什么。
+ * dimText：主编对作者说话走 say 工具，它工具之外的裸文本只是过程，压成小字灰色；子 agent 的正文是它的报告，照常渲染
+ */
+export function Message(props: { message: UiMessage; dimText?: boolean }) {
   const isUser = () => props.message.role === "user";
   // 只剩空白的正文（状态行摘完留下的换行）也不渲染，不然是一段空白撑开行距
   const visible = () => props.message.parts.filter((p) => p.type !== "thinking" && !(p.type === "text" && !p.text.trim()));
@@ -94,7 +97,10 @@ export function Message(props: { message: UiMessage }) {
             <Switch>
               <Match when={part.type === "text" && part}>
                 {(p) => (
-                  <Show when={isUser()} fallback={<div class="prose-zh py-1.5" innerHTML={renderMarkdown(p().text)} />}>
+                  <Show
+                    when={isUser()}
+                    fallback={<div class={props.dimText ? "prose-zh py-1 text-xs text-ink-3" : "prose-zh py-1.5"} innerHTML={renderMarkdown(p().text)} />}
+                  >
                     <UserText text={p().text} />
                   </Show>
                 )}

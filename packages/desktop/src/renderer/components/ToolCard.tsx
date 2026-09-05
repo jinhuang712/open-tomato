@@ -17,6 +17,7 @@ const LABELS: Record<string, string> = {
   run_check: "一致性机检",
   write_doc: "写文档",
   edit_doc: "改文档",
+  say: "对作者说",
   ask_user: "问作者",
   spawn_agents: "派子 agent",
   continue_agent: "续派子 agent",
@@ -83,14 +84,29 @@ function Output(props: { part: ToolPart }) {
   );
 }
 
-/** 问作者：问题 + 答案直接铺开，不折叠 */
+/** 对作者说：主编的话就是正文，不当工具行渲染 */
+function SayCard(props: { part: ToolPart }) {
+  const body = () => str(args(props.part).text);
+  return (
+    <Show when={body().trim()}>
+      <div class="prose-zh py-1.5 selectable" innerHTML={renderMarkdown(body())} />
+    </Show>
+  );
+}
+
+/** 问作者：先是主编的铺垫（say），再是问题 + 答案，直接铺开不折叠 */
 function AskCard(props: { part: ToolPart }) {
   const a = () => args(props.part);
   // 候选可能是 string 或 {label, text}。历史里只铺短候选；长句候选不重复铺开，「答」那行已经写了选的是哪个
   const raw = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]) : []);
   const options = () => (hasLongOptions(raw()) ? [] : raw().map(optionLabel));
   const answer = () => props.part.output.replace(/^作者回答：/, "");
+  const say = () => str(a().say);
   return (
+    <>
+    <Show when={say().trim()}>
+      <div class="prose-zh py-1.5 selectable" innerHTML={renderMarkdown(say())} />
+    </Show>
     <div class="my-2 rounded-lg border border-line bg-paper-2 text-sm overflow-hidden">
       <div class="px-4 pt-3 pb-1 flex items-start gap-2">
         <div class="prose-zh flex-1" innerHTML={renderMarkdown(str(a().question))} />
@@ -114,6 +130,7 @@ function AskCard(props: { part: ToolPart }) {
         </div>
       </Show>
     </div>
+    </>
   );
 }
 
@@ -177,6 +194,9 @@ export function ToolCard(props: { part: ToolPart }) {
     >
       <Match when={props.part.name === "web_search"}>
         <WebSearchCard part={props.part} />
+      </Match>
+      <Match when={props.part.name === "say"}>
+        <SayCard part={props.part} />
       </Match>
       <Match when={props.part.name === "ask_user"}>
         <AskCard part={props.part} />
