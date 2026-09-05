@@ -418,18 +418,25 @@ async function refreshAfterReady() {
 }
 
 /** 去掉 Electron IPC 包的那层「Error invoking remote method 'xxx': Error: 」，只留内核说的那句 */
-/** 重试提示：把 429 / 网络错这类原始报错翻成一句人话，原文不上屏 */
+/** 把模型调用的原始报错归成一句人话；认不出来返回 null，让调用方决定要不要露原文 */
+export function modelErrorCause(msg: string): string | null {
+  if (/429|rate.?limit|限流/i.test(msg)) return "模型限流";
+  if (/\b5\d\d\b|overloaded|unavailable/i.test(msg)) return "模型服务繁忙";
+  if (/timeout|timed out|ECONN|fetch failed|network/i.test(msg)) return "网络不稳";
+  return null;
+}
+
+/** 重试提示：原始报错翻成一句人话，原文不上屏 */
 export function retryText(ev: { attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }): string {
-  const msg = ev.errorMessage;
-  const cause = /429|rate.?limit|限流/i.test(msg)
-    ? "模型限流"
-    : /5\d\d|overloaded|unavailable/i.test(msg)
-      ? "模型服务繁忙"
-      : /timeout|timed out|ECONN|fetch failed|network/i.test(msg)
-        ? "网络不稳"
-        : "模型调用出错";
+  const cause = modelErrorCause(ev.errorMessage) ?? "模型调用出错";
   const secs = Math.max(1, Math.round(ev.delayMs / 1000));
   return `${cause}，${secs} 秒后重试（第 ${ev.attempt}/${ev.maxAttempts} 次）`;
+}
+
+/** 红框文案：认得出的模型错给人话，原文留给 title；认不出的照原样露 */
+export function agentErrorText(raw: string): { text: string; title: string | undefined } {
+  const cause = modelErrorCause(raw);
+  return cause ? { text: `${cause}，已重试仍失败。稍等一下再发一次就行。`, title: raw } : { text: raw, title: undefined };
 }
 
 export function errText(e: unknown): string {

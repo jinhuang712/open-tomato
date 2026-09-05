@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
-import { actions, state } from "../state";
+import { actions, agentErrorText, state } from "../state";
 import { AgentStrip } from "./AgentStrip";
 import { LiveBadges, liveBadgeCount } from "./LiveBadges";
 import { ApprovalDock } from "./ApprovalDock";
@@ -136,7 +136,14 @@ export function Chat(props: { agentId: string }) {
           </div>
         </Show>
         <Show when={agent()?.status === "error" && agent()?.error}>
-          <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable">{agent()?.error}</div>
+          {(raw) => {
+            const e = agentErrorText(raw());
+            return (
+              <div class="mx-5 my-2 px-3 py-2 rounded-lg bg-danger-soft text-danger text-xs selectable" title={e.title}>
+                {e.text}
+              </div>
+            );
+          }}
         </Show>
         {/* 提问卡就在消息流末尾，跟着正文一起滚；往上翻时它自然滚走，底部另有一行浮条 */}
         <Show when={dockQuestion()}>
