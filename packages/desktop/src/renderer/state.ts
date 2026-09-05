@@ -264,6 +264,13 @@ export function applyEvent(ev: KernelEvent) {
       );
       return;
     case "agent.event":
+      if (ev.event.type === "retry") {
+        // 模型出错但 pi 在自动重试：不算失败，弹个小条，状态行也换成人话
+        const text = retryText(ev.event);
+        toast(text);
+        if (state.agents[ev.agentId]) setState("agents", ev.agentId, "statusText", text);
+        return;
+      }
       applyAgentEvent(ev.agentId, ev.event);
       return;
     case "approval.requested":
@@ -411,6 +418,20 @@ async function refreshAfterReady() {
 }
 
 /** 去掉 Electron IPC 包的那层「Error invoking remote method 'xxx': Error: 」，只留内核说的那句 */
+/** 重试提示：把 429 / 网络错这类原始报错翻成一句人话，原文不上屏 */
+export function retryText(ev: { attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }): string {
+  const msg = ev.errorMessage;
+  const cause = /429|rate.?limit|限流/i.test(msg)
+    ? "模型限流"
+    : /5\d\d|overloaded|unavailable/i.test(msg)
+      ? "模型服务繁忙"
+      : /timeout|timed out|ECONN|fetch failed|network/i.test(msg)
+        ? "网络不稳"
+        : "模型调用出错";
+  const secs = Math.max(1, Math.round(ev.delayMs / 1000));
+  return `${cause}，${secs} 秒后重试（第 ${ev.attempt}/${ev.maxAttempts} 次）`;
+}
+
 export function errText(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   return raw.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, "");
