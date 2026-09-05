@@ -7,6 +7,7 @@ import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from "electron"
 import windowStateKeeper from "electron-window-state";
 import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
+import { deleteProject } from "./delete-project";
 import { installMenu } from "./menu";
 import { watchZoom } from "./zoom";
 import { inheritShellProxyEnv } from "./shell-env";
@@ -139,10 +140,11 @@ ipcMain.handle("dialog:confirm", (_e, options: { message: string; detail: string
 ipcMain.handle("shell:trashProject", async (_e, root: string, options: { withCloud?: boolean } = {}) => {
   const name = root.split("/").filter(Boolean).pop() ?? root;
   const cloudNote = options.withCloud ? "云端的快照也会一起删掉，删了找不回。" : "";
-  const ok = await confirmAction(mainWindow, `删除项目「${name}」？`, `整个文件夹会移到废纸篓，可从废纸篓找回。${cloudNote}\n${root}`, "移到废纸篓");
-  if (!ok) return false;
-  await shell.trashItem(root);
-  return true;
+  return deleteProject({
+    confirm: () => confirmAction(mainWindow, `删除项目「${name}」？`, `整个文件夹会移到废纸篓，可从废纸篓找回。${cloudNote}\n${root}`, "移到废纸篓"),
+    ...(options.withCloud ? { removeCloud: () => kernel.request("cloud.remove", { root }) } : {}),
+    trash: () => shell.trashItem(root),
+  });
 });
 
 ipcMain.handle("shell:showInFolder", (_e, path: string) => shell.showItemInFolder(path));

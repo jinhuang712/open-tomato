@@ -455,10 +455,9 @@ export const actions = {
   async deleteProject(root: string) {
     const withCloud = state.cloud?.configured === true;
     try {
-      if (!(await bridge.trashProject(root, { withCloud }))) return;
-      if (withCloud) {
-        await bridge.request("cloud.remove", { root }).catch((e) => toast(`云端快照没删掉：${errText(e)}`, "error"));
-      }
+      const result = await bridge.trashProject(root, { withCloud });
+      if (!result.deleted) return;
+      if (result.cloudError !== undefined) toast(`云端快照没删掉：${result.cloudError}`, "error");
       await actions.forgetProject(root);
       if (withCloud) void actions.refreshCloud();
     } catch (e) {
