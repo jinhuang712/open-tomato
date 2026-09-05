@@ -56,6 +56,7 @@ import { workflowHandlers } from "./kernel/handlers/workflow.js";
 /** 发给模型的控制消息统一收拢在 prompts/kernel/ 下，这里只留加载，用法点不动 */
 const PROPOSE_NOTICE = loadPrompt("kernel/propose-notice");
 const COMMIT_NOTICE = loadPrompt("kernel/commit-notice");
+const CHILD_REPORT_NOTICE = loadPrompt("shared/child-report-notice");
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
 const HEAD_BUFFER_LIMIT = 48;
@@ -549,7 +550,7 @@ export class Kernel {
       const answer = lastAssistantText(session.messages as unknown[]);
       this.setStatus(live, "done");
       roster.touch(slot, "done");
-      return `${header}\n\n${answer || "（没有文字结论）"}`;
+      return `${header}\n\n${CHILD_REPORT_NOTICE}\n\n${answer || "（没有文字结论）"}`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);

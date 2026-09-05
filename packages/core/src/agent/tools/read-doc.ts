@@ -1,6 +1,9 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { loadPrompt } from "../prompt-text.js";
 import { KIND_SCHEMA, assertKind, text, zhPath, type ToolContext } from "./shared.js";
+
+const DOCUMENT_NOTICE = loadPrompt("shared/document-notice");
 
 export function makeReadDocTool(ctx: ToolContext): ToolDefinition {
   const { store } = ctx;
@@ -17,12 +20,13 @@ export function makeReadDocTool(ctx: ToolContext): ToolDefinition {
       const kind = assertKind(params.kind);
       const doc = await store.read(kind, params.id);
       if (!doc) throw new Error(`${zhPath(kind, store.normalizeId(kind, params.id))} 不存在`);
+      const prefix = `${DOCUMENT_NOTICE}\n来源：${doc.path}\n读取范围：${params.section || "全文"}\n\n`;
       if (params.section) {
         const s = await store.readSection(kind, params.id, params.section);
         if (s === null) throw new Error(`${doc.path} 没有「${params.section}」段，现有段：${doc.sections.join(" / ")}`);
-        return text(s);
+        return text(prefix + s);
       }
-      return text(doc.raw);
+      return text(prefix + doc.raw);
     },
   });
 }

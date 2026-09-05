@@ -13,7 +13,10 @@ export function workflowHandlers(api: KernelApi): Pick<HandlerMap, "capabilities
       for (const param of cap.params) {
         if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
       }
-      api.sendTo(LEAD_ID, stubPrompt(cap.label, cap.render(capParams)));
+      const text = stubPrompt(cap.label, cap.render(capParams));
+      const live = api.requireLive(LEAD_ID);
+      api.authorActed(live);
+      api.sendTo(LEAD_ID, text);
       return null;
     },
     "roles.list": async () => roleInfos(),

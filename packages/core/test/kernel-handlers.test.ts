@@ -123,8 +123,29 @@ describe("capabilities / roles", () => {
   });
 
   test("capability.run 未知 id 与缺必填参数都抛错", async () => {
+    const { fake, calls } = fakeLead(false);
+    fake.hold = true;
+    fake.nudged = true;
     await expect(kernel.handle("capability.run", { id: "nope" as any, params: {} })).rejects.toThrow("未知能力");
     await expect(kernel.handle("capability.run", { id: "draft", params: {} })).rejects.toThrow("缺参数");
+    expect(fake.hold).toBe(true);
+    expect(fake.nudged).toBe(true);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("暂停后点击能力解除 hold、重置 nudge，轮末继续取队列", async () => {
+    const { fake, calls } = fakeLead(false);
+    fake.info.status = "running";
+    await kernel.handle("chat.pause", {});
+    fake.nudged = true;
+    fake.inbox.push({ id: "queued", label: "排队", text: "下一项" });
+    await kernel.handle("capability.run", { id: "draft", params: { chapter: "12" } });
+    expect(fake.hold).toBe(false);
+    expect(fake.nudged).toBe(false);
+    (kernel as any).forward(fake, { type: "agent_end" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(calls.at(-1)?.[0]).toBe("下一项");
+    expect(fake.inbox).toHaveLength(0);
   });
 
   test("capability.run 把渲染好的指令发给主编（锁 md 接线）", async () => {

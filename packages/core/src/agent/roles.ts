@@ -141,6 +141,12 @@ export const ROLES: Record<RoleId, RoleDef> = {
   },
 };
 
+// 所有角色（包括只读评审与裁决）共用同一条材料信任边界。
+const TRUST_BOUNDARY = loadPrompt("shared/trust-boundary");
+for (const role of Object.values(ROLES)) {
+  role.systemPrompt += `\n\n${TRUST_BOUNDARY}`;
+}
+
 export const ROLE_IDS = Object.keys(ROLES) as RoleId[];
 
 export function roleInfos(): RoleInfo[] {

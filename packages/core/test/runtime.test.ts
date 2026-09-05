@@ -31,6 +31,29 @@ afterEach(async () => {
 
 const statuses = () => events.filter((e) => e.type === "agent.status") as Array<{ type: "agent.status"; agentId: string; status: string; error: string | null }>;
 
+describe("子任务报告标签", () => {
+  test("promptChild 回传结论前带报告提示，内容保真", async () => {
+    const { loadPrompt } = await import("../src/agent/prompt-text.js");
+    const notice = loadPrompt("shared/child-report-notice");
+    const fake = {
+      session: {
+        prompt: async () => {},
+        abort: async () => {},
+        messages: [
+          { role: "assistant", content: [{ type: "text", text: "三个主角方向如下……" }] },
+        ],
+      },
+      info: { agentId: "child-1", role: "designer", label: "策划" },
+    };
+    const slot = { agentId: "child-1", role: "designer", label: "策划", task: "t", status: "running", error: null };
+    const roster = { touch: () => {} };
+    const out = await (kernel as any).promptChild(fake, "任务", slot, roster);
+    expect(out).toContain(notice);
+    expect(out).toContain("## 策划（designer，id=child-1）");
+    expect(out).toContain("三个主角方向如下……");
+  });
+});
+
 describe("作者手改落批", () => {
   test("doc.write 内容有变就落一条 edit 批，带 patch 与前后 hash", async () => {
     const before = "---\ntitle: 林尧\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n\n铁匠。\n";

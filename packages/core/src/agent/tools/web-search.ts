@@ -2,6 +2,9 @@ import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent
 import { Type } from "typebox";
 import { text, type ToolContext } from "./shared.js";
 import { searchWeb } from "../websearch.js";
+import { loadPrompt } from "../prompt-text.js";
+
+const SEARCH_NOTICE = loadPrompt("shared/search-notice");
 
 export function makeWebSearchTool(_ctx: ToolContext): ToolDefinition {
   return defineTool({
@@ -16,7 +19,7 @@ export function makeWebSearchTool(_ctx: ToolContext): ToolDefinition {
     }),
     execute: async (_id, params, signal) => {
       const out = await searchWeb(params.query, { ...(params.numResults ? { numResults: params.numResults } : {}), type: params.deep ? "deep" : "auto" }, signal);
-      return text(out);
+      return text(`${SEARCH_NOTICE}\n\n${out}`);
     },
   });
 }
