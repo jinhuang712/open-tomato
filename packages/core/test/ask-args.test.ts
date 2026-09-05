@@ -3,7 +3,7 @@ import { repairAskArgs } from "../src/agent/tools/index.js";
 
 describe("repairAskArgs", () => {
   test("完好的实参原样过", () => {
-    const args = { question: "主角叫什么？", options: ["李强", "陈默"], allowFreeText: false };
+    const args = { say: "人物卡骨架已经立了，就差名字。", question: "主角叫什么？", options: ["李强", "陈默"], allowFreeText: false };
     expect(repairAskArgs(args)).toEqual(args);
   });
 
@@ -46,10 +46,10 @@ describe("repairAskArgs", () => {
   });
 
   test("options 不是数组时整个省掉", () => {
-    expect(repairAskArgs({ question: "在吗", options: null })).toEqual({ question: "在吗" });
+    expect(repairAskArgs({ question: "在吗", options: null })).toEqual({ say: "", question: "在吗" });
   });
 
   test("空对象也能给出可用提问", () => {
-    expect(repairAskArgs({})).toEqual({ question: "这些候选里，你更想要哪个方向？" });
+    expect(repairAskArgs({})).toEqual({ say: "", question: "这些候选里，你更想要哪个方向？" });
   });
 });

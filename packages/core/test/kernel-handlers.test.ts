@@ -61,7 +61,6 @@ function fakeLead(isStreaming: boolean) {
     flushRest: false,
     asked: false,
     nudged: false,
-    unexplained: false,
   };
   (kernel as any).agents.set("director", fake);
   return { fake: fake as any, calls };
@@ -222,13 +221,12 @@ describe("forward 事件映射", () => {
     expect(fake.streamingMessageId).not.toBeNull();
   });
 
-  test("tool_execution_start ask_user 记 asked；end spawn_agents 成功记 unexplained", async () => {
+  test("tool_execution_start ask_user 记 asked；tool_execution_end 转发 tool_end", async () => {
     const { fake } = fakeLead(false);
     fake.streamingMessageId = "m1";
     (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "ask_user", toolCallId: "t1", args: {} });
     expect(fake.asked).toBe(true);
     (kernel as any).forward(fake, { type: "tool_execution_end", toolName: "spawn_agents", toolCallId: "t1", result: { content: "结论" }, isError: false });
-    expect(fake.unexplained).toBe(true);
     const ends = events.filter((e) => e.type === "agent.event" && (e as any).event.type === "tool_end");
     expect(ends).toHaveLength(1);
   });

@@ -1,5 +1,5 @@
 /** ask_user 的实参键名，漏进 options 数组时要摘掉 */
-const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["question", "options", "allowFreeText"]);
+const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "options", "allowFreeText"]);
 
 /** question 丢了但候选还在时，用这句话把提问撑起来，作者照样能挑 */
 const ASK_FALLBACK_QUESTION = "这些候选里，你更想要哪个方向？";
@@ -14,8 +14,9 @@ const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
  * "question" 被当成值塞进 options、末尾候选粘上数组闭合符号。校验器一律判失败，
  * 一次提问就变成一条红色报错。这里在校验前把能救的救回来。
  */
-export function repairAskArgs(args: unknown): { question: string; options?: AskOption[]; allowFreeText?: boolean } {
+export function repairAskArgs(args: unknown): { say: string; question: string; options?: AskOption[]; allowFreeText?: boolean } {
   const raw = (args ?? {}) as Record<string, unknown>;
+  const say = typeof raw.say === "string" ? unescapeNewlines(raw.say) : "";
   const question = typeof raw.question === "string" && raw.question.trim() ? unescapeNewlines(raw.question) : "";
   const damaged = !question;
 
@@ -36,6 +37,7 @@ export function repairAskArgs(args: unknown): { question: string; options?: AskO
   }
 
   return {
+    say,
     question: question || ASK_FALLBACK_QUESTION,
     ...(options.length ? { options } : {}),
     ...(typeof raw.allowFreeText === "boolean" ? { allowFreeText: raw.allowFreeText } : {}),

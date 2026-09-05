@@ -1,15 +1,6 @@
 import { loadPrompt } from "../prompt-text.js";
 import { LEAD_ID, type LiveAgent } from "./types.js";
 
-/** 主编拿到子 agent 结论后一个字没说就 ask_user：作者看不到子 agent 的原话，等于用选项卡代替解释。打回去让它先讲 */
-export const EXPLAIN_FIRST_MESSAGE = loadPrompt("kernel/explain-first");
-
-/** 主编这一刻能不能 ask_user：子 agent 结论回来后还没对作者说过一句正文，就不能 */
-export function askBlockReason(live: Pick<LiveAgent, "info" | "unexplained">): string | null {
-  if (live.info.agentId !== LEAD_ID) return null;
-  return live.unexplained ? EXPLAIN_FIRST_MESSAGE : null;
-}
-
 /** 主编没问作者就停了：不是在等拍板，就是漏了 ask_user。补一句让它自己判断 */
 export const NUDGE_PROMPT = loadPrompt("kernel/nudge");
 

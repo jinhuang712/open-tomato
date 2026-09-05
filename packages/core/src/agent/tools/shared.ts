@@ -42,8 +42,6 @@ export interface ToolContext {
   continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
-  /** 返回非空字符串表示现在还不能 ask_user（子 agent 结论刚回来、还没对作者解释），字符串是给模型看的原因 */
-  askBlocked?: () => string | null;
 }
 
 export interface ToolPermissions {

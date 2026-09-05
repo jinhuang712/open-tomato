@@ -41,7 +41,7 @@ import {
 } from "./tools/index.js";
 import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
-import { askBlockReason, NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
+import { NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
@@ -284,10 +284,6 @@ export class Kernel {
       if (!live || live.mode === "commit") return null;
       return "这一轮是候选阶段（propose），不能落盘。把候选写在回复里交给主编，作者拍板后主编会让你接着落盘。";
     };
-    ctx.askBlocked = () => {
-      const live = this.agents.get(agentId);
-      return live ? askBlockReason(live) : null;
-    };
     return ctx;
   }
 
@@ -316,7 +312,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, unexplained: false, pendingError: null };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -581,7 +577,6 @@ export class Kernel {
   /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
   /** 给作者看的正文出去了：子 agent 结论就算解释过了 */
   private sendText(live: LiveAgent, messageId: string, delta: string) {
-    if (delta.trim()) live.unexplained = false;
     this.send(live, { type: "text_delta", messageId, delta });
   }
 
@@ -706,8 +701,7 @@ export class Kernel {
         });
         return;
       case "tool_execution_end":
-        if ((ev.toolName === "spawn_agents" || ev.toolName === "continue_agent") && !ev.isError) live.unexplained = true;
-        // ask_user 被打回（先解释再问 / 参数不合法）不算问过：不然主编解释完就停，轮末以为已问过而不补，作者面前没有问题卡
+        // ask_user 被打回（参数不合法）不算问过：不然主编解释完就停，轮末以为已问过而不补，作者面前没有问题卡
         if (ev.toolName === "ask_user" && ev.isError) live.asked = false;
         this.send(live, {
           type: "tool_end",
