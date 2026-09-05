@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { repairAskArgs } from "../src/agent/tools.js";
+import { repairAskArgs } from "../src/agent/tools/index.js";
 
 describe("repairAskArgs", () => {
   test("完好的实参原样过", () => {

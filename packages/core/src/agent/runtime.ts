@@ -46,7 +46,7 @@ import {
   type ToolContext,
   toolNames,
   WRITE_TOOL_NAMES,
-} from "./tools.js";
+} from "./tools/index.js";
 
 type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];

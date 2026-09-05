@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Gate, type GateSink } from "../src/agent/gate.js";
-import { createTools, type ToolContext } from "../src/agent/tools.js";
+import { createTools, type ToolContext } from "../src/agent/tools/index.js";
 import { contentHash } from "../src/project/records.js";
 import { ProjectStore } from "../src/project/store.js";
 import type { ApprovalDecision } from "../src/protocol.js";
