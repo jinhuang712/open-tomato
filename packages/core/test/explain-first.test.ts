@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { EXPLAIN_FIRST_MESSAGE, askBlockReason } from "../src/agent/runtime.js";
+import { EXPLAIN_FIRST_MESSAGE, askBlockReason } from "../src/agent/kernel/lead-rules.js";
 
 type Live = Parameters<typeof askBlockReason>[0];
 const lead = (over: Partial<Live> = {}): Live => ({

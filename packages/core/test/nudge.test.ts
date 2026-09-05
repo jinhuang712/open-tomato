@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldNudge } from "../src/agent/runtime.js";
+import { shouldNudge } from "../src/agent/kernel/lead-rules.js";
 
 type Live = Parameters<typeof shouldNudge>[0];
 const lead = (over: Partial<Live> = {}): Live => ({

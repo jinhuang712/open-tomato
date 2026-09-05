@@ -9,7 +9,6 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import type {
-  DocKindId,
   AgentInfo,
   AgentStatus,
   AgentStreamEvent,
@@ -20,23 +19,16 @@ import type {
   RequestMap,
   RequestMethod,
   RoleId,
-  UiMessage,
-  UiPart,
 } from "../protocol.js";
-import { STUB_PATTERN, stubPrompt } from "../protocol.js";
+import { stubPrompt } from "../protocol.js";
 import { stubStripExtension } from "./stub-strip.js";
-import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfig, writeCloudConfig, type CloudConfig } from "../cloud/config.js";
-import { CloudSync, projectSlug } from "../cloud/sync.js";
 import { runCheck } from "../project/check.js";
-import { DOC_KIND_IDS, DOC_KINDS, kindInfos, resolveKind } from "../project/kinds.js";
-import { contentHash } from "../project/records.js";
+import { kindInfos } from "../project/kinds.js";
 import { SearchIndex } from "../project/search.js";
-import { buildStorySeed, storySeedFilename } from "../project/seed.js";
 import { migrateLegacySessions, ProjectStore } from "../project/store.js";
-import { CAPABILITIES, capabilityInfos, isCapabilityId } from "./capabilities.js";
 import { Gate } from "./gate.js";
 import { ModelsFacade } from "./models.js";
-import { ROLES, STATUS_LINE_PATTERN, STATUS_LINE_RULE, roleInfos } from "./roles.js";
+import { ROLES, STATUS_LINE_RULE } from "./roles.js";
 import {
   createTools,
   type DispatchProgress,
@@ -47,95 +39,26 @@ import {
   toolNames,
   WRITE_TOOL_NAMES,
 } from "./tools/index.js";
+import { CloudManager } from "./kernel/cloud-manager.js";
+import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
+import { askBlockReason, NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
+import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent } from "./kernel/types.js";
+import { loadPrompt } from "./prompt-text.js";
+import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
+import { approvalHandlers } from "./kernel/handlers/approvals.js";
+import { chatHandlers } from "./kernel/handlers/chat.js";
+import { cloudHandlers } from "./kernel/handlers/cloud.js";
+import { docHandlers } from "./kernel/handlers/docs.js";
+import { modelHandlers } from "./kernel/handlers/models.js";
+import { systemHandlers } from "./kernel/handlers/system.js";
+import { workflowHandlers } from "./kernel/handlers/workflow.js";
 
-type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
-type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
-
-const LEAD_ID = "director";
-
-/** propose 轮发给子 agent 的开场说明：写工具已从会话里拿掉，别去试 */
-const PROPOSE_NOTICE = "【候选阶段：这一轮没有 write_doc / edit_doc，不要尝试落盘或写临时稿。把候选直接写在回复里交给主编，作者拍板后主编会让你接着落盘】";
-
-/** 界面 / 外部调用传来的 kind 先过一遍校验，别让 undefined 一路漏到 DOC_KINDS[kind] 上炸出 TypeError */
-function kindOf(v: unknown): DocKindId {
-  const k = resolveKind(v);
-  if (!k) throw new Error(`未知的 kind：${String(v)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ")}`);
-  return k;
-}
-
-const PAUSE_PROMPT_LEAD = `【作者按了「暂停」】
-请立刻收尾，不要再开新的工具调用，也不要再派子 agent：
-1. 用三五句话说清到目前为止做了什么、停在哪一步、还差什么
-2. 然后用 ask_user 问作者想怎么调整，选项固定给这三个并允许自由输入：「我有新的想法」「对之前的内容不满意」「换个方向」
-3. 拿到回答后按回答处理；作者说继续就接着做`;
-
-/** 主编拿到子 agent 结论后一个字没说就 ask_user：作者看不到子 agent 的原话，等于用选项卡代替解释。打回去让它先讲 */
-export const EXPLAIN_FIRST_MESSAGE =
-  "【先解释再问】子 agent 的结论刚回来，作者还一个字没看到。先用正文对作者讲清：回来了什么、几个候选各是什么路子、差在哪、各自的代价；讲完再 ask_user 让作者选。选项卡不是解释。";
-
-/** 主编这一刻能不能 ask_user：子 agent 结论回来后还没对作者说过一句正文，就不能 */
-export function askBlockReason(live: Pick<LiveAgent, "info" | "unexplained">): string | null {
-  if (live.info.agentId !== LEAD_ID) return null;
-  return live.unexplained ? EXPLAIN_FIRST_MESSAGE : null;
-}
-
-/** 主编没问作者就停了：不是在等拍板，就是漏了 ask_user。补一句让它自己判断 */
-const NUDGE_PROMPT = "【你停下了，但没有问作者。要作者回答的用 ask_user 问出去；没有要问的就接着做下一件】";
-
-/**
- * 主编这一轮该不该补一句：没调 ask_user、不是出错或暂停、收件箱里也没有作者的话等着（有就送作者的话，不用补）。
- * 每次作者发言只补一次，补完再停就真停，交给作者。
- */
-export function shouldNudge(live: Pick<LiveAgent, "info" | "asked" | "nudged" | "hold" | "inbox">): boolean {
-  if (live.info.agentId !== LEAD_ID) return false;
-  if (live.info.status === "error") return false;
-  if (live.asked || live.nudged || live.hold) return false;
-  return live.inbox.length === 0;
-}
-
-const PAUSE_PROMPT_CHILD = `【作者按了「暂停」】
-请立刻收尾：不要再开新的工具调用。把到目前为止做了什么、停在哪一步、还差什么，用三五句话作为你的最终回复交回主编，然后结束。已经落盘的不用撤。`;
-
-interface LiveAgent {
-  info: AgentInfo;
-  session: AgentSession;
-  unsubscribe: () => void;
-  /** 正在流式输出的 assistant 消息 id */
-  streamingMessageId: string | null;
-  /** 消息开头暂存的文本，用来截状态行；null 表示状态行已处理完 */
-  headBuffer: string | null;
-  /** 状态行摘完后正文还没开始：后续先到的空白 delta 直接吞掉，不然会渲染成空段落撑开行距 */
-  skipBlank: boolean;
-  /** propose 时落盘工具被挡住；主编续派时可以切到 commit */
-  mode: SpawnMode;
-  /** 这个角色的全部工具名；propose 时用它算出剥掉写工具后的列表，commit 时恢复 */
-  tools: string[];
-  /** 收件箱：它跑着的时候作者发的话与批注，等这轮结束一并送进去。没人有权打断它手上那一件，除了作者点「插入」 */
-  inbox: InboxEntry[];
-  /** 已插入、还在 pi 的插话队列里等下一个工具边界的消息，界面上标「已插入」 */
-  steering: string[];
-  /** 作者按了暂停：这轮结束后收件箱先不送，作者再开口才送 */
-  hold: boolean;
-  /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
-  flushRest: boolean;
-  /** 这一轮里调过 ask_user：主编只有问作者才算合法收尾 */
-  asked: boolean;
-  /** 这轮是补过的：主编没问就停时内核补一句让它接着干，一次作者发言只补一次，别循环 */
-  nudged: boolean;
-  /** 子 agent 的结论回来了、主编还没对作者说过一句正文：这时 ask_user 会被打回，先解释 */
-  unexplained: boolean;
-}
-
-interface InboxEntry {
-  id: string;
-  label: string;
-  text: string;
-}
+/** 发给模型的控制消息统一收拢在 prompts/kernel/ 下，这里只留加载，用法点不动 */
+const PROPOSE_NOTICE = loadPrompt("kernel/propose-notice");
+const COMMIT_NOTICE = loadPrompt("kernel/commit-notice");
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
 const HEAD_BUFFER_LIMIT = 48;
-/** 定期云端同步间隔：10 分钟 */
-const CLOUD_SYNC_INTERVAL_MS = 10 * 60_000;
 
 /**
  * 内核：一个项目 + 一个主编会话 + 若干子 agent。
@@ -151,12 +74,8 @@ export class Kernel {
   /** 早期版本把所有项目的会话混放在这个全局目录；现在只用来迁移 */
   private readonly legacySessionsDir: string;
   private readonly ready: Promise<void>;
-  /** 云端快照凭据；null 表示未配置 */
-  private cloudConfig: CloudConfig | null = null;
-  private cloudTimer: ReturnType<typeof setInterval> | null = null;
-  private cloudBusy = false;
-  /** 当前项目本地内容是否已在云端：null = 未知（没配云端 / 还没比对） */
-  private cloudSynced: boolean | null = null;
+  /** 云端快照状态机（配置/定时/上传/比对全在里面，不碰 Kernel 私有状态） */
+  private readonly clouds: CloudManager;
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
 
@@ -165,6 +84,7 @@ export class Kernel {
     private readonly emit: (event: KernelEvent) => void,
   ) {
     this.legacySessionsDir = path.join(home, "sessions");
+    this.clouds = new CloudManager(home, emit);
     this.gate = new Gate({
       approvalRequested: (request) => this.emit({ type: "approval.requested", request }),
       approvalClosed: (approvalId, decision) => this.emit({ type: "approval.resolved", approvalId, decision }),
@@ -184,7 +104,7 @@ export class Kernel {
       this.failReady(e instanceof Error ? e : new Error(String(e)));
       throw e;
     }
-    this.cloudConfig = await readCloudConfig(cloudConfigPath(this.home));
+    await this.clouds.load();
     this.markReady();
     this.emit({ type: "kernel.ready", version, home: this.home });
     this.emit({ type: "models.state", state: this.models.state() });
@@ -199,234 +119,36 @@ export class Kernel {
   async handle<M extends RequestMethod>(method: M, params: RequestMap[M]["params"]): Promise<RequestMap[M]["result"]> {
     await this.ready;
     const p = params as never;
-    const handlers: { [K in RequestMethod]: (params: RequestMap[K]["params"]) => Promise<RequestMap[K]["result"]> } = {
-      "kernel.reset": async () => {
-        await this.closeProject();
-        return null;
+    const api: KernelApi = {
+      getStore: () => this.store,
+      setStore: (s) => {
+        this.store = s;
       },
-      // 先把新项目立起来再关旧的：新项目开不了（路径不对、已存在）时，当前项目保持原样
-      "project.create": async ({ root, name }) => {
-        const store = await ProjectStore.create(root, name);
-        await this.closeProject();
-        this.store = store;
-        await this.afterOpen("new");
-        return store.info;
-      },
-      "project.open": async ({ root }) => {
-        const store = await ProjectStore.open(root);
-        await this.closeProject();
-        this.store = store;
-        await this.afterOpen("continue");
-        return store.info;
-      },
-      "project.close": async () => {
-        await this.closeProject();
-        return null;
-      },
-      // 磁盘上已经不是项目的（目录被删、被改名）顺手从列表摘掉，首页不留死卡片
-      "project.recent": async () => {
-        const all = this.models.recentProjects;
-        const alive = await Promise.all(all.map((root) => ProjectStore.exists(root)));
-        for (const [i, root] of all.entries()) if (!alive[i]) await this.models.forgetProject(root);
-        return this.models.recentProjects;
-      },
-      "project.forget": async ({ root }) => {
-        await this.models.forgetProject(root);
-        return null;
-      },
-      "project.exportSeed": async () => {
-        const store = this.requireStore();
-        const now = new Date();
-        return { filename: storySeedFilename(store.info.name, now), content: await buildStorySeed(store, now) };
-      },
-      "doc.read": async ({ kind, id }) => this.requireStore().read(kindOf(kind), id),
-      "doc.write": async ({ kind, id, raw, expectBefore }) => {
-        // 作者在阅读界面手改：不走审批门，但改动是全系统最高信号的一条批，patch 随批落盘
-        const store = this.requireStore();
-        const k = kindOf(kind);
-        const preview = await store.previewWrite(k, id, raw);
-        const header = await store.write(k, preview.id, preview.after, expectBefore === undefined ? {} : { expectBefore });
-        if (preview.before !== preview.after) {
-          await store.records.appendMark({
-            kind: k,
-            id: preview.id,
-            type: "edit",
-            by: "author",
-            before: contentHash(preview.before),
-            version: contentHash(preview.after),
-            patch: preview.patch,
-          });
-        }
-        await this.emitDocsChanged();
-        return header;
-      },
-      "doc.template": async ({ kind }) => this.requireStore().template(kindOf(kind)),
-      "search.query": async ({ query, limit }) => (await this.searchIndex()).query(query, limit),
-      "models.list": async () => this.models.state(),
-      "models.select": async ({ provider, id, thinkingLevel }) => {
-        const model = await this.models.select(provider, id, thinkingLevel);
-        const lead = this.agents.get(LEAD_ID);
-        if (lead) {
-          await lead.session.setModel(model);
-          lead.session.setThinkingLevel(this.models.thinkingLevel);
-        }
-        const state = this.models.state();
-        this.emit({ type: "models.state", state });
-        return state;
-      },
-      "models.setApiKey": async ({ provider, apiKey }) => {
-        await this.models.setApiKey(provider, apiKey);
-        const state = this.models.state();
-        this.emit({ type: "models.state", state });
-        return state;
-      },
-      "models.refresh": async () => {
-        await this.models.refresh();
-        const state = this.models.state();
-        this.emit({ type: "models.state", state });
-        return state;
-      },
-      "chat.send": async ({ text, agentId, deliverAs }) => {
-        const live = this.requireLive(agentId ?? LEAD_ID);
-        this.authorActed(live);
-        const how = deliverAs ?? "steer";
-        // 排队的不进 pi 的队列，进我们自己的收件箱：能单条插入、能撤回，轮末一并送
-        if (how === "followUp" && live.session.isStreaming) {
-          const stub = STUB_PATTERN.exec(text);
-          live.inbox.push({ id: randomUUID(), label: stub ? stub[1]!.trim() : "排队", text });
-          this.emitQueue(live);
-          return null;
-        }
-        this.sendTo(live.info.agentId, text, how);
-        return null;
-      },
-      "chat.insert": async ({ agentId, id }) => {
-        const live = this.requireLive(agentId ?? LEAD_ID);
-        const at = live.inbox.findIndex((e) => e.id === id);
-        if (at < 0) return null;
-        const [entry] = live.inbox.splice(at, 1);
-        this.authorActed(live);
-        this.sendTo(live.info.agentId, entry!.text, "steer");
-        this.emitQueue(live);
-        return null;
-      },
-      "chat.clearQueue": async ({ agentId }) => {
-        const live = this.agents.get(agentId ?? LEAD_ID);
-        if (!live) return { texts: [] };
-        const q = live.session.clearQueue();
-        const texts = [...q.steering, ...q.followUp, ...live.inbox.map((e) => e.text)];
-        live.inbox = [];
-        live.steering = [];
-        live.flushRest = false;
-        this.emitQueue(live);
-        return { texts };
-      },
-      "chat.sessionFile": async ({ agentId }) => {
-        const live = this.agents.get(agentId ?? LEAD_ID);
-        return live?.session.sessionFile ?? null;
-      },
-      "chat.pause": async ({ agentId }) => {
-        const id = agentId ?? LEAD_ID;
-        const live = this.agents.get(id);
-        if (!live) throw new Error("这个 agent 已经不在了");
-        if (live.info.status !== "running") return null;
-        // 暂停有两层意思：让它收尾这一步，以及这轮结束后别去取收件箱。作者再开口两者都解除
-        live.hold = true;
-        const text = stubPrompt("暂停", live.info.role === "director" ? PAUSE_PROMPT_LEAD : PAUSE_PROMPT_CHILD);
-        // steer 会插在当前这步工具结束之后，正在写的东西不会被掐断
-        live.session.prompt(text, { streamingBehavior: "steer" }).catch(() => {});
-        return null;
-      },
-      "chat.abort": async ({ agentId }) => {
-        const targets = agentId ? [this.agents.get(agentId)].filter((a): a is LiveAgent => !!a) : [...this.agents.values()];
-        for (const a of targets) {
-          // 作者按了停止：这轮的 agent_end 不算「没问就停」，也不去取收件箱，作者再开口才动
-          a.hold = true;
-          await a.session.abort().catch(() => {});
-        }
-        return null;
-      },
-      "chat.new": async () => {
-        this.requireStore();
-        await this.disposeAgents(true);
-        await this.createLead("new");
-        return null;
-      },
-      "capabilities.list": async () => capabilityInfos(),
-      "capability.run": async ({ id, params: capParams }) => {
-        if (!isCapabilityId(id)) throw new Error(`未知能力：${String(id)}`);
-        const cap = CAPABILITIES[id];
-        for (const param of cap.params) {
-          if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
-        }
-        this.sendTo(LEAD_ID, stubPrompt(cap.label, cap.render(capParams)));
-        return null;
-      },
-      "roles.list": async () => roleInfos(),
-      "approval.reply": async ({ approvalId, decision, reason }) => {
-        this.authorActed(this.agents.get(LEAD_ID));
-        if (!this.gate.resolveApproval(approvalId, { decision, reason: reason ?? "" })) {
-          // 已经不在了（被中止 / 重复点），也让 UI 撤掉
-          this.emit({ type: "approval.resolved", approvalId, decision });
-        }
-        return null;
-      },
-      "question.reply": async ({ questionId, answer }) => {
-        this.authorActed(this.agents.get(LEAD_ID));
-        if (!this.gate.resolveQuestion(questionId, answer)) this.emit({ type: "question.resolved", questionId });
-        return null;
-      },
-      "cloud.status": async () => this.cloudStatus(),
-      "cloud.configure": async ({ url, serviceKey, bucket }) => {
-        const candidate: CloudConfig = { url, serviceKey, bucket: bucket ?? "" };
-        const next = normalizeCloudConfig(candidate);
-        // 先连一次再落盘：连不上就不留下坏配置，旧配置原样保留
-        await new CloudSync(next).verify();
-        await writeCloudConfig(cloudConfigPath(this.home), next);
-        this.cloudConfig = next;
-        this.startCloudTimer();
-        return this.cloudStatus();
-      },
-      "cloud.clear": async () => {
-        await clearCloudConfig(cloudConfigPath(this.home));
-        this.cloudConfig = null;
-        this.stopCloudTimer();
-        return this.cloudStatus();
-      },
-      "cloud.list": async () =>
-        this.requireCloud().listWithLocals(this.models.recentProjects, async (root) =>
-          (await ProjectStore.exists(root)) ? (await ProjectStore.open(root)).info.name : null,
-        ),
-      "cloud.check": async () => this.requireCloud().check(this.requireStore().info),
-      "cloud.upload": async ({ force }) => this.cloudUpload(force === true),
-      "cloud.download": async ({ slug, dest, replace }) => {
-        // 覆盖的目标可能正是当前项目：先关掉，agent 不能在被替换的目录上继续写
-        if (replace && this.store && path.resolve(this.store.info.root) === path.resolve(dest)) await this.closeProject();
-        const { root } = await this.requireCloud().download(slug, dest, { replace: replace === true });
-        const store = await ProjectStore.open(root);
-        await this.closeProject();
-        this.store = store;
-        await this.afterOpen("continue");
-        return store.info;
-      },
-      "cloud.remove": async ({ root }) => {
-        const cloud = this.requireCloud();
-        const { name } = (await ProjectStore.open(root)).info;
-        await cloud.removeProject(projectSlug(name));
-        if (this.store && this.store.info.name === name) {
-          this.cloudSynced = false;
-          this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
-        }
-        return null;
-      },
-      "cloud.wipe": async () => {
-        const removed = await this.requireCloud().wipe();
-        if (this.store) {
-          this.cloudSynced = false;
-          this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
-        }
-        return { removed };
-      },
+      requireStore: () => this.requireStore(),
+      closeProject: () => this.closeProject(),
+      afterOpen: (mode) => this.afterOpen(mode),
+      disposeAgents: (retire) => this.disposeAgents(retire),
+      createLead: (mode) => this.createLead(mode),
+      sendTo: (agentId, text, deliverAs = "steer") => this.sendTo(agentId, text, deliverAs),
+      requireLive: (agentId) => this.requireLive(agentId),
+      authorActed: (live) => this.authorActed(live),
+      emitQueue: (live) => this.emitQueue(live),
+      searchIndex: () => this.searchIndex(),
+      emitDocsChanged: () => this.emitDocsChanged(),
+      models: this.models,
+      gate: this.gate,
+      clouds: this.clouds,
+      agents: this.agents,
+      emit: (e) => this.emit(e),
+    };
+    const handlers: HandlerMap = {
+      ...systemHandlers(api),
+      ...docHandlers(api),
+      ...modelHandlers(api),
+      ...chatHandlers(api),
+      ...workflowHandlers(api),
+      ...approvalHandlers(api),
+      ...cloudHandlers(api),
     };
     const handler = handlers[method];
     if (!handler) throw new Error(`未知方法：${String(method)}`);
@@ -448,14 +170,17 @@ export class Kernel {
     this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
     await this.refreshCheck();
     await this.createLead(mode);
-    this.startCloudTimer();
-    void this.cloudRecheck();
+    this.clouds.start(() => this.store?.info ?? null);
+    if (this.store) {
+      const store = this.store;
+      void this.clouds.recheck(store.info, () => this.store === store);
+    }
   }
 
   private async closeProject() {
     if (!this.store) return;
-    this.stopCloudTimer();
-    this.cloudSynced = null;
+    this.clouds.stop();
+    this.clouds.reset();
     await this.disposeAgents(false);
     this.store = null;
     this.index = null;
@@ -464,76 +189,12 @@ export class Kernel {
     this.emit({ type: "models.state", state: this.models.state() });
   }
 
-  // ───────────────────────── 云端快照 ─────────────────────────
+  // ───────────────────────── 云端快照（状态机在 kernel/cloud-manager.ts） ─────────────────────────
 
-  private cloudStatus() {
-    return {
-      configured: this.cloudConfig !== null,
-      url: this.cloudConfig?.url ?? null,
-      bucket: this.cloudConfig?.bucket ?? null,
-    };
-  }
-
-  private requireCloud(): CloudSync {
-    if (!this.cloudConfig) throw new Error("还没有配置云端存储");
-    return new CloudSync(this.cloudConfig);
-  }
-
-  /** 上传当前项目；同一时刻只跑一份，进度用 cloud.sync 事件广播 */
-  private async cloudUpload(force: boolean) {
-    const info = this.requireStore().info;
-    const cloud = this.requireCloud();
-    if (this.cloudBusy) throw new Error("上一次同步还没结束");
-    this.cloudBusy = true;
-    this.emit({ type: "cloud.sync", phase: "uploading", message: null, last: null, synced: this.cloudSynced });
-    try {
-      const last = await cloud.upload(info, { force });
-      this.cloudSynced = true;
-      this.emit({ type: "cloud.sync", phase: "idle", message: null, last, synced: true });
-      return last;
-    } catch (e) {
-      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null, synced: this.cloudSynced });
-      throw e;
-    } finally {
-      this.cloudBusy = false;
-    }
-  }
-
-  /** 项目打开时和云端比一次，之后靴子落地就靠 markCloudDirty */
-  private async cloudRecheck() {
-    if (!this.store || !this.cloudConfig) return;
-    const store = this.store;
-    try {
-      const check = await new CloudSync(this.cloudConfig).check(store.info);
-      if (this.store !== store) return;
-      this.cloudSynced = check.synced;
-      this.emit({ type: "cloud.sync", phase: "idle", message: null, last: check.remote, synced: check.synced });
-    } catch (e) {
-      if (this.store !== store) return;
-      this.emit({ type: "cloud.sync", phase: "error", message: e instanceof Error ? e.message : String(e), last: null, synced: null });
-    }
-  }
-
-  /** 文档落盘 / 会话有新内容：本地肯定比云端新了 */
+  /** 文档落盘 / 会话有新内容：本地肯定比云端新了（没开项目时跳过） */
   private markCloudDirty() {
-    if (!this.store || !this.cloudConfig || this.cloudSynced === false) return;
-    this.cloudSynced = false;
-    this.emit({ type: "cloud.sync", phase: "idle", message: null, last: null, synced: false });
-  }
-
-  /** 项目打开且配好云端时，每 CLOUD_SYNC_INTERVAL_MS 静默同步一次；内容没变不会真的上传 */
-  private startCloudTimer() {
-    this.stopCloudTimer();
-    if (!this.store || !this.cloudConfig) return;
-    this.cloudTimer = setInterval(() => {
-      if (!this.store || this.cloudBusy) return;
-      void this.cloudUpload(false).catch(() => {});
-    }, CLOUD_SYNC_INTERVAL_MS);
-  }
-
-  private stopCloudTimer() {
-    if (this.cloudTimer) clearInterval(this.cloudTimer);
-    this.cloudTimer = null;
+    if (!this.store) return;
+    this.clouds.markDirty();
   }
 
   /**
@@ -851,7 +512,7 @@ export class Kernel {
       const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
       if (rec) await store.saveAgentRecord({ ...rec, mode });
     }
-    const prefix = mode === "commit" ? "【主编已切换你到落盘阶段，这一轮可以 write_doc / edit_doc】\n" : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
+    const prefix = mode === "commit" ? `${COMMIT_NOTICE}\n` : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
     const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
     const roster = this.roster([slot], onProgress);
     const text = await this.promptChild(live, prefix + message, slot, roster, signal);
@@ -1043,152 +704,6 @@ export class Kernel {
         return;
     }
   }
-}
-
-// ───────────────────────── pi 消息 → UI 消息 ─────────────────────────
-
-interface RawMessage {
-  role?: string;
-  content?: unknown;
-  toolCallId?: string;
-  toolName?: string;
-  isError?: boolean;
-  timestamp?: number;
-  stopReason?: string;
-  errorMessage?: string;
-}
-
-/** 从文本开头摘状态行；没有就返回 null */
-export function takeStatusLine(text: string): { text: string; rest: string } | null {
-  const m = STATUS_LINE_PATTERN.exec(text);
-  if (!m) return null;
-  // 状态行和正文之间的空行全吞掉：留一个 "\n" 进消息体，marked 开着 breaks 会渲染成一段空白
-  return { text: m[1]!.trim(), rest: text.slice(m[0].length).replace(/^(?:[ \t]*\r?\n)+/, "") };
-}
-
-/** 工具参数可能是对象，也可能是还没解析的 JSON 字符串（部分 provider / 截断的流） */
-function parseArgs(v: unknown): unknown {
-  if (v && typeof v === "object") return v;
-  if (typeof v === "string" && v.trim()) {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return { _raw: v };
-    }
-  }
-  return {};
-}
-
-function contentText(result: unknown): string {
-  const content = (result as { content?: unknown } | undefined)?.content;
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((c: { type?: string; text?: string }) => (c.type === "text" ? c.text ?? "" : c.type === "image" ? "[图片]" : ""))
-    .join("");
-}
-
-function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
-  const m = raw as RawMessage | undefined;
-  if (!m || (m.role !== "user" && m.role !== "assistant")) return null;
-  const parts: UiPart[] = [];
-  if (typeof m.content === "string") {
-    const stub = m.role === "user" ? STUB_PATTERN.exec(m.content) : null;
-    if (stub) parts.push({ type: "stub", label: stub[1]!.trim() });
-    else if (m.content) parts.push({ type: "text", text: m.content });
-  } else if (Array.isArray(m.content)) {
-    for (const c of m.content as Array<Record<string, unknown>>) {
-      switch (c.type) {
-        case "text": {
-          if (typeof c.text !== "string" || !c.text) break;
-          if (m.role === "user" && parts.length === 0) {
-            const stub = STUB_PATTERN.exec(c.text);
-            if (stub) {
-              parts.push({ type: "stub", label: stub[1]!.trim() });
-              break;
-            }
-          }
-          // assistant 第一段正文开头的状态行不进消息体，它走 status_text。
-          // 开着思考时 thinking 排在 text 前面，所以按「第一个 text」判断，不能按 parts 是否为空
-          const firstText = !parts.some((p) => p.type === "text");
-          const text = m.role === "assistant" && firstText ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
-          if (text.trim()) parts.push({ type: "text", text });
-          break;
-        }
-        case "thinking":
-          parts.push({ type: "thinking", text: String(c.thinking ?? c.text ?? "") });
-          break;
-        case "toolCall":
-          parts.push({
-            type: "tool",
-            toolCallId: String(c.id ?? ""),
-            name: String(c.name ?? ""),
-            args: parseArgs(c.arguments),
-            status: "running",
-            output: "",
-            details: null,
-          });
-          break;
-        case "image":
-          parts.push({ type: "text", text: "[图片]" });
-          break;
-        default:
-          break;
-      }
-    }
-  }
-  return { id: id ?? randomUUID(), role: m.role, parts, createdAt: m.timestamp ?? Date.now() };
-}
-
-/** 历史回放：把 toolResult 消息折进对应 assistant 消息的 tool part */
-export function normalizeHistory(raws: unknown[]): UiMessage[] {
-  const out: UiMessage[] = [];
-  const toolParts = new Map<string, Extract<UiPart, { type: "tool" }>>();
-  for (const raw of raws) {
-    const m = raw as RawMessage;
-    if (m.role === "toolResult" && m.toolCallId) {
-      const part = toolParts.get(m.toolCallId);
-      if (part) {
-        part.status = m.isError ? "error" : "done";
-        part.output = contentText(m);
-        part.details = (m as { details?: unknown }).details ?? null;
-      }
-      continue;
-    }
-    const msg = normalizeMessage(raw);
-    if (!msg) continue;
-    for (const p of msg.parts) if (p.type === "tool") toolParts.set(p.toolCallId, p);
-    out.push(msg);
-  }
-  return out;
-}
-
-/**
- * 上次会话是否没收尾：最后一条是用户的话（没回）、是工具结果（循环跑一半）、
- * 或是带工具调用 / 被中止 / 出错的 assistant 消息。
- */
-export function wasInterrupted(raws: unknown[]): boolean {
-  const last = raws.at(-1) as RawMessage | undefined;
-  if (!last) return false;
-  if (last.role === "user" || last.role === "toolResult") return true;
-  if (last.role !== "assistant") return false;
-  if (last.stopReason === "aborted" || last.stopReason === "error") return true;
-  return Array.isArray(last.content) && (last.content as Array<{ type?: string }>).some((c) => c.type === "toolCall");
-}
-
-function lastAssistantText(raws: unknown[]): string {
-  for (let i = raws.length - 1; i >= 0; i--) {
-    const m = raws[i] as RawMessage;
-    if (m.role !== "assistant") continue;
-    const msg = normalizeMessage(m);
-    const txt = msg?.parts
-      .filter((p): p is Extract<UiPart, { type: "text" }> => p.type === "text")
-      .map((p) => p.text)
-      .join("\n")
-      .trim();
-    if (txt) return txt;
-  }
-  return "";
 }
 
 export type { CheckIssue };

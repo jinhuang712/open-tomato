@@ -7,6 +7,7 @@ export { buildStorySeed, storySeedFilename, SEED_KIND_ORDER } from "./project/se
 export { readProjectSettings, writeProjectSettings, type ProjectSettings } from "./project/settings.js";
 export { ROLES, ROLE_IDS, roleInfos, isRoleId } from "./agent/roles.js";
 export { CAPABILITIES, CAPABILITY_IDS, capabilityInfos, isCapabilityId } from "./agent/capabilities.js";
-export { Kernel, normalizeHistory } from "./agent/runtime.js";
+export { Kernel } from "./agent/runtime.js";
+export { normalizeHistory } from "./agent/kernel/history.js";
 export { Gate } from "./agent/gate.js";
 export { ModelsFacade } from "./agent/models.js";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeHistory, takeStatusLine } from "../src/agent/runtime.js";
+import { normalizeHistory, takeStatusLine } from "../src/agent/kernel/history.js";
 
 describe("takeStatusLine", () => {
   test("摘出状态行并去掉紧跟的空行", () => {

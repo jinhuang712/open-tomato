@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Kernel } from "../src/agent/runtime.js";
 import type { KernelEvent } from "../src/protocol.js";
+import { ProjectStore } from "../src/project/store.js";
 
 /**
  * handle() 各域分发的行为锁。全部走公开 handle()，不断言内部结构，
@@ -225,5 +226,78 @@ describe("forward 事件映射", () => {
     (kernel as any).forward(fake, { type: "queue_update", steering: ["a", "b"] });
     expect(fake.steering).toEqual(["a", "b"]);
     expect(events.some((e) => e.type === "agent.event" && (e as any).event.type === "queue_update")).toBe(true);
+  });
+});
+
+describe("models.*", () => {
+  test("list 返回 providers/models/current 形态", async () => {
+    const s = await kernel.handle("models.list", {});
+    expect(s.providers.length).toBeGreaterThan(0);
+    expect(s.models.length).toBeGreaterThan(0);
+    expect(s.current).not.toBeNull();
+  });
+
+  test("select 不存在的模型抛错；切真实存在的模型换 current 并广播", async () => {
+    await expect(kernel.handle("models.select", { provider: "nope", id: "nope" })).rejects.toThrow("没有这个模型");
+    const s = await kernel.handle("models.list", {});
+    const target = s.models.find((m) => m.available && `${m.provider}/${m.id}` !== `${s.current?.provider}/${s.current?.id}`)!;
+    expect(target).toBeDefined();
+    events.length = 0;
+    const next = await kernel.handle("models.select", { provider: target.provider, id: target.id });
+    expect(next.current).toEqual({ provider: target.provider, id: target.id });
+    const st = events.filter((e) => e.type === "models.state").at(-1) as any;
+    expect(st?.state.current).toEqual({ provider: target.provider, id: target.id });
+  });
+
+  test("setApiKey 空 key 抛错，不碰网络", async () => {
+    await expect(kernel.handle("models.setApiKey", { provider: "openai", apiKey: "  " })).rejects.toThrow("API key 为空");
+  });
+});
+
+describe("chat / doc 剩余分支", () => {
+  test("insert 幽灵 id 返回 null，不抛错", async () => {
+    expect(await kernel.handle("chat.insert", { id: "ghost" })).toBeNull();
+  });
+
+  test("doc.write expectBefore 对不上：写入作废", async () => {
+    const raw = "---\ntitle: 林尧\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n\n铁匠。\n";
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw });
+    await expect(kernel.handle("doc.write", { kind: "characters", id: "林尧", raw: `${raw}多一行。\n`, expectBefore: "过期内容" })).rejects.toThrow("作废");
+  });
+});
+
+describe("capability 全流程", () => {
+  test.each([
+    ["talk", { topic: "主角" }, "我们先聊聊：主角"],
+    ["design", { brief: "主角人物卡" }, "请派策划设计：主角人物卡"],
+    ["outline", { scope: "全书里程碑" }, "请派编剧编排：全书里程碑"],
+    ["review", { chapter: "3" }, "请审第 3 章正文"],
+    ["recap", { volume: "2" }, "请派编剧盘点第 2 卷"],
+  ])("%s 渲染后发给主编", async (id, params, phrase) => {
+    const { calls } = fakeLead(false);
+    await kernel.handle("capability.run", { id: id as any, params });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toContain(phrase);
+  });
+
+  test("talk 缺必填参数抛错", async () => {
+    await expect(kernel.handle("capability.run", { id: "talk", params: {} })).rejects.toThrow("缺参数");
+  });
+});
+
+describe("cloud.download replace", () => {
+  test("覆盖当前项目：先关后下，重开后是新项目", async () => {
+    const root2 = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj2-"));
+    try {
+      await ProjectStore.create(root2, "第二本书");
+      (kernel as any).clouds.requireCloud = () => ({ download: async () => ({ root: root2 }) });
+      events.length = 0;
+      const info = await kernel.handle("cloud.download", { slug: "x", dest: root, replace: true });
+      expect(info.name).toBe("第二本书");
+      const types = events.map((e) => e.type);
+      expect(types.indexOf("project.closed")).toBeLessThan(types.lastIndexOf("project.opened"));
+    } finally {
+      await fs.rm(root2, { recursive: true, force: true });
+    }
   });
 });
