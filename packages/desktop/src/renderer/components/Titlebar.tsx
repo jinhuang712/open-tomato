@@ -5,7 +5,8 @@ import { CloudIndicator } from "./CloudIndicator";
 import { actions, setState, state } from "../state";
 
 /**
- * 顶栏只放高频入口：书名（低频操作收进它的菜单）· 搜索 · 等你拍板 · 子 agent · 模型。
+ * 顶栏只放高频入口：项目菜单 + 书名 · 搜索 · 等你拍板 · 子 agent · 模型。
+ * 菜单入口是书名左边的常驻底色按钮（和搜索框同一套控件语言），书名只是标题（留在拖拽区里，可以拖着窗口走）。
  * 拍板徽章把待答和待审合成一个数，点进主编会话处理。子 agent 徽章常驻，跑着的和出错的一眼可见。
  */
 export function Titlebar() {
@@ -48,6 +49,8 @@ export function Titlebar() {
   );
 }
 
+// 菜单入口和书名是两个东西：入口在书名左边，用常驻底色 + 菜单图标让它第一眼就读作按钮；
+// 书名是纯标题，可以拖着窗口走、截断时悬停看全名，不参与交互。
 function BookMenu(props: { name: string }) {
   const [open, setOpen] = createSignal(false);
   let root: HTMLDivElement | undefined;
@@ -62,11 +65,20 @@ function BookMenu(props: { name: string }) {
     void fn();
   };
   return (
-    <div ref={root} class="no-drag relative shrink min-w-0 max-w-full">
-      <button class="h-6.5 px-2 -ml-2 max-w-full rounded-md flex items-center gap-1 font-medium hover:bg-paper-3" onClick={() => setOpen(!open())}>
-        <span class="truncate">{props.name}</span>
-        <ChevronIcon />
+    <div ref={root} class="relative flex items-center gap-1.5 min-w-0 max-w-full">
+      <button
+        class="no-drag shrink-0 w-6.5 h-6.5 rounded-md flex items-center justify-center bg-paper-3 hover:bg-paper-4 text-ink-2 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-accent"
+        title="项目菜单"
+        aria-label="项目菜单"
+        aria-haspopup="menu"
+        aria-expanded={open()}
+        onClick={() => setOpen(!open())}
+      >
+        <MenuIcon />
       </button>
+      <span class="font-medium truncate" title={props.name}>
+        {props.name}
+      </span>
       <Show when={open()}>
         <div class="absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
           <MenuItem label="导出故事种子" hint={keyHint("project.exportSeed")} onClick={() => run(actions.exportSeed)} />
@@ -102,6 +114,14 @@ function MenuItem(props: { label: string; tag?: string; hint?: string; onClick: 
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
 function SearchIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -111,10 +131,3 @@ function SearchIcon() {
   );
 }
 
-function ChevronIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-ink-3 shrink-0">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
