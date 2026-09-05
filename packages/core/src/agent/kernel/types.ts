@@ -35,6 +35,8 @@ export interface LiveAgent {
   nudged: boolean;
   /** 子 agent 的结论回来了、主编还没对作者说过一句正文：这时 ask_user 会被打回，先解释 */
   unexplained: boolean;
+  /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
+  pendingError: string | null;
 }
 
 export interface InboxEntry {

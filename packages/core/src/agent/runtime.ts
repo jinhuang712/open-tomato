@@ -316,7 +316,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, unexplained: false };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, unexplained: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -619,7 +619,12 @@ export class Kernel {
           this.emitQueue(live);
         }
         return;
-      case "agent_end":
+      case "agent_end": {
+        // 这轮模型报过错：pi 说要重试就先不报，让 auto_retry_start 走轻提示；不重试了才标 error
+        const pending = live.pendingError;
+        live.pendingError = null;
+        if (pending && !ev.willRetry) this.setStatus(live, "error", pending);
+        if (pending && ev.willRetry) return;
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
@@ -630,6 +635,7 @@ export class Kernel {
         }
         this.flushInbox(live);
         return;
+      }
       case "queue_update":
         live.steering = [...((ev.steering as readonly string[] | undefined) ?? [])];
         this.emitQueue(live);
@@ -667,10 +673,20 @@ export class Kernel {
         this.send(live, { type: "message_end", message: msg });
         const raw = ev.message as RawMessage;
         if (raw.role === "assistant" && raw.stopReason === "error") {
-          this.setStatus(live, "error", raw.errorMessage ?? "模型调用失败（没有错误详情）");
+          // 不马上标 error：pi 可能自动重试，等 agent_end 的 willRetry 再定
+          live.pendingError = raw.errorMessage ?? "模型调用失败（没有错误详情）";
         }
         return;
       }
+      case "auto_retry_start":
+        this.send(live, {
+          type: "retry",
+          attempt: Number(ev.attempt),
+          maxAttempts: Number(ev.maxAttempts),
+          delayMs: Number(ev.delayMs),
+          errorMessage: String(ev.errorMessage ?? ""),
+        });
+        return;
       case "tool_execution_start":
         if (ev.toolName === "ask_user") live.asked = true;
         this.send(live, {

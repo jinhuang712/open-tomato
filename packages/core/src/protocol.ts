@@ -284,6 +284,8 @@ export type AgentStreamEvent =
   | { type: "tool_end"; toolCallId: string; output: string; details: unknown; isError: boolean }
   | { type: "message_end"; message: UiMessage }
   | { type: "status_text"; text: string }
+  /** 模型调用出错、pi 正在自动重试：不算失败，UI 轻提示一下即可 */
+  | { type: "retry"; attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }
   /** 还没送到的消息：排队的等这轮跑完一并送；已插入的在当前这步工具结束后送 */
   | { type: "queue_update"; items: QueueItem[] }
   /** interrupted：上次会话没有正常收尾（发了话没回 / 工具跑一半 / 被中止），UI 在末尾画一条分隔线 */
