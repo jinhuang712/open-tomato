@@ -26,6 +26,8 @@ const LABELS: Record<string, string> = {
 
 const args = (part: ToolPart) => (part.args ?? {}) as Record<string, unknown>;
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
+/** 给作者看的话。tool_start 带的是模型原始实参，prepareArguments 的修补界面看不到，字面的反斜杠 n 要在这儿还原成换行 */
+const talk = (v: unknown) => str(v).replace(/(?:\\r)?\\n/g, "\n");
 
 /** 头部摘要：文档引用可点，其余是纯文本 */
 function Summary(props: { part: ToolPart }) {
@@ -86,7 +88,7 @@ function Output(props: { part: ToolPart }) {
 
 /** 对作者说：主编的话就是正文，不当工具行渲染 */
 function SayCard(props: { part: ToolPart }) {
-  const body = () => str(args(props.part).text);
+  const body = () => talk(args(props.part).text);
   return (
     <Show when={body().trim()}>
       <div class="prose-zh py-1.5 selectable" innerHTML={renderMarkdown(body())} />
@@ -101,7 +103,7 @@ function AskCard(props: { part: ToolPart }) {
   const raw = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]) : []);
   const options = () => (hasLongOptions(raw()) ? [] : raw().map(optionLabel));
   const answer = () => props.part.output.replace(/^作者回答：/, "");
-  const say = () => str(a().say);
+  const say = () => talk(a().say);
   return (
     <>
     <Show when={say().trim()}>
@@ -109,7 +111,7 @@ function AskCard(props: { part: ToolPart }) {
     </Show>
     <div class="my-2 rounded-lg border border-line bg-paper-2 text-sm overflow-hidden">
       <div class="px-4 pt-3 pb-1 flex items-start gap-2">
-        <div class="prose-zh flex-1" innerHTML={renderMarkdown(str(a().question))} />
+        <div class="prose-zh flex-1" innerHTML={renderMarkdown(talk(a().question))} />
       </div>
       <Show when={options().length > 0}>
         <div class="px-4 pb-2 flex flex-wrap gap-1.5">
