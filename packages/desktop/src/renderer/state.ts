@@ -23,12 +23,12 @@ import { bridge } from "./bridge";
 
 export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string };
 
-/** 一段引文是从哪儿圈出来的：悬着的审批，或已落盘的材料。没有 source 的是对话里的话 */
-export type QuoteSource = { type: "approval"; approvalId: string; path: string } | { type: "doc"; kind: DocKindId; id: string; path: string };
+/** 一段引文是从哪儿圈出来的：已落盘的材料。没有 source 的是对话里的话。审阅弹窗里圈的段不进这儿，直接成拒绝理由 */
+export type QuoteSource = { type: "doc"; kind: DocKindId; id: string; path: string };
 
 /**
  * 批注：作者对一段材料说的话。对话里只留一个桩（批注 N），点桩跳回原处看全文。
- * 只活在内存：审批一关、或那段被改掉，就没了。它是批注，不是标签。
+ * 只活在内存：那段被改掉就没了。它是批注，不是标签。
  */
 export interface Annotation {
   label: string;
@@ -101,8 +101,6 @@ export interface State {
   composerQuotes: ComposerQuote[];
   /** 正在弹窗审阅的 approvalId */
   reviewOpen: string | null;
-  /** 点桩跳回审批时要标亮的引文；审阅视图消费后清空 */
-  reviewFocus: string | null;
   /** 还活着的批注，与桩一一对应 */
   annotations: Annotation[];
   /** 批注编号，整个应用生命周期内递增 */
@@ -152,7 +150,6 @@ const initial: State = {
   composerDraft: null,
   composerQuotes: [],
   reviewOpen: null,
-  reviewFocus: null,
   annotations: [],
   annotationSeq: 0,
   cloud: null,
@@ -204,7 +201,6 @@ export function applyEvent(ev: KernelEvent) {
         queues: {},
         pausePending: {},
         reviewOpen: null,
-        reviewFocus: null,
         annotations: [],
         approvals: [],
         questions: [],
@@ -216,7 +212,7 @@ export function applyEvent(ev: KernelEvent) {
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
-      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, pausePending: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, reviewFocus: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
+      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, pausePending: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
       // 回到欢迎页，云端列表重新拉一遍：刚关掉的项目可能刚同步过
       void actions.refreshCloud();
       return;
@@ -265,8 +261,6 @@ export function applyEvent(ev: KernelEvent) {
               // agent 停了，它挂着的待答 / 待审不可能再有人接，一并撤掉
               s.questions = s.questions.filter((q) => q.agentId !== ev.agentId);
               s.approvals = s.approvals.filter((x) => x.agentId !== ev.agentId);
-              const alive = new Set(s.approvals.map((x) => x.approvalId));
-              s.annotations = s.annotations.filter((n) => n.source.type !== "approval" || alive.has(n.source.approvalId));
             }
           }
         }),
@@ -307,8 +301,6 @@ export function applyEvent(ev: KernelEvent) {
     case "approval.resolved": {
       const rest = state.approvals.filter((x) => x.approvalId !== ev.approvalId);
       setState("approvals", rest);
-      // 审批一关，挂在它上面的批注随之消失：批注不是标签
-      setState("annotations", (ns) => ns.filter((n) => n.source.type !== "approval" || n.source.approvalId !== ev.approvalId));
       // 刚决掉的就是正在看的：有下一条就接着审，没有才关；手动关掉的不碰
       if (state.reviewOpen === ev.approvalId) setState("reviewOpen", rest[0]?.approvalId ?? null);
       return;
@@ -693,8 +685,7 @@ export const actions = {
     setState("annotationSeq", seq);
     setState("annotations", (ns) => [...ns, { label, source: src, quotes: sourced.map((q) => q.text), text }]);
     const blocks = sourced.map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n")).join("\n\n");
-    const where = src.type === "approval" ? `${src.path}（悬着的审批稿）` : src.path;
-    return { label, body: `[批注 ${where}]\n${blocks}\n\n${text}`.trim() };
+    return { label, body: `[批注 ${src.path}]\n${blocks}\n\n${text}`.trim() };
   },
   /** 点桩：跳回批注所在处并标亮。批注已经没了就只提示 */
   jumpToAnnotation(label: string) {
@@ -703,18 +694,7 @@ export const actions = {
       toast("这条批注已经处理完，原处看不到了");
       return;
     }
-    const focus = n.quotes[0] ?? "";
-    const src = n.source;
-    if (src.type === "approval") {
-      if (!state.approvals.some((a) => a.approvalId === src.approvalId)) {
-        toast("这次审批已经结束");
-        return;
-      }
-      setState("reviewFocus", focus);
-      setState("reviewOpen", src.approvalId);
-    } else {
-      actions.openDoc(src.kind, src.id, focus);
-    }
+    actions.openDoc(n.source.kind, n.source.id, n.quotes[0] ?? "");
   },
   dropAnnotation(label: string) {
     setState("annotations", (ns) => ns.filter((n) => n.label !== label));

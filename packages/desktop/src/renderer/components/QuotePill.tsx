@@ -18,7 +18,7 @@ interface Hit {
 export function QuotePill(props: {
   within: () => HTMLElement | undefined;
   /** 宿主自己收引文（审阅弹窗：圈的段直接成拒绝理由的引用）。不给就进主编输入框 */
-  onTake?: (quote: ComposerQuote) => void;
+  onTake?: (text: string) => void;
   title?: string;
 }) {
   const [hit, setHit] = createSignal<Hit | null>(null);
@@ -83,9 +83,14 @@ export function QuotePill(props: {
   const take = () => {
     const h = hit();
     if (!h) return;
+    if (props.onTake) {
+      props.onTake(h.text);
+      document.getSelection()?.removeAllRanges();
+      setHit(null);
+      return;
+    }
     const quote: ComposerQuote = h.source ? { id: crypto.randomUUID(), text: h.text, source: h.source } : { id: crypto.randomUUID(), text: h.text, role: h.role ?? "assistant" };
-    if (props.onTake) props.onTake(quote);
-    else setState("composerQuotes", (qs) => [...qs, quote]);
+    setState("composerQuotes", (qs) => [...qs, quote]);
     document.getSelection()?.removeAllRanges();
     setHit(null);
   };

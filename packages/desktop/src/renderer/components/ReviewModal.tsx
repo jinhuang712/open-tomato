@@ -1,7 +1,6 @@
 import { MATERIAL_REJECT_WORDS, PROSE_REJECT_WORDS, type ApprovalRequest } from "@opentomato/core/protocol";
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { clearFocus, focusText } from "../annotate";
-import { actions, setState, state, toast, type QuoteSource } from "../state";
+import { actions, setState, state } from "../state";
 import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
 import { QuotePill } from "./QuotePill";
@@ -55,27 +54,13 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
     onCleanup(() => document.removeEventListener("keydown", onKey));
   });
 
-  /** 这份稿的批注：作者圈过的段与说过的话，审批一关就没 */
-  const notes = () => state.annotations.filter((n) => n.source.type === "approval" && n.source.approvalId === props.request.approvalId);
-  const quoteSource = (): QuoteSource => ({ type: "approval", approvalId: props.request.approvalId, path: props.request.path });
-  const focusQuote = (q: string) => {
-    if (!scroller) return;
-    if (!focusText(scroller, scroller, q)) toast("这段已经改过，找不到原处了");
-  };
-
-  /** 打开或切回审阅视图时，滚到第一处改动；整篇都没改动就留在顶部。点桩跳回来的话滚到那段批注 */
+  /** 打开或切回审阅视图时，滚到第一处改动；整篇都没改动就留在顶部 */
   let scroller: HTMLDivElement | undefined;
   createEffect(
     on([tab, () => props.request.approvalId], () => {
       if (tab() !== "review") return;
       requestAnimationFrame(() => {
         if (!scroller) return;
-        const focus = state.reviewFocus;
-        if (focus) {
-          setState("reviewFocus", null);
-          focusQuote(focus);
-          return;
-        }
         const first = scroller.querySelector<HTMLElement>(".tc-ins, .tc-del, .tc-blk");
         if (!first) return;
         const top = first.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
@@ -83,8 +68,6 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
       });
     }),
   );
-  onCleanup(clearFocus);
-
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={close}>
       <div
@@ -113,23 +96,11 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </button>
         </div>
 
-        <QuotePill within={() => scroller} onTake={(q) => annotate(q.text)} title="对这段提意见，作为拒绝理由回给 agent" />
+        <QuotePill within={() => scroller} onTake={annotate} title="对这段提意见，作为拒绝理由回给 agent" />
         <div ref={scroller} class="flex-1 overflow-y-auto px-8 py-6">
           <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} maxHeight="70vh" />}>
-            <Show when={notes().length > 0}>
-              <div class="mb-4 flex flex-col gap-1 text-sm">
-                <div class="px-2 text-xs text-ink-3">批注会在你批准或拒绝这份稿之后送到主编：批准了写手照批注改那段再提一份，拒绝了批注就是理由</div>
-                <For each={notes()}>
-                  {(n) => (
-                    <button class="text-left flex items-start gap-2 px-2 py-1 rounded-md hover:bg-paper-3" onClick={() => focusQuote(n.quotes[0] ?? "")} title="滚到这段">
-                      <span class="shrink-0 text-xs text-ink-3 mt-0.5">{n.label}</span>
-                      <span class="text-ink-2 line-clamp-2">{n.text || "（只圈了这段，没写话）"}</span>
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
-            <div data-quote-src={JSON.stringify(quoteSource())}>
+            {/* data-quote-src 只是让 QuotePill 认出这是能圈的正文；引文由弹窗自己收，不进主编输入框 */}
+            <div data-quote-src={JSON.stringify({ type: "review", path: props.request.path })}>
               <TrackChanges before={props.request.before} after={props.request.after} isNew={props.request.isNew} />
             </div>
           </Show>
