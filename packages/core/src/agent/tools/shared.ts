@@ -1,6 +1,7 @@
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
 import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
+import { parseFrontmatter } from "../../project/frontmatter.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../../project/kinds.js";
 import { contentHash } from "../../project/records.js";
 import type { ProjectStore } from "../../project/store.js";
@@ -80,6 +81,13 @@ export function makeApproveAndWrite(ctx: ToolContext) {
     if (blocked) throw new Error(blocked);
     const preview = await store.previewWrite(kind, id, after);
     if (preview.before === preview.after) return text(`${preview.path} 内容没有变化，跳过。`);
+    // 只动了 frontmatter（open 清单、状态、关键词这类记账字段），正文一字未改：这不是内容，不过审批门，直接落盘
+    if (!preview.isNew && parseFrontmatter(preview.before).body === parseFrontmatter(preview.after).body) {
+      const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
+      const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
+      const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
+      return text(`已更新 ${header.path}（${header.title}）的 frontmatter，正文没动，无需作者审批${tail}`);
+    }
     const outcome = await ctx.gate.requestApproval(
       {
         agentId: ctx.agentId,
