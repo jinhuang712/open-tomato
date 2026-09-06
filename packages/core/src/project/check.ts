@@ -78,18 +78,6 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     }
   }
 
-  // 主角卡立了，简介的一句话故事却没提到他：两边口径容易各写各的（简介说功勋老员工，人物卡说小中层）
-  const story = await store.readSection("brief", "简介", "一句话故事");
-  if (story && story.trim()) {
-    for (const h of byKind.get("characters") ?? []) {
-      if (h.extra.tier !== "主角") continue;
-      const name = h.title.trim() || h.id;
-      if (name && name !== PLACEHOLDER && !story.includes(name)) {
-        push("info", h, `简介的一句话故事没提到主角「${name}」，两边口径要对一遍`, "characters", `简介的一句话故事没提到主角「${name}」，帮我对一遍两边的口径（出身、职级、起点）再改简介`);
-      }
-    }
-  }
-
   const characters = ids("characters");
   const threads = ids("threads");
   const volumes = ids("volumes");

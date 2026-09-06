@@ -31,20 +31,3 @@ describe("open 与正文一致", () => {
     expect(issues.some((i) => i.message.includes("open 里没有记"))).toBe(false);
   });
 });
-
-describe("简介与主角卡口径", () => {
-  test("一句话故事没提主角名 → info", async () => {
-    await store.write("brief", "简介", "---\ntitle: 简介\nsummary: 立项\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n前美团功勋老员工重生。\n");
-    await store.write("characters", "陈默", card("", "- 出身"));
-    const issues = await runCheck(store);
-    const hit = issues.find((i) => i.message.includes("没提到主角「陈默」"));
-    expect(hit?.level).toBe("info");
-    expect(hit?.fix).toContain("口径");
-  });
-  test("提到了就不报", async () => {
-    await store.write("brief", "简介", "---\ntitle: 简介\nsummary: 立项\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n陈默重生。\n");
-    await store.write("characters", "陈默", card("", "- 出身"));
-    const issues = await runCheck(store);
-    expect(issues.some((i) => i.message.includes("没提到主角"))).toBe(false);
-  });
-});
