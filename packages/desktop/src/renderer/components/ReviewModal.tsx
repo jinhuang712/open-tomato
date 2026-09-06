@@ -122,18 +122,10 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </Show>
         </div>
 
-        <div class="flex items-center gap-2 px-5 py-3 border-t border-line bg-paper-2">
-          <span class="text-xs text-ink-3 flex items-center gap-3">
-            <span>
-              <ins class="tc-ins">新增</ins>
-            </span>
-            <span>
-              <del class="tc-del">删去</del>
-            </span>
-          </span>
+        <div class="flex items-end gap-2 px-5 py-3 border-t border-line bg-paper-2">
           <span class="flex-1" />
           <Show when={remaining() > 0}>
-            <span class="text-ink-3 text-xs mr-2">还有 {remaining()} 条待审</span>
+            <span class="text-ink-3 text-xs mr-2 self-center">还有 {remaining()} 条待审</span>
           </Show>
           <Show
             when={rejecting()}
@@ -149,7 +141,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
               </>
             }
           >
-            <div class="flex flex-col gap-1.5">
+            <div class="flex flex-col gap-1.5 w-[520px]">
               <div class="flex gap-1">
                 <For each={QUICK_REASONS}>
                   {(r) => (
@@ -163,7 +155,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 </For>
               </div>
               <input
-                class="w-[420px] px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
+                class="w-full px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
                 placeholder="拒绝原因（必填，会回给 agent，让它照着改）"
                 value={reason()}
                 onInput={(e) => setReason(e.currentTarget.value)}
