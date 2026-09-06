@@ -130,7 +130,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       </Show>
 
       <Show when={props.request.allowFreeText}>
-        <div class="flex gap-2 px-4 pb-3">
+        <div class="flex items-end gap-2 px-4 pb-3">
           <textarea
             class="flex-1 px-3 py-1.5 rounded-md border border-line-2 bg-paper outline-none focus:border-ink-3 resize-none placeholder:text-ink-3"
             rows={2}
@@ -153,7 +153,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
               }
             }}
           />
-          <button class="px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
+          <button class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
             回答
           </button>
         </div>
