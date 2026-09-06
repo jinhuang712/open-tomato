@@ -53,3 +53,11 @@ describe("repairAskArgs", () => {
     expect(repairAskArgs({})).toEqual({ say: "", question: "这些候选里，你更想要哪个方向？" });
   });
 });
+
+describe("say 的 prepareArguments", () => {
+  test("字面的反斜杠 n 还原成换行", async () => {
+    const { makeSayTool } = await import("../src/agent/tools/say.js");
+    const tool = makeSayTool({} as never) as unknown as { prepareArguments: (a: unknown) => { text: string } };
+    expect(tool.prepareArguments({ text: "第一行\\n\\n第二行" })).toEqual({ text: "第一行\n\n第二行" });
+  });
+});

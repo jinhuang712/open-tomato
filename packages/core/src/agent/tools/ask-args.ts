@@ -7,7 +7,7 @@ const ASK_FALLBACK_QUESTION = "这些候选里，你更想要哪个方向？";
 export type AskOption = string | { label: string; text: string };
 
 /** 模型有时把换行写成字面的反斜杠 n（双重转义）。给作者看的话里不可能真要这两个字符，一律还原成换行 */
-const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
+export const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
 
 /**
  * 流式拼接坏掉时，模型给的 ask_user 实参会带三种伤：question 整个丢失、键名

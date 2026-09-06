@@ -1,5 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { unescapeNewlines } from "./ask-args.js";
 import { text, type ToolContext } from "./shared.js";
 
 /**
@@ -15,6 +16,10 @@ export function makeSayTool(_ctx: ToolContext): ToolDefinition {
     parameters: Type.Object({
       text: Type.String({ description: "对作者说的话，支持 Markdown。结论先行，条目化" }),
     }),
+    prepareArguments: (args: unknown) => {
+      const raw = (args ?? {}) as Record<string, unknown>;
+      return { text: typeof raw.text === "string" ? unescapeNewlines(raw.text) : "" };
+    },
     execute: async (_id, params) => text(params.text.trim() ? "作者已看到。" : "空话，作者没看到什么。"),
   });
 }
