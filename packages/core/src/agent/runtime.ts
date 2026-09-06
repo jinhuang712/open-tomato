@@ -42,7 +42,7 @@ import {
 import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
 import { NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
-import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent } from "./kernel/types.js";
+import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
 import { approvalHandlers } from "./kernel/handlers/approvals.js";
@@ -80,11 +80,14 @@ export class Kernel {
   private readonly clouds: CloudManager;
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
+  private readonly sessionFactory: SessionFactory;
 
   constructor(
     private readonly home: string,
     private readonly emit: (event: KernelEvent) => void,
+    opts: { sessionFactory?: SessionFactory } = {},
   ) {
+    this.sessionFactory = opts.sessionFactory ?? ((args) => this.createPiSession(args));
     this.legacySessionsDir = path.join(home, "sessions");
     this.clouds = new CloudManager(home, emit);
     this.gate = new Gate({
@@ -299,19 +302,31 @@ export class Kernel {
       canAsk: def.canAsk,
       ...(def.canReview ? { reviewAs: role } : {}),
     });
-    const { session } = await createAgentSession({
+    const session = await this.sessionFactory({
       cwd: store.info.root,
       agentDir: this.home,
+      systemPrompt: `${def.systemPrompt}\n\n${STATUS_LINE_RULE}`,
+      tools,
+      sessionManager,
+    });
+    return { session, tools: toolNames(tools) };
+  }
+
+  /** 默认工厂：挂真模型，没配模型这里才报错 */
+  private async createPiSession(args: SessionFactoryArgs): Promise<AgentSession> {
+    const { session } = await createAgentSession({
+      cwd: args.cwd,
+      agentDir: args.agentDir,
       model: this.requireModel(),
       thinkingLevel: this.models.thinkingLevel,
       modelRuntime: this.models.runtime,
-      resourceLoader: this.loaderFor(`${def.systemPrompt}\n\n${STATUS_LINE_RULE}`),
-      tools: toolNames(tools),
-      customTools: tools,
-      sessionManager,
+      resourceLoader: this.loaderFor(args.systemPrompt),
+      tools: toolNames(args.tools),
+      customTools: args.tools,
+      sessionManager: args.sessionManager,
       settingsManager: SettingsManager.inMemory({}),
     });
-    return { session, tools: toolNames(tools) };
+    return session;
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {

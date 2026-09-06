@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Kernel } from "../src/agent/runtime.js";
 import type { KernelEvent } from "../src/protocol.js";
+import { fakeSessionFactory } from "./fake-session.js";
 import { ProjectStore } from "../src/project/store.js";
 
 /**
@@ -21,9 +22,13 @@ beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj-"));
   await fs.rm(root, { recursive: true, force: true });
   events = [];
-  kernel = new Kernel(home, (e) => {
-    events.push(e);
-  });
+  kernel = new Kernel(
+    home,
+    (e) => {
+      events.push(e);
+    },
+    { sessionFactory: fakeSessionFactory().factory },
+  );
   await kernel.init("test");
   await kernel.handle("project.create", { root, name: "测试书" });
   events.length = 0;
@@ -67,6 +72,23 @@ function fakeLead(isStreaming: boolean) {
 }
 
 describe("project.*", () => {
+  test("建项目走注入的会话工厂：主编会话在项目目录下建，不碰真模型", async () => {
+    const other = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj2-"));
+    await fs.rm(other, { recursive: true, force: true });
+    const { factory, created } = fakeSessionFactory();
+    const k = new Kernel(home, () => {}, { sessionFactory: factory });
+    await k.init("test");
+    try {
+      await k.handle("project.create", { root: other, name: "另一本" });
+      expect(created.length).toBe(1);
+      expect(created[0]!.cwd).toBe(other);
+      expect(created[0]!.tools.map((t) => t.name)).toContain("write_doc");
+    } finally {
+      await k.dispose().catch(() => {});
+      await fs.rm(other, { recursive: true, force: true });
+    }
+  });
+
   test("recent 列出当前项目；forget 摘掉", async () => {
     expect(await kernel.handle("project.recent", {})).toContain(root);
     await kernel.handle("project.forget", { root });

@@ -1,9 +1,21 @@
-import type { createAgentSession } from "@earendil-works/pi-coding-agent";
+import type { createAgentSession, SessionManager, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { AgentInfo } from "../../protocol.js";
 import type { SpawnMode } from "../tools/index.js";
 
 export type AgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 export type SessionEvent = Parameters<Parameters<AgentSession["subscribe"]>[0]>[0];
+
+/** Kernel 建会话时交给工厂的全部材料；模型由工厂自己决定，Kernel 不预设 */
+export interface SessionFactoryArgs {
+  cwd: string;
+  agentDir: string;
+  systemPrompt: string;
+  tools: ToolDefinition[];
+  sessionManager: SessionManager;
+}
+
+/** 会话工厂：默认用 pi 的 createAgentSession 挂真模型；测试换成假会话，打开项目就不再要求模型就绪 */
+export type SessionFactory = (args: SessionFactoryArgs) => Promise<AgentSession>;
 
 export const LEAD_ID = "director";
 

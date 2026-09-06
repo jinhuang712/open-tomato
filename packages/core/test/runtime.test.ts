@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Kernel } from "../src/agent/runtime.js";
 import type { KernelEvent } from "../src/protocol.js";
+import { fakeSessionFactory } from "./fake-session.js";
 
 let home: string;
 let root: string;
@@ -15,9 +16,13 @@ beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), "ot-proj-"));
   await fs.rm(root, { recursive: true, force: true });
   events = [];
-  kernel = new Kernel(home, (e) => {
-    events.push(e);
-  });
+  kernel = new Kernel(
+    home,
+    (e) => {
+      events.push(e);
+    },
+    { sessionFactory: fakeSessionFactory().factory },
+  );
   await kernel.init("test");
   await kernel.handle("project.create", { root, name: "测试书" });
   events.length = 0;
