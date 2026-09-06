@@ -54,6 +54,65 @@ describe("子任务报告标签", () => {
   });
 });
 
+describe("派单不阻塞主编", () => {
+  function fakeLead(isStreaming: boolean, hold = false) {
+    const calls: string[] = [];
+    const fake = {
+      info: { agentId: "director", parentId: null, role: "director", label: "主编", task: "", status: "running", error: null, statusText: "" },
+      session: { isStreaming, prompt: async (t: string) => void calls.push(t), abort: async () => {}, dispose: () => {} },
+      unsubscribe: () => {},
+      mode: "commit" as const,
+      tools: [],
+      inbox: [] as Array<{ id: string; label: string; text: string }>,
+      steering: [] as string[],
+      hold,
+      flushRest: false,
+    };
+    (kernel as any).agents.set("director", fake);
+    return { fake, calls };
+  }
+
+  test("spawn 立刻返回名册，子 agent 跑完后报告进主编收件箱", async () => {
+    const { fake, calls } = fakeLead(true);
+    let finish!: (s: string) => void;
+    (kernel as any).runChild = async (_p: string, task: { role: string }, slots: unknown[]) => {
+      slots.push({ agentId: "c1", role: task.role, label: "策划", task: "t", status: "running", error: null });
+      return await new Promise<string>((r) => (finish = r));
+    };
+    const progress: string[] = [];
+    const result = await (kernel as any).spawn("director", [{ role: "designer", task: "t" }], (t: string) => progress.push(t));
+    expect(result.text).toContain("id=c1");
+    expect(result.details.slots.map((s: { agentId: string }) => s.agentId)).toEqual(["c1"]);
+    expect(fake.inbox).toEqual([]);
+
+    finish("## 策划（designer，id=c1）\n\n三个候选");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toEqual([]);
+    expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
+    expect(fake.inbox[0]!.text).toContain("三个候选");
+  });
+
+  test("主编空着：报告直接送进去开新一轮", () => {
+    const { fake, calls } = fakeLead(false);
+    (kernel as any).deliverReport("director", "designer", "报告正文");
+    expect(fake.inbox).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^⟦stub:策划交回⟧\n报告正文$/);
+  });
+
+  test("主编暂停中：报告进收件箱等作者开口", () => {
+    const { fake, calls } = fakeLead(false, true);
+    (kernel as any).deliverReport("director", "designer", "报告正文");
+    expect(calls).toEqual([]);
+    expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
+  });
+
+  test("派单人已不在：报告丢弃不报错", () => {
+    (kernel as any).agents.delete("director");
+    expect(() => (kernel as any).deliverReport("director", "designer", "x")).not.toThrow();
+  });
+});
+
 describe("作者手改落批", () => {
   test("doc.write 内容有变就落一条 edit 批，带 patch 与前后 hash", async () => {
     const before = "---\ntitle: 林尧\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n\n铁匠。\n";

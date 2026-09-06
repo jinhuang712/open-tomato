@@ -57,6 +57,7 @@ import { workflowHandlers } from "./kernel/handlers/workflow.js";
 const PROPOSE_NOTICE = loadPrompt("kernel/propose-notice");
 const COMMIT_NOTICE = loadPrompt("kernel/commit-notice");
 const CHILD_REPORT_NOTICE = loadPrompt("shared/child-report-notice");
+const DISPATCHED_NOTICE = loadPrompt("kernel/dispatched-notice");
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
 const HEAD_BUFFER_LIMIT = 48;
@@ -277,8 +278,8 @@ export class Kernel {
       search: async (query, limit) => (await this.searchIndex()).query(query, limit),
     };
     if (withSpawn) {
-      ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
-      ctx.continueAgent = (childId, message, mode, onProgress, signal) => this.continueChild(childId, message, mode, onProgress, signal);
+      ctx.spawn = (tasks, onProgress) => this.spawn(agentId, tasks, onProgress);
+      ctx.continueAgent = (childId, message, mode, onProgress) => this.continueChild(childId, message, mode, onProgress);
       ctx.retireAgent = (childId) => this.retireChild(childId);
     }
     ctx.writeBlocked = () => {
@@ -449,11 +450,41 @@ export class Kernel {
     };
   }
 
-  private async spawn(parentId: string, tasks: SpawnTask[], onProgress: DispatchProgress, signal?: AbortSignal): Promise<DispatchResult> {
+  /**
+   * 派单不阻塞主编：子 agent 各自后台跑，主编立刻拿到名册接着干别的；
+   * 谁跑完了，报告就作为一条新消息送进主编收件箱（见 deliverReport）。
+   * 工具已经返回后名册进度没人收了，onProgress 只在返回前有效。
+   */
+  private async spawn(parentId: string, tasks: SpawnTask[], onProgress: DispatchProgress): Promise<DispatchResult> {
     const slots: DispatchSlot[] = [];
-    const roster = this.roster(slots, onProgress);
-    const texts = await Promise.all(tasks.map((t) => this.runChild(parentId, t, slots, roster, signal)));
-    return { text: texts.join("\n\n"), details: roster.snapshot() };
+    let returned = false;
+    const roster = this.roster(slots, (t, d) => {
+      if (!returned) onProgress(t, d);
+    });
+    for (const task of tasks) {
+      // runChild 在第一个 await 之前就把 slot 推进名册，所以下面的 snapshot 拿得到全员
+      void this.runChild(parentId, task, slots, roster).then((report) => this.deliverReport(parentId, task.role, report));
+    }
+    returned = true;
+    const lines = slots.map((x) => `- ${x.label}（${x.role}，id=${x.agentId}）`).join("\n");
+    return { text: `${DISPATCHED_NOTICE}\n${lines}`, details: roster.snapshot() };
+  }
+
+  /**
+   * 子 agent 交回的报告送给派它的人：它在跑就进收件箱等轮末，暂停中也进收件箱等作者开口，空着就直接送。
+   * 和作者的排队消息走同一条路，主编按「作者的话排最前」的顺序自己取。
+   */
+  private deliverReport(parentId: string, role: RoleId, report: string) {
+    const live = this.agents.get(parentId);
+    if (!live) return;
+    const label = `${ROLES[role].label}交回`;
+    const text = stubPrompt(label, report);
+    if (live.session.isStreaming || live.hold) {
+      live.inbox.push({ id: randomUUID(), label, text });
+      this.emitQueue(live);
+      return;
+    }
+    this.sendTo(parentId, text);
   }
 
   /**
@@ -466,7 +497,6 @@ export class Kernel {
     task: SpawnTask,
     slots: DispatchSlot[],
     roster: ReturnType<Kernel["roster"]>,
-    signal?: AbortSignal,
   ): Promise<string> {
     const def = ROLES[task.role];
     const agentId = randomUUID();
@@ -486,7 +516,7 @@ export class Kernel {
       this.setMode(live, mode);
       await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
       const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
-      return await this.promptChild(live, prefix + task.task, slot, roster, signal);
+      return await this.promptChild(live, prefix + task.task, slot, roster);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (live) this.setStatus(live, "error", msg);
@@ -495,13 +525,7 @@ export class Kernel {
     }
   }
 
-  private async continueChild(
-    childId: string,
-    message: string,
-    mode: SpawnMode | undefined,
-    onProgress: DispatchProgress,
-    signal?: AbortSignal,
-  ): Promise<DispatchResult> {
+  private async continueChild(childId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress): Promise<DispatchResult> {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
@@ -513,9 +537,14 @@ export class Kernel {
     }
     const prefix = mode === "commit" ? `${COMMIT_NOTICE}\n` : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
     const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
-    const roster = this.roster([slot], onProgress);
-    const text = await this.promptChild(live, prefix + message, slot, roster, signal);
-    return { text, details: roster.snapshot() };
+    let returned = false;
+    const roster = this.roster([slot], (t, d) => {
+      if (!returned) onProgress(t, d);
+    });
+    const parentId = live.info.parentId ?? LEAD_ID;
+    void this.promptChild(live, prefix + message, slot, roster).then((report) => this.deliverReport(parentId, live.info.role, report));
+    returned = true;
+    return { text: `${DISPATCHED_NOTICE}\n- ${live.info.label}（${live.info.role}，id=${childId}）`, details: roster.snapshot() };
   }
 
   /**
@@ -551,17 +580,13 @@ export class Kernel {
     message: string,
     slot: DispatchSlot,
     roster: ReturnType<Kernel["roster"]>,
-    signal?: AbortSignal,
   ): Promise<string> {
     const { session, info } = live;
     const header = `## ${info.label}（${info.role}，id=${info.agentId}）`;
-    const onAbort = () => void session.abort().catch(() => {});
-    signal?.addEventListener("abort", onAbort, { once: true });
     this.setStatus(live, "running");
     roster.touch(slot, "running");
     try {
       await session.prompt(message);
-      if (signal?.aborted) throw new Error("已中止");
       const answer = lastAssistantText(session.messages as unknown[]);
       this.setStatus(live, "done");
       roster.touch(slot, "done");
@@ -572,12 +597,16 @@ export class Kernel {
       this.gate.rejectAgent(live.info.agentId, msg);
       roster.touch(slot, "error", msg);
       return `${header}\n\n执行失败：${msg}`;
-    } finally {
-      signal?.removeEventListener("abort", onAbort);
     }
   }
 
   // ───────────────────────── 事件转发 ─────────────────────────
+
+  /** 有派出去的人还在跑：主编停下等报告是合法的，不算「没问就停」 */
+  private hasRunningChildren(parentId: string): boolean {
+    for (const a of this.agents.values()) if (a.info.parentId === parentId && a.info.status === "running") return true;
+    return false;
+  }
 
   private setStatus(live: LiveAgent, status: AgentStatus, error: string | null = null) {
     // 只认对象不认 id：已退场（摘表 / 被同 id 新会话替换）的旧 live 发不出事件，防幽灵状态
@@ -642,7 +671,7 @@ export class Kernel {
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
-        if (shouldNudge(live)) {
+        if (shouldNudge(live, this.hasRunningChildren(live.info.agentId))) {
           live.nudged = true;
           this.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
           return;

@@ -12,7 +12,7 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "spawn_agents",
     label: "派子 agent",
-    description: `并行派一个或多个子 agent 干活，全部完成后返回各自的结论。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
+    description: `并行派一个或多个子 agent 干活。派出后立刻返回名册（含每人的 id），不等它们做完；谁做完了，报告会作为一条新消息送到你这里。可用角色：${roleList}。任务书写清目标、要读哪些卡（kind/id）、交付物、边界；不要把卡片内容复制进任务书。mode=propose 时子 agent 只能出候选、落盘工具被挡住，作者拍板后用 continue_agent 切到 commit 让它接着孵化落盘；作者已经定了方向、只是要产出时才直接 commit。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
     parameters: Type.Object({
       tasks: Type.Array(
         Type.Object({
@@ -23,7 +23,7 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
         { minItems: 1, maxItems: 6 },
       ),
     }),
-    execute: async (_id, params, signal, onUpdate) => {
+    execute: async (_id, params, _signal, onUpdate) => {
       const { store } = ctx;
       const tasks: SpawnTask[] = params.tasks.map((t) => {
         const role: unknown = t.role;
@@ -33,7 +33,7 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
       if (tasks.some((t) => STORY_GATED_ROLES.has(t.role)) && !(await hasOneLineStory(store))) {
         throw new Error(ONE_LINE_STORY_GATE_MESSAGE);
       }
-      const result = await spawn(tasks, (progress, details) => onUpdate?.({ ...text(progress), details }), signal);
+      const result = await spawn(tasks, (progress, details) => onUpdate?.({ ...text(progress), details }));
       return { ...text(result.text), details: result.details };
     },
   });

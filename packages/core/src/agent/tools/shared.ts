@@ -37,10 +37,10 @@ export interface ToolContext {
   /** 落盘后调用：刷索引、广播 docs.changed，并返回最新的机检结果 */
   docsChanged: () => Promise<CheckIssue[]>;
   search: (query: string, limit?: number) => Promise<SearchHit[]>;
-  /** 只有能派单的角色才有 */
-  spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
-  /** 续接一个还活着的子 agent，把新消息发给它并等它这一轮的结论；mode 给了就切换它的落盘权限 */
-  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress, signal?: AbortSignal) => Promise<DispatchResult>;
+  /** 只有能派单的角色才有。不阻塞：立刻返回名册，报告跑完后送进派单人的收件箱 */
+  spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress) => Promise<DispatchResult>;
+  /** 续接一个还活着的子 agent，把新消息发给它；同样不阻塞。mode 给了就切换它的落盘权限 */
+  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress) => Promise<DispatchResult>;
   /** 让一个跑完的子 agent 退场：删会话和索引，之后不能再 continue */
   retireAgent?: (agentId: string) => Promise<void>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */

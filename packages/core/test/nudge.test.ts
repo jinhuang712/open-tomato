@@ -18,5 +18,6 @@ describe("shouldNudge", () => {
   test("暂停中不补", () => expect(shouldNudge(lead({ hold: true }))).toBe(false));
   test("出错不补", () => expect(shouldNudge(lead({ info: { agentId: "director", status: "error" } as Live["info"] }))).toBe(false));
   test("收件箱有作者的话就送作者的话，不补", () => expect(shouldNudge(lead({ inbox: [{ id: "1", label: "x", text: "y" }] }))).toBe(false));
+  test("有子 agent 在跑：停下等报告是合法的，不补", () => expect(shouldNudge(lead(), true)).toBe(false));
   test("子 agent 不补", () => expect(shouldNudge(lead({ info: { agentId: "a1", status: "done" } as Live["info"] }))).toBe(false));
 });
