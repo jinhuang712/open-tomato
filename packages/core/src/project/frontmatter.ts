@@ -23,6 +23,12 @@ export function parseFrontmatter(raw: string): ParsedDoc {
   return { frontmatter: frontmatter as Record<string, unknown>, body: m[2] ?? "" };
 }
 
+/** 两份 frontmatter 之间值不同的字段名（含一边有一边没有的） */
+export function frontmatterDiffKeys(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  return [...keys].filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
+}
+
 /**
  * 落盘前的校验：必须以 frontmatter 起始、YAML 能解析且是一个映射。
  * 返回给用户 / 模型看的原因；合法返回 null。

@@ -55,6 +55,35 @@ describe("只改 frontmatter 不过审批门", () => {
     expect(doc?.raw).toContain("初创兄弟");
   });
 
+  test("改 tier 这种结构字段：正文没动也敲门，正文没变不等于故事没变", async () => {
+    await store.write("characters", "陈默", CARD);
+    const { asked, call } = tools();
+    await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "tier: 主角", new: "tier: 一般配角" }] });
+    expect(asked.length).toBe(1);
+  });
+
+  test("记账字段和结构字段一起改：敲门", async () => {
+    await store.write("characters", "陈默", CARD);
+    const { asked, call } = tools();
+    await call("edit_doc", {
+      kind: "characters",
+      id: "陈默",
+      edits: [
+        { old: "status: draft", new: "status: final" },
+        { old: "tier: 主角", new: "tier: 重要配角" },
+      ],
+    });
+    expect(asked.length).toBe(1);
+  });
+
+  test("改 status 并把改了什么写进回话", async () => {
+    await store.write("characters", "陈默", CARD);
+    const { asked, call } = tools();
+    const out = await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "status: draft", new: "status: final" }] });
+    expect(asked).toEqual([]);
+    expect(textOf(out)).toContain("记账字段 status");
+  });
+
   test("正文也动了：照旧敲门", async () => {
     await store.write("characters", "陈默", CARD);
     const { asked, call } = tools();
