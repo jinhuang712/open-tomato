@@ -4,6 +4,7 @@ import { makeContinueAgentTool } from "./continue-agent.js";
 import { makeDocTemplateTool } from "./doc-template.js";
 import { makeEditDocTool } from "./edit-doc.js";
 import { makeListDocsTool } from "./list-docs.js";
+import { makeListOpenTool } from "./list-open.js";
 import { makeProjectOverviewTool } from "./project-overview.js";
 import { makeReadDocTool } from "./read-doc.js";
 import { makeReadMarksTool } from "./read-marks.js";
@@ -25,6 +26,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
 
   tools.push(makeProjectOverviewTool(ctx));
   tools.push(makeListDocsTool(ctx));
+  tools.push(makeListOpenTool(ctx));
   tools.push(makeReadDocTool(ctx));
   tools.push(makeSearchDocsTool(ctx));
   tools.push(makeWebSearchTool(ctx));
