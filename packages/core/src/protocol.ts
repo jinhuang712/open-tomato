@@ -351,6 +351,16 @@ export function optionText(o: QuestionOption): string {
   return typeof o === "string" ? o : o.text;
 }
 
+/**
+ * 回给模型的答案开头。界面按形态自己组句（multi 的「作者选了：A、C」、checklist 的三组表态），
+ * 工具端认到这些开头就原样转交，否则一律补「作者回答：」。
+ */
+export const ANSWER_PREFIXES = ["作者回答：", "作者选了：", "作者逐条表态"] as const;
+
+export function formatAnswer(answer: string): string {
+  return ANSWER_PREFIXES.some((p) => answer.startsWith(p)) ? answer : `作者回答：${answer}`;
+}
+
 /** 有没有候选长到不适合用 chip 排：带 label 的、含换行的、超过 40 字的 */
 export function hasLongOptions(options: readonly QuestionOption[]): boolean {
   return options.some((o) => typeof o !== "string" || o.includes("\n") || o.length > 40);

@@ -103,6 +103,11 @@ function AskCard(props: { part: ToolPart }) {
   const raw = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]) : []);
   const options = () => (hasLongOptions(raw()) ? [] : raw().map(optionLabel));
   const answer = () => props.part.output.replace(/^作者回答：/, "");
+  // 高亮作者选中的：single 是整句，multi 是「作者选了：A、C」里的每一项
+  const chosen = () => {
+    const a = answer();
+    return new Set(a.startsWith("作者选了：") ? a.slice("作者选了：".length).split("、") : [a]);
+  };
   const say = () => talk(a().say);
   return (
     <>
@@ -117,7 +122,7 @@ function AskCard(props: { part: ToolPart }) {
         <div class="px-4 pb-2 flex flex-wrap gap-1.5">
           <For each={options()}>
             {(o) => (
-              <span class={`h-6.5 px-2.5 rounded-md border text-xs flex items-center ${o === answer() ? "border-ink-2 bg-paper-3 text-ink" : "border-line-2 text-ink-3"}`}>{o}</span>
+              <span class={`h-6.5 px-2.5 rounded-md border text-xs flex items-center ${chosen().has(o) ? "border-ink-2 bg-paper-3 text-ink" : "border-line-2 text-ink-3"}`}>{o}</span>
             )}
           </For>
         </div>

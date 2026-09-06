@@ -1,5 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { formatAnswer } from "../../protocol.js";
 import { repairAskArgs, resolveQuestionKind } from "./ask-args.js";
 import { text, type ToolContext } from "./shared.js";
 
@@ -44,7 +45,7 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
         },
         signal,
       );
-      return text(`作者回答：${answer}`);
+      return text(formatAnswer(answer));
     },
   });
 }

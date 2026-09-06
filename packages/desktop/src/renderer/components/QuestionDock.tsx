@@ -78,6 +78,25 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   };
   const pick = (o: QuestionOption) => void actions.answer(props.request.questionId, answerOf(o));
 
+  // multi：勾选态放本地，点「确定」一次交出去。换了问题就清空
+  const [picked, setPicked] = createSignal<Set<number>>(new Set());
+  createEffect(() => {
+    props.request.questionId;
+    setPicked(new Set<number>());
+  });
+  const toggle = (i: number) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  const submitMulti = () => {
+    const labels = props.request.options.filter((_, i) => picked().has(i)).map(optionLabel);
+    if (!labels.length) return;
+    void actions.answer(props.request.questionId, `作者选了：${labels.join("、")}`);
+  };
+
   return (
     <div class="mx-5 mb-2 rounded-lg border border-line-2 bg-paper-2 overflow-hidden">
       <button
@@ -99,24 +118,61 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       <Show when={open()}>
       <div class="px-4 py-3 prose-zh" innerHTML={renderMarkdown(props.request.text)} />
 
-      <Show
-        when={kind() === "compare"}
-        fallback={
-          <div class="flex flex-wrap gap-2 px-4 pb-3">
-            <For each={props.request.options}>
-              {(opt) => (
-                <button
-                  class="min-h-7 px-3 py-1 rounded-md border border-line-2 hover:border-ink-3 hover:text-ink text-left"
-                  onClick={() => pick(opt)}
-                >
-                  {optionLabel(opt)}
-                </button>
-              )}
-            </For>
-            <EscapeButtons request={props.request} />
-          </div>
-        }
-      >
+      <Show when={kind() === "single"}>
+        <div class="flex flex-wrap gap-2 px-4 pb-3">
+          <For each={props.request.options}>
+            {(opt) => (
+              <button
+                class="min-h-7 px-3 py-1 rounded-md border border-line-2 hover:border-ink-3 hover:text-ink text-left"
+                onClick={() => pick(opt)}
+              >
+                {optionLabel(opt)}
+              </button>
+            )}
+          </For>
+          <EscapeButtons request={props.request} />
+        </div>
+      </Show>
+
+      <Show when={kind() === "multi"}>
+        {/* 挑若干个：chip 可切换勾选，点确定一次交出去。没选的就是「不要」，不用报 */}
+        <div class="flex flex-wrap gap-2 px-4 pb-2">
+          <For each={props.request.options}>
+            {(opt, i) => (
+              <button
+                class="min-h-7 px-3 py-1 rounded-md border text-left"
+                classList={{
+                  "border-ink-2 bg-paper-3 text-ink": picked().has(i()),
+                  "border-line-2 hover:border-ink-3 hover:text-ink": !picked().has(i()),
+                }}
+                aria-pressed={picked().has(i())}
+                onClick={() => toggle(i())}
+              >
+                <span class="mr-1.5 text-ink-3">{picked().has(i()) ? "☑" : "☐"}</span>
+                {optionLabel(opt)}
+              </button>
+            )}
+          </For>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+          <button
+            class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30"
+            disabled={picked().size === 0}
+            onClick={submitMulti}
+          >
+            确定{picked().size > 0 ? `（已选 ${picked().size} 项）` : ""}
+          </button>
+          <EscapeButtons request={props.request} />
+        </div>
+      </Show>
+
+      <Show when={kind() === "open"}>
+        <div class="flex flex-wrap gap-2 px-4 pb-3">
+          <EscapeButtons request={props.request} />
+        </div>
+      </Show>
+
+      <Show when={kind() === "compare"}>
         {/* 长候选：并排铺成稿纸，作者像在桌上对比两份草稿 */}
         <div class="drafts px-4 pb-3">
           <For each={props.request.options}>

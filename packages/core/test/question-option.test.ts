@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasLongOptions, optionLabel, optionText } from "../src/protocol.js";
+import { formatAnswer, hasLongOptions, optionLabel, optionText } from "../src/protocol.js";
 
 describe("QuestionOption", () => {
   test("纯字串的 label 和正文都是它自己", () => {
@@ -23,5 +23,16 @@ describe("QuestionOption", () => {
     expect(hasLongOptions(["第一行\n第二行"])).toBe(true);
     expect(hasLongOptions(["一".repeat(41)])).toBe(true);
     expect(hasLongOptions(["一".repeat(40)])).toBe(false);
+  });
+});
+
+describe("formatAnswer", () => {
+  test("普通回答补「作者回答：」", () => {
+    expect(formatAnswer("红尘")).toBe("作者回答：红尘");
+  });
+
+  test("界面已按形态组好句的原样转交", () => {
+    expect(formatAnswer("作者选了：A、C")).toBe("作者选了：A、C");
+    expect(formatAnswer("作者逐条表态。改：第 1 条（开头太慢）；不改：无；没表态：第 2 条（结尾仓促）")).toStartWith("作者逐条表态");
   });
 });
