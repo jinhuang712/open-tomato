@@ -1,6 +1,6 @@
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { repairAskArgs } from "./ask-args.js";
+import { repairAskArgs, resolveQuestionKind } from "./ask-args.js";
 import { text, type ToolContext } from "./shared.js";
 
 export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
@@ -12,6 +12,12 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
     parameters: Type.Object({
       say: Type.String({ description: "问之前对作者说的话：刚做了什么、为什么现在要问、候选之间差在哪。作者先看到这段，再看到问题" }),
       question: Type.String({ description: "问作者的问题本身，一两句，一次只问一件事；铺垫和解释放 say" }),
+      kind: Type.Optional(
+        Type.Union(
+          [Type.Literal("open"), Type.Literal("single"), Type.Literal("multi"), Type.Literal("checklist"), Type.Literal("compare")],
+          { description: "提问形态：open 自由回答 / single 挑一个 / multi 挑若干个 / checklist 逐条表态 / compare 并排对比长稿。缺省按 options 形状定" },
+        ),
+      ),
       options: Type.Optional(
         Type.Array(
           Type.Union([
@@ -32,6 +38,7 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
         {
           agentId: ctx.agentId,
           text: params.question,
+          kind: params.kind ?? resolveQuestionKind(undefined, params.options ?? []),
           options: params.options ?? [],
           allowFreeText: params.allowFreeText ?? true,
         },

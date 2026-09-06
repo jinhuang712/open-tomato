@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { repairAskArgs } from "../src/agent/tools/index.js";
+import { resolveQuestionKind } from "../src/agent/tools/ask-args.js";
 
 describe("repairAskArgs", () => {
   test("完好的实参原样过", () => {
-    const args = { say: "人物卡骨架已经立了，就差名字。", question: "主角叫什么？", options: ["李强", "陈默"], allowFreeText: false };
+    const args = { say: "人物卡骨架已经立了，就差名字。", question: "主角叫什么？", kind: "single", options: ["李强", "陈默"], allowFreeText: false };
     expect(repairAskArgs(args)).toEqual(args);
   });
 
@@ -46,11 +47,45 @@ describe("repairAskArgs", () => {
   });
 
   test("options 不是数组时整个省掉", () => {
-    expect(repairAskArgs({ question: "在吗", options: null })).toEqual({ say: "", question: "在吗" });
+    expect(repairAskArgs({ question: "在吗", options: null })).toEqual({ say: "", question: "在吗", kind: "open" });
   });
 
   test("空对象也能给出可用提问", () => {
-    expect(repairAskArgs({})).toEqual({ say: "", question: "这些候选里，你更想要哪个方向？" });
+    expect(repairAskArgs({})).toEqual({ say: "", question: "这些候选里，你更想要哪个方向？", kind: "open" });
+  });
+
+  test("kind 漏进 options 也会被摘掉", () => {
+    expect(repairAskArgs({ question: "挑", options: ["kind", "A", "B"] }).options).toEqual(["A", "B"]);
+  });
+});
+
+describe("resolveQuestionKind", () => {
+  test("没候选一律 open，模型说什么都不算", () => {
+    expect(resolveQuestionKind("single", [])).toBe("open");
+    expect(resolveQuestionKind(undefined, [])).toBe("open");
+  });
+
+  test("{label, text} 或长字串一律 compare，覆盖模型给的 single", () => {
+    expect(resolveQuestionKind("single", ["短", { label: "A", text: "x" }])).toBe("compare");
+    expect(resolveQuestionKind("multi", ["一".repeat(41), "短"])).toBe("compare");
+    expect(resolveQuestionKind(undefined, ["第一行\n第二行"])).toBe("compare");
+  });
+
+  test("短候选按模型给的合法 kind", () => {
+    expect(resolveQuestionKind("multi", ["A", "B"])).toBe("multi");
+    expect(resolveQuestionKind("checklist", ["A", "B"])).toBe("checklist");
+  });
+
+  test("短候选配 open / compare / 非法值都退回 single", () => {
+    expect(resolveQuestionKind("open", ["A", "B"])).toBe("single");
+    expect(resolveQuestionKind("compare", ["A", "B"])).toBe("single");
+    expect(resolveQuestionKind("banana", ["A", "B"])).toBe("single");
+    expect(resolveQuestionKind(undefined, ["A", "B"])).toBe("single");
+  });
+
+  test("repairAskArgs 把 kind 补齐进结果", () => {
+    expect(repairAskArgs({ question: "返修哪几条", kind: "checklist", options: ["开头太慢", "结尾仓促"] }).kind).toBe("checklist");
+    expect(repairAskArgs({ question: "挑一版", options: [{ label: "A", text: "x" }] }).kind).toBe("compare");
   });
 });
 

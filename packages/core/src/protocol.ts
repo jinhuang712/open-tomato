@@ -319,10 +319,24 @@ export type ApprovalDecision = "approve" | "reject";
  */
 export type QuestionOption = string | { label: string; text: string };
 
+/**
+ * 提问形态：作者面对一个问题时要做的决策动作只有这五种。
+ * - open：自由回答，没有候选
+ * - single：挑一个，点即发
+ * - multi：挑若干个，再点确定；没选的就是干净的「不要」
+ * - checklist：逐条表态改 / 不改 / 没碰；没碰的是「留给主编定」，答案里单独报
+ * - compare：并排读长稿，选一版
+ */
+export type QuestionKind = "open" | "single" | "multi" | "checklist" | "compare";
+
+export const QUESTION_KINDS: readonly QuestionKind[] = ["open", "single", "multi", "checklist", "compare"];
+
 export interface QuestionRequest {
   questionId: string;
   agentId: string;
   text: string;
+  /** 内核补齐（见 repairAskArgs），渲染层直接按它分支，不再从 options 形状推断 */
+  kind: QuestionKind;
   options: QuestionOption[];
   allowFreeText: boolean;
 }
@@ -338,7 +352,7 @@ export function optionText(o: QuestionOption): string {
 }
 
 /** 有没有候选长到不适合用 chip 排：带 label 的、含换行的、超过 40 字的 */
-export function hasLongOptions(options: QuestionOption[]): boolean {
+export function hasLongOptions(options: readonly QuestionOption[]): boolean {
   return options.some((o) => typeof o !== "string" || o.includes("\n") || o.length > 40);
 }
 

@@ -1,10 +1,37 @@
+import { hasLongOptions, QUESTION_KINDS, type QuestionKind, type QuestionOption } from "../../protocol.js";
+
 /** ask_user 的实参键名，漏进 options 数组时要摘掉 */
-const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "options", "allowFreeText"]);
+const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "kind", "options", "allowFreeText"]);
 
 /** question 丢了但候选还在时，用这句话把提问撑起来，作者照样能挑 */
 const ASK_FALLBACK_QUESTION = "这些候选里，你更想要哪个方向？";
 
-export type AskOption = string | { label: string; text: string };
+export type AskOption = QuestionOption;
+
+export interface AskArgs {
+  say: string;
+  question: string;
+  kind: QuestionKind;
+  options?: AskOption[];
+  allowFreeText?: boolean;
+}
+
+const isKind = (v: unknown): v is QuestionKind => typeof v === "string" && (QUESTION_KINDS as readonly string[]).includes(v);
+
+/**
+ * 定提问形态。模型给的 kind 只是参考，形状说了算：
+ * 1. 没候选 → open
+ * 2. 任一候选是 {label, text} → compare
+ * 3. 任一纯字串含换行或超过 40 字 → compare（兼容旧行为，模型说 single 也覆盖）
+ * 4. 模型给了合法 kind → 用它
+ * 5. 否则 → single
+ */
+export function resolveQuestionKind(given: unknown, options: readonly QuestionOption[]): QuestionKind {
+  if (options.length === 0) return "open";
+  if (hasLongOptions(options)) return "compare";
+  if (isKind(given) && given !== "open" && given !== "compare") return given;
+  return "single";
+}
 
 /** 模型有时把换行写成字面的反斜杠 n（双重转义）。给作者看的话里不可能真要这两个字符，一律还原成换行 */
 export const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
@@ -14,7 +41,7 @@ export const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
  * "question" 被当成值塞进 options、末尾候选粘上数组闭合符号。校验器一律判失败，
  * 一次提问就变成一条红色报错。这里在校验前把能救的救回来。
  */
-export function repairAskArgs(args: unknown): { say: string; question: string; options?: AskOption[]; allowFreeText?: boolean } {
+export function repairAskArgs(args: unknown): AskArgs {
   const raw = (args ?? {}) as Record<string, unknown>;
   const say = typeof raw.say === "string" ? unescapeNewlines(raw.say) : "";
   const question = typeof raw.question === "string" && raw.question.trim() ? unescapeNewlines(raw.question) : "";
@@ -39,6 +66,7 @@ export function repairAskArgs(args: unknown): { say: string; question: string; o
   return {
     say,
     question: question || ASK_FALLBACK_QUESTION,
+    kind: resolveQuestionKind(raw.kind, options),
     ...(options.length ? { options } : {}),
     ...(typeof raw.allowFreeText === "boolean" ? { allowFreeText: raw.allowFreeText } : {}),
   };
