@@ -88,9 +88,9 @@ export function ModelPicker() {
               <span class="text-ink-2 shrink-0">当前：</span>
               <span class="font-medium truncate">{cm().name}</span>
               <span class="flex-1" />
-              <Show when={cm().reasoning}>
+              <Show when={cm().thinkingLevels.length > 1}>
                 <span class="text-ink-3 shrink-0">思考强度</span>
-                <ThinkingLevelPicker value={models()?.thinkingLevel ?? "off"} onPick={(lv) => void actions.selectModel(cm().provider, cm().id, lv)} />
+                <ThinkingLevelPicker levels={cm().thinkingLevels} value={models()?.thinkingLevel ?? "off"} onPick={(lv) => void actions.selectModel(cm().provider, cm().id, lv)} />
               </Show>
             </div>
           )}
