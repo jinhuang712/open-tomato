@@ -59,3 +59,23 @@ describe("评审手册", () => {
     }
   });
 });
+
+describe("角色可写范围", () => {
+  test("写手只写正文；策划只写三类卡；编剧写三层大纲并可回写线索卡；主编写简介、守则和骨架卡，不写正文不排纲", () => {
+    expect([...ROLES.writer.writableKinds]).toEqual(["manuscript"]);
+    expect([...ROLES.designer.writableKinds].sort()).toEqual(["characters", "threads", "world"]);
+    expect([...ROLES.plotter.writableKinds].sort()).toEqual(["chapters", "milestones", "threads", "volumes"]);
+    expect(ROLES.director.writableKinds).not.toContain("manuscript");
+    expect(ROLES.director.writableKinds).not.toContain("chapters");
+    expect(ROLES.director.writableKinds).toContain("brief");
+    expect(ROLES.director.writableKinds).toContain("rules");
+  });
+
+  test("canWrite 由可写范围推导：评审与裁决为空即只读", () => {
+    for (const id of ["ops", "reader", "copyeditor", "proofreader", "arbiter"] as const) {
+      expect(ROLES[id].writableKinds).toEqual([]);
+      expect(ROLES[id].canWrite).toBe(false);
+    }
+    expect(ROLES.writer.canWrite).toBe(true);
+  });
+});

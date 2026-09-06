@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { RoleId, RoleInfo } from "../protocol.js";
+import type { DocKindId, RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
 import { fill, loadPrompt } from "./prompt-text.js";
 
@@ -15,6 +15,11 @@ export function reviewGuide(name: "文编" | "运营" | "校对"): string {
 // 角色正文在 prompts/ 下、共享片段在 prompts/shared/ 下，占位符约定见 prompt-text.ts。
 
 export interface RoleDef extends RoleInfo {
+  /**
+   * 这个角色能落盘哪些类型的材料。空数组就是只读，没有 write_doc / edit_doc。
+   * 这是设计文档说的「角色只改自己那类材料」的代码形态：工具参数只列这些类型，落盘前再查一次，不靠模型自觉。
+   */
+  writableKinds: readonly DocKindId[];
   canSpawn: boolean;
   canAsk: boolean;
   /** 评审角色：有 save_review，结论自己落审稿记录，不经主编转述 */
@@ -45,12 +50,19 @@ export const STATUS_LINE_RULE = loadPrompt("shared/status-line");
 
 export const STATUS_LINE_PATTERN = /^\s*[»›>]\s*(正在[^\n]{1,40}?)\s*(?:\r?\n|$)/;
 
-export const ROLES: Record<RoleId, RoleDef> = {
+/** 三类卡片：世界设定、人物、线索 */
+const CARDS: readonly DocKindId[] = ["world", "characters", "threads"];
+/** 三层大纲 */
+const OUTLINES: readonly DocKindId[] = ["milestones", "volumes", "chapters"];
+
+type RoleSpec = Omit<RoleDef, "canWrite">;
+
+const SPECS: Record<RoleId, RoleSpec> = {
   director: {
     id: "director",
     label: "主编",
     description: "统筹全局：判断当前处在哪个阶段、派发子 agent、把候选结果交给用户拍板。",
-    canWrite: true,
+    writableKinds: ["brief", "rules", ...CARDS],
     canSpawn: true,
     canAsk: true,
     systemPrompt: fill(loadPrompt("director"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
@@ -60,7 +72,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "designer",
     label: "策划",
     description: "创作世界设定、人物、线索卡片。出候选、落卡片。",
-    canWrite: true,
+    writableKinds: CARDS,
     canSpawn: false,
     canAsk: false,
     systemPrompt: fill(loadPrompt("designer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
@@ -70,7 +82,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "plotter",
     label: "编剧",
     description: "编排里程碑、卷纲、章纲三层结构。",
-    canWrite: true,
+    writableKinds: [...OUTLINES, "threads"],
     canSpawn: false,
     canAsk: false,
     systemPrompt: fill(loadPrompt("plotter"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
@@ -80,7 +92,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "writer",
     label: "写手",
     description: "按章纲写正文。",
-    canWrite: true,
+    writableKinds: ["manuscript"],
     canSpawn: false,
     canAsk: false,
     systemPrompt: fill(loadPrompt("writer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
@@ -90,7 +102,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "ops",
     label: "运营",
     description: "只读。看抓人度、爽点密度、追读动力。",
-    canWrite: false,
+    writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
@@ -101,7 +113,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "reader",
     label: "读者",
     description: "只读。以目标读者身份看阅读体验。",
-    canWrite: false,
+    writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
@@ -112,7 +124,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "copyeditor",
     label: "文编",
     description: "只读。抓机器味和文风偏差。",
-    canWrite: false,
+    writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
@@ -123,7 +135,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "proofreader",
     label: "校对",
     description: "只读。对正文与卡片、章纲、前文的一致性。",
-    canWrite: false,
+    writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
@@ -134,7 +146,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "arbiter",
     label: "裁决",
     description: "只读。评审意见冲突时给出取舍。",
-    canWrite: false,
+    writableKinds: [],
     canSpawn: false,
     canAsk: false,
     systemPrompt: fill(loadPrompt("arbiter"), { PROJECT_LAYOUT }),
@@ -143,9 +155,13 @@ export const ROLES: Record<RoleId, RoleDef> = {
 
 // 所有角色（包括只读评审与裁决）共用同一条材料信任边界。
 const TRUST_BOUNDARY = loadPrompt("shared/trust-boundary");
-for (const role of Object.values(ROLES)) {
-  role.systemPrompt += `\n\n${TRUST_BOUNDARY}`;
-}
+
+export const ROLES: Record<RoleId, RoleDef> = Object.fromEntries(
+  Object.entries(SPECS).map(([id, spec]) => [
+    id,
+    { ...spec, canWrite: spec.writableKinds.length > 0, systemPrompt: `${spec.systemPrompt}\n\n${TRUST_BOUNDARY}` },
+  ]),
+) as Record<RoleId, RoleDef>;
 
 export const ROLE_IDS = Object.keys(ROLES) as RoleId[];
 
