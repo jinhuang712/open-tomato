@@ -16,6 +16,11 @@ export interface FieldSpec {
   comment?: string;
   /** 取值只能是其中之一；机检会报非法值。没写 comment 时注释由它拼出 */
   options?: readonly string[];
+  /**
+   * 记账字段：改它不改故事（状态、关键词、字数计数）。只动记账字段的落盘不过审批门。
+   * 没标的字段一律算结构与选择（人物层级、所属卷、关联线索……），正文没变故事也可能变了，照样审批。
+   */
+  bookkeeping?: true;
 }
 
 /** 正文里的一个 `## 段` */
@@ -61,9 +66,12 @@ const padded = (width: number) => (id: string) => {
 const COMMON_FIELDS: FieldSpec[] = [
   { name: "title", required: true },
   { name: "summary", required: true },
-  { name: "keywords", value: "[]" },
-  { name: "status", value: "draft" },
+  { name: "keywords", value: "[]", bookkeeping: true },
+  { name: "status", value: "draft", bookkeeping: true },
 ];
+
+/** 不在字段表里、但所有类型都能有的记账项：作者说先放一放的待办清单 */
+const OPEN_FIELD = "open";
 
 /** 模板阶段的 frontmatter 视图：必填字段是「待填」，用来算条件必选 */
 function templateFrontmatter(fields: FieldSpec[]): Frontmatter {
@@ -214,8 +222,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     description: "章节正文。frontmatter 只记元信息，正文不分段标题。",
     normalizeId: padded(4),
     fields: [
-      { name: "words", value: "0" },
-      { name: "revision", value: "0" },
+      { name: "words", value: "0", bookkeeping: true },
+      { name: "revision", value: "0", bookkeeping: true },
     ],
     sections: [],
   }),
@@ -263,6 +271,11 @@ export const BRIEF_SEED_BODY = DOC_KINDS.brief.template;
 export const DOC_KIND_IDS = Object.keys(DOC_KINDS) as DocKindId[];
 
 const isCommonField = (name: string) => COMMON_FIELDS.some((c) => c.name === name);
+
+/** 这类材料上哪些 frontmatter 字段是记账、改了不用审批 */
+export function bookkeepingFields(kind: DocKindId): Set<string> {
+  return new Set([OPEN_FIELD, ...DOC_KINDS[kind].fields.filter((f) => f.bookkeeping).map((f) => f.name)]);
+}
 
 /** 按已填的 frontmatter 算出这张卡此刻的必填字段名（不含通用四项） */
 /** 有取值范围的字段：给机检报非法值用 */

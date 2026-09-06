@@ -82,3 +82,23 @@ describe("条件必选", () => {
     expect(requiredFieldsOf("manuscript", {})).toEqual([]);
   });
 });
+
+describe("记账字段", () => {
+  test("通用的 status / keywords / open 是记账；各类型自己的结构字段不是", async () => {
+    const { bookkeepingFields } = await import("../src/project/kinds.js");
+    const ch = bookkeepingFields("characters");
+    expect([...ch].sort()).toEqual(["keywords", "open", "status"]);
+    expect(ch.has("tier")).toBe(false);
+    const chap = bookkeepingFields("chapters");
+    expect(chap.has("volume")).toBe(false);
+    expect(chap.has("threads")).toBe(false);
+    expect(chap.has("words")).toBe(false);
+  });
+
+  test("正文的字数和修订号是记账：写手写完更新计数不用作者点头", async () => {
+    const { bookkeepingFields } = await import("../src/project/kinds.js");
+    const m = bookkeepingFields("manuscript");
+    expect(m.has("words")).toBe(true);
+    expect(m.has("revision")).toBe(true);
+  });
+});
