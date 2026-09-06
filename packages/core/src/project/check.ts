@@ -8,6 +8,8 @@ export { PLACEHOLDER };
 export const DEFERRED = "待定";
 /** 线索 status 到了这几个值就不再报推进情况：已经收束的线不欠读者 */
 const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
+/** 正文里这些说法都是「先放一放」：出现了却没记进 frontmatter open，机检会漏掉这笔欠账 */
+const DEFER_PHRASES = ["先放一放", "先不落细", "先不定", "先不写死", "待拍板", "等你拍板", "等作者拍板", "记 open", "记进 open", "记open", "open 清单"];
 
 /**
  * 机械对账。只报不拦：
@@ -61,11 +63,29 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
         const names = deferred.map((s) => s.heading).join("、");
         push("warning", h, `段落只写了「${DEFERRED}」：${names}，没想好就删掉这一段`, kind, `${ref(kind, h)}的「${names}」段只写了「${DEFERRED}」，我们把它定下来`);
       }
+      // 正文说了「先放一放」却没记进 open：欠账只写在正文里，没人会回头看
+      const openList = asStringArray(h.extra.open);
+      if (openList.length === 0) {
+        const hit = DEFER_PHRASES.find((w) => doc.body.includes(w));
+        if (hit) push("warning", h, `正文写了「${hit}」，但 open 里没有记这笔搁置`, kind, `${ref(kind, h)}正文里说了「${hit}」，帮我把搁置的项记进 open`);
+      }
       const present = new Set(doc.sections);
       const missing = requiredSectionsOf(kind, fm).filter((s) => !present.has(s.name));
       if (missing.length > 0) {
         const names = missing.map((s) => s.name).join("、");
         push("warning", h, `缺必填段：${names}`, kind, `${ref(kind, h)}还缺「${names}」段，帮我补上`);
+      }
+    }
+  }
+
+  // 主角卡立了，简介的一句话故事却没提到他：两边口径容易各写各的（简介说功勋老员工，人物卡说小中层）
+  const story = await store.readSection("brief", "简介", "一句话故事");
+  if (story && story.trim()) {
+    for (const h of byKind.get("characters") ?? []) {
+      if (h.extra.tier !== "主角") continue;
+      const name = h.title.trim() || h.id;
+      if (name && name !== PLACEHOLDER && !story.includes(name)) {
+        push("info", h, `简介的一句话故事没提到主角「${name}」，两边口径要对一遍`, "characters", `简介的一句话故事没提到主角「${name}」，帮我对一遍两边的口径（出身、职级、起点）再改简介`);
       }
     }
   }
