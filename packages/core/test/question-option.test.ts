@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatAnswer, hasLongOptions, optionLabel, optionText } from "../src/protocol.js";
+import { formatAnswer, formatChecklistAnswer, hasLongOptions, optionLabel, optionText } from "../src/protocol.js";
 
 describe("QuestionOption", () => {
   test("纯字串的 label 和正文都是它自己", () => {
@@ -34,5 +34,25 @@ describe("formatAnswer", () => {
   test("界面已按形态组好句的原样转交", () => {
     expect(formatAnswer("作者选了：A、C")).toBe("作者选了：A、C");
     expect(formatAnswer("作者逐条表态。改：第 1 条（开头太慢）；不改：无；没表态：第 2 条（结尾仓促）")).toStartWith("作者逐条表态");
+  });
+});
+
+describe("formatChecklistAnswer", () => {
+  const opts = ["开头太慢", "人名太文艺", "结尾仓促"];
+
+  test("三组都报，用序号加短名引用", () => {
+    expect(formatChecklistAnswer(opts, ["yes", "no", null])).toBe(
+      "作者逐条表态。改：第 1 条（开头太慢）；不改：第 2 条（人名太文艺）；没表态：第 3 条（结尾仓促）",
+    );
+  });
+
+  test("空组写「无」，没标记的当没表态", () => {
+    expect(formatChecklistAnswer(opts, ["yes", "yes"])).toBe(
+      "作者逐条表态。改：第 1 条（开头太慢）、第 2 条（人名太文艺）；不改：无；没表态：第 3 条（结尾仓促）",
+    );
+  });
+
+  test("逃生口的追加指令接在末尾", () => {
+    expect(formatChecklistAnswer(opts, ["yes", null, null], "没表态的你替我定，说清为什么。")).toEndWith("。没表态的你替我定，说清为什么。");
   });
 });

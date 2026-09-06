@@ -361,6 +361,24 @@ export function formatAnswer(answer: string): string {
   return ANSWER_PREFIXES.some((p) => answer.startsWith(p)) ? answer : `作者回答：${answer}`;
 }
 
+/** checklist 每条的表态：改 / 不改 / 没碰 */
+export type ChecklistMark = "yes" | "no" | null;
+
+/**
+ * checklist 的答案：三组一组都不省，空组写「无」，条目用序号加短名引用，主编好在 say 里转述。
+ * 「没表态」单独报，因为主编对「不要」和「没表态」做的事不一样：不要就丢，没表态是主编自己拿主意。
+ * tail 是逃生口追加的一句指令（比如「没表态的你替我定」），没有就不加。
+ */
+export function formatChecklistAnswer(options: readonly QuestionOption[], marks: readonly ChecklistMark[], tail?: string): string {
+  const cite = (i: number) => `第 ${i + 1} 条（${optionLabel(options[i]!)}）`;
+  const group = (m: ChecklistMark) => {
+    const items = options.map((_, i) => i).filter((i) => (marks[i] ?? null) === m);
+    return items.length ? items.map(cite).join("、") : "无";
+  };
+  const body = `作者逐条表态。改：${group("yes")}；不改：${group("no")}；没表态：${group(null)}`;
+  return tail ? `${body}。${tail}` : body;
+}
+
 /** 有没有候选长到不适合用 chip 排：带 label 的、含换行的、超过 40 字的 */
 export function hasLongOptions(options: readonly QuestionOption[]): boolean {
   return options.some((o) => typeof o !== "string" || o.includes("\n") || o.length > 40);

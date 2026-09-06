@@ -1,4 +1,4 @@
-import { optionLabel, optionText, type QuestionKind, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
+import { formatChecklistAnswer, optionLabel, optionText, type ChecklistMark, type QuestionKind, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
@@ -23,6 +23,9 @@ function escapesFor(req: QuestionRequest): Escape[] {
   const list: Escape[] = [];
   if (req.kind === "open") {
     list.push({ label: "我还没想好", hint: "让主编先给几个候选", answer: "我还没想好，你先替我想 3 个不同方向的候选，我来选。" });
+  } else if (req.kind === "checklist") {
+    // checklist 的逃生口要带上当前表态，由 QuestionDock 内的 checklistEscapes 给，这里不管
+    return [];
   } else if (req.kind === "compare") {
     if (n >= 2) list.push({ label: "混搭", hint: "把几版的优点合成一版", answer: "这几版各有可取之处，帮我把优点合成一版再给我看。" });
     list.push({ label: "都不太对", hint: "换个思路再给两版", answer: `这${n > 1 ? "几版" : "版"}方向都不太对，换个思路再给我两版。` });
@@ -91,6 +94,31 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       else next.add(i);
       return next;
     });
+  // checklist：每条三态，随时可确定，没表态的单独报给主编
+  const [marks, setMarks] = createSignal<ChecklistMark[]>([]);
+  createEffect(() => {
+    props.request.questionId;
+    setMarks([]);
+  });
+  const markOf = (i: number): ChecklistMark => marks()[i] ?? null;
+  const setMark = (i: number, m: ChecklistMark) =>
+    setMarks((prev) => {
+      const next = [...prev];
+      next[i] = next[i] === m ? null : m;
+      return next;
+    });
+  const submitChecklist = () => void actions.answer(props.request.questionId, formatChecklistAnswer(props.request.options, marks()));
+  const checklistEscapes = (): Escape[] => {
+    const n = props.request.options.length;
+    const all = (m: ChecklistMark) => Array<ChecklistMark>(n).fill(m);
+    return [
+      { label: "全改", hint: "每一条都改", answer: formatChecklistAnswer(props.request.options, all("yes")) },
+      { label: "全不改", hint: "每一条都不改", answer: formatChecklistAnswer(props.request.options, all("no")) },
+      { label: "没碰的你替我定", hint: "已表态的照办，没表态的主编拿主意并说明理由", answer: formatChecklistAnswer(props.request.options, marks(), "没表态的你替我定，说清为什么。") },
+      { label: "先放一放", hint: "记进这张卡的 open 清单，不为它停下", answer: "这一项先放一放，记进对应卡的 open 清单，不为它停下，接着往下。" },
+    ];
+  };
+
   const submitMulti = () => {
     const labels = props.request.options.filter((_, i) => picked().has(i)).map(optionLabel);
     if (!labels.length) return;
@@ -163,6 +191,60 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             确定{picked().size > 0 ? `（已选 ${picked().size} 项）` : ""}
           </button>
           <EscapeButtons request={props.request} />
+        </div>
+      </Show>
+
+      <Show when={kind() === "checklist"}>
+        {/* 逐条表态：每条一行，右侧「改」「不改」三态互斥可取消。没表态不标红不催，交出去时单独报 */}
+        <div class="px-4 pb-2 flex flex-col gap-1.5">
+          <For each={props.request.options}>
+            {(opt, i) => (
+              <div class="flex items-center gap-3 min-h-8 px-3 py-1 rounded-md border border-line-2" classList={{ "opacity-60": markOf(i()) !== null }}>
+                <span class="text-ink-3 text-xs shrink-0 w-5">{i() + 1}.</span>
+                <span class="flex-1 min-w-0 text-left">{optionLabel(opt)}</span>
+                <div class="flex gap-1 shrink-0">
+                  <button
+                    class="h-6 px-2 rounded border text-xs"
+                    classList={{
+                      "border-ink-2 bg-ink text-paper": markOf(i()) === "yes",
+                      "border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink": markOf(i()) !== "yes",
+                    }}
+                    aria-pressed={markOf(i()) === "yes"}
+                    onClick={() => setMark(i(), "yes")}
+                  >
+                    改
+                  </button>
+                  <button
+                    class="h-6 px-2 rounded border text-xs"
+                    classList={{
+                      "border-ink-2 bg-paper-3 text-ink": markOf(i()) === "no",
+                      "border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink": markOf(i()) !== "no",
+                    }}
+                    aria-pressed={markOf(i()) === "no"}
+                    onClick={() => setMark(i(), "no")}
+                  >
+                    不改
+                  </button>
+                </div>
+              </div>
+            )}
+          </For>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+          <button class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110" onClick={() => submitChecklist()}>
+            确定
+          </button>
+          <For each={checklistEscapes()}>
+            {(e) => (
+              <button
+                class="min-h-7 px-3 py-1 rounded-md border border-dashed border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink text-left"
+                title={e.hint}
+                onClick={() => void actions.answer(props.request.questionId, e.answer)}
+              >
+                {e.label}
+              </button>
+            )}
+          </For>
         </div>
       </Show>
 
