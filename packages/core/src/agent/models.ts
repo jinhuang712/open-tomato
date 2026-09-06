@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { ModelInfo, ModelsState, ProviderInfo, ThinkingLevel } from "../protocol.js";
 import { readProjectSettings, writeProjectSettings, type ProjectSettings } from "../project/settings.js";
@@ -48,12 +48,10 @@ export class ModelsFacade {
 
   get thinkingLevel(): ThinkingLevel {
     const raw = this.project?.settings.thinkingLevel ?? this.persisted.thinkingLevel;
-    // 非推理模型的生效档始终是 off；这里只钳读出值，不覆盖用户给推理模型留的偏好
-    if (raw !== "off") {
-      const cur = this.currentModel();
-      if (cur && !cur.reasoning) return "off";
-    }
-    return raw;
+    // 生效档钳到当前模型支持的档位里（非推理模型 → off，不支持 xhigh 的 → 往下找最近一档）；
+    // 只钳读出值，不覆盖用户留的偏好，切回支持的模型时仍沿用原档位
+    const cur = this.currentModel();
+    return cur ? clampThinkingLevel(cur, raw) : raw;
   }
 
   /** 打开项目时调用：读项目 settings.json，之后模型选择以它为准 */
@@ -105,6 +103,7 @@ export class ModelsFacade {
       id: m.id,
       name: m.name,
       reasoning: m.reasoning,
+      thinkingLevels: getSupportedThinkingLevels(m),
       contextWindow: m.contextWindow,
       available: this.availableIds.has(`${m.provider}/${m.id}`),
     }));
@@ -124,9 +123,8 @@ export class ModelsFacade {
     const m = this.runtime.getModel(provider, id);
     if (!m) throw new Error(`没有这个模型：${provider}/${id}`);
     this.persisted.model = { provider, id };
-    // thinkingLevel 是用户给推理模型的偏好；非推理模型只在 getter 里把生效值钳到 off，
-    // 不覆盖持久偏好，切回推理模型时仍沿用原档位
-    const level = thinkingLevel ? (m.reasoning ? thinkingLevel : "off") : undefined;
+    // thinkingLevel 是用户显式点的档，存进去前钳到这个模型支持的范围；没传就不动持久偏好
+    const level = thinkingLevel ? clampThinkingLevel(m, thinkingLevel) : undefined;
     if (level) this.persisted.thinkingLevel = level;
     await this.save();
     if (this.project) {

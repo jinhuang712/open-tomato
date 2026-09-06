@@ -118,6 +118,8 @@ export interface ModelInfo {
   id: string;
   name: string;
   reasoning: boolean;
+  /** 这个模型支持的思考档；非推理模型只有 ["off"]，xhigh / max 只有明确声明支持的模型才有 */
+  thinkingLevels: ThinkingLevel[];
   contextWindow: number;
   available: boolean;
 }
