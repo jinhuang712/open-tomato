@@ -11,11 +11,16 @@ interface Hit {
 
 /**
  * 作者划过一段字，选区末尾上方浮出「批注」。
- * 点下去这段字就进输入框上方的引用条，等作者对着它说话。
+ * 点下去这段字就进输入框上方的引用条，等作者对着它说话；宿主给了 onTake 就交给宿主处理。
  * 宿主两种：消息气泡（data-role，圈的是谁说的话）和材料正文（data-quote-src，圈的是哪份稿、哪篇卡）。
  * 消息区只挂在主编会话：子 agent 不面向作者说话，也就没有被批注的资格。
  */
-export function QuotePill(props: { within: () => HTMLElement | undefined }) {
+export function QuotePill(props: {
+  within: () => HTMLElement | undefined;
+  /** 宿主自己收引文（审阅弹窗：圈的段直接成拒绝理由的引用）。不给就进主编输入框 */
+  onTake?: (quote: ComposerQuote) => void;
+  title?: string;
+}) {
   const [hit, setHit] = createSignal<Hit | null>(null);
   let pill: HTMLButtonElement | undefined;
 
@@ -79,7 +84,8 @@ export function QuotePill(props: { within: () => HTMLElement | undefined }) {
     const h = hit();
     if (!h) return;
     const quote: ComposerQuote = h.source ? { id: crypto.randomUUID(), text: h.text, source: h.source } : { id: crypto.randomUUID(), text: h.text, role: h.role ?? "assistant" };
-    setState("composerQuotes", (qs) => [...qs, quote]);
+    if (props.onTake) props.onTake(quote);
+    else setState("composerQuotes", (qs) => [...qs, quote]);
     document.getSelection()?.removeAllRanges();
     setHit(null);
   };
@@ -97,7 +103,7 @@ export function QuotePill(props: { within: () => HTMLElement | undefined }) {
           // mousedown 会先把选区清掉，拦住它让 click 还能读到选区
           onMouseDown={(e) => e.preventDefault()}
           onClick={take}
-          title="把这段放进输入框，对着它说话"
+          title={props.title ?? "把这段放进输入框，对着它说话"}
         >
           <span class="font-serif text-sm leading-none translate-y-px">❝</span>
           批注

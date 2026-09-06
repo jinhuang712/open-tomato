@@ -14,6 +14,8 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const [tab, setTab] = createSignal<Tab>("review");
   const [reason, setReason] = createSignal("");
   const [rejecting, setRejecting] = createSignal(false);
+  /** 作者在稿上圈的那段：批注即拒绝理由，引文排在理由前面回给 agent */
+  const [quoted, setQuoted] = createSignal<string | null>(null);
   const agent = () => state.agents[props.request.agentId];
   const close = () => setState("reviewOpen", null);
   /** 批/拒只发动作，切到下一条由 approval.resolved 事件推进：
@@ -24,7 +26,18 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const canReject = () => reason().trim() !== "";
   const reject = () => {
     if (!canReject()) return;
-    void actions.reject(props.request.approvalId, reason().trim());
+    const q = quoted();
+    const block = q ? q.split("\n").map((l) => `> ${l}`).join("\n") : "";
+    void actions.reject(props.request.approvalId, [block, reason().trim()].filter(Boolean).join("\n\n"));
+  };
+  const cancelReject = () => {
+    setRejecting(false);
+    setQuoted(null);
+  };
+  /** 圈一段点「批注」：进拒绝态，引文挂在原因框上方，作者接着写为什么 */
+  const annotate = (text: string) => {
+    setQuoted(text);
+    setRejecting(true);
   };
   /** 词汇表在 core 里只写一处，批的 word 字段也从那儿认 */
   const QUICK_REASONS = props.request.kind === "manuscript" ? PROSE_REJECT_WORDS : MATERIAL_REJECT_WORDS;
@@ -100,7 +113,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </button>
         </div>
 
-        <QuotePill within={() => scroller} />
+        <QuotePill within={() => scroller} onTake={(q) => annotate(q.text)} title="对这段提意见，作为拒绝理由回给 agent" />
         <div ref={scroller} class="flex-1 overflow-y-auto px-8 py-6">
           <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} maxHeight="70vh" />}>
             <Show when={notes().length > 0}>
@@ -142,6 +155,17 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
             }
           >
             <div class="flex flex-col gap-1.5 w-[520px]">
+              <Show when={quoted()}>
+                {(q) => (
+                  <div class="flex items-start gap-2 px-3 py-1.5 rounded-lg bg-paper-3 text-sm">
+                    <span class="font-serif text-ink-3 leading-none translate-y-px">❝</span>
+                    <span class="flex-1 text-ink-2 line-clamp-3 whitespace-pre-wrap">{q()}</span>
+                    <button class="shrink-0 text-ink-3 hover:text-ink text-xs" onClick={() => setQuoted(null)} title="不引这段了">
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </Show>
               <div class="flex gap-1">
                 <For each={QUICK_REASONS}>
                   {(r) => (
@@ -156,14 +180,14 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
               </div>
               <input
                 class="w-full px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
-                placeholder="拒绝原因（必填，会回给 agent，让它照着改）"
+                placeholder={quoted() ? "这段哪里不对（必填，连引文一起回给 agent）" : "拒绝原因（必填，会回给 agent，让它照着改）"}
                 value={reason()}
                 onInput={(e) => setReason(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") reject();
                   if (e.key === "Escape") {
                     e.preventDefault();
-                    setRejecting(false);
+                    cancelReject();
                   }
                 }}
                 autofocus
@@ -177,7 +201,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
             >
               确认拒绝
             </button>
-            <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={() => setRejecting(false)}>
+            <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={cancelReject}>
               取消
             </button>
           </Show>
