@@ -277,9 +277,9 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       </Show>
 
       <Show when={props.request.allowFreeText}>
-        <div class="flex items-end gap-2 px-4 pb-3">
+        <div class="mx-4 mb-3 rounded-md border border-line-2 bg-paper focus-within:border-ink-3">
           <textarea
-            class="flex-1 px-3 py-1.5 rounded-md border border-line-2 bg-paper outline-none focus:border-ink-3 resize-none placeholder:text-ink-3"
+            class="w-full bg-transparent px-3 pt-1.5 pb-1 outline-none resize-none placeholder:text-ink-3"
             rows={2}
             placeholder={`${PLACEHOLDER[kind()]}（⌘↩ 发送）`}
             value={text()}
@@ -294,9 +294,11 @@ export function QuestionDock(props: { request: QuestionRequest }) {
               }
             }}
           />
-          <button class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
-            回答
-          </button>
+          <div class="flex justify-end px-2 pb-2">
+            <button class="h-7 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
+              回答
+            </button>
+          </div>
         </div>
       </Show>
       </Show>
