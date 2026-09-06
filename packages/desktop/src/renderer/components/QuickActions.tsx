@@ -42,7 +42,7 @@ export function QuickActions(props: { hasHistory: boolean }) {
                 void actions.send(
                   stubPrompt(
                     "接着上次",
-                    `上次会话没有正常收尾。现状：${p.line}先 project_overview 核对一下，用两三句话告诉我断在哪一步、有没有做了一半的事，然后从断点接着做。`,
+                    `上次会话被打断了，上面的对话就是当时的现场。不要重新看盘面：回头看最后几条，你当时正在做什么、哪个工具调用没有回音或报了「会话已重建」，用一两句话说清断在哪，然后直接从那一步接着做。只有上下文里确实缺的信息才去读文档。`,
                   ),
                 ),
             }
