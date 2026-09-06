@@ -1,4 +1,4 @@
-import { hasLongOptions, optionLabel, optionText, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
+import { optionLabel, optionText, type QuestionKind, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
@@ -12,18 +12,18 @@ interface Escape {
 }
 
 /**
- * 逃生口按问题的形态变：
- * - 没给候选：让主编先想几个
- * - 给了短候选：都不对就换一批；也可以把这个决定交给主编
- * - 给了长稿（两版写法、两版小传）：可以混搭、可以换思路
+ * 逃生口按提问形态（kind）变：
+ * - open：让主编先想几个
+ * - single / multi：都不对就换一批；也可以把这个决定交给主编
+ * - compare：可以混搭、可以换思路
  * 「先放一放」永远都有：不确定的段不落盘，搁置的决定记进卡的 open 清单。
  */
 function escapesFor(req: QuestionRequest): Escape[] {
   const n = req.options.length;
   const list: Escape[] = [];
-  if (n === 0) {
+  if (req.kind === "open") {
     list.push({ label: "我还没想好", hint: "让主编先给几个候选", answer: "我还没想好，你先替我想 3 个不同方向的候选，我来选。" });
-  } else if (hasLongOptions(req.options)) {
+  } else if (req.kind === "compare") {
     if (n >= 2) list.push({ label: "混搭", hint: "把几版的优点合成一版", answer: "这几版各有可取之处，帮我把优点合成一版再给我看。" });
     list.push({ label: "都不太对", hint: "换个思路再给两版", answer: `这${n > 1 ? "几版" : "版"}方向都不太对，换个思路再给我两版。` });
   } else {
@@ -33,6 +33,15 @@ function escapesFor(req: QuestionRequest): Escape[] {
   list.push({ label: "先放一放", hint: "记进这张卡的 open 清单，不为它停下", answer: "这一项先放一放，记进对应卡的 open 清单，不为它停下，接着往下。" });
   return list;
 }
+
+/** 自由输入框的提示语按形态换 */
+const PLACEHOLDER: Record<QuestionKind, string> = {
+  open: "输入回答…",
+  single: "或者直接输入…",
+  multi: "或者直接输入…",
+  checklist: "有别的要改的，直接说…",
+  compare: "都不满意？说说想怎么改，或者把两版混搭…",
+};
 
 const ORDINALS = ["一", "二", "三", "四", "五", "六", "七", "八"];
 
@@ -61,7 +70,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
     setOpen(true);
   });
   const agent = () => state.agents[props.request.agentId];
-  const long = () => hasLongOptions(props.request.options);
+  const kind = (): QuestionKind => props.request.kind;
   const submit = () => {
     const t = text().trim();
     if (!t) return;
@@ -91,7 +100,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       <div class="px-4 py-3 prose-zh" innerHTML={renderMarkdown(props.request.text)} />
 
       <Show
-        when={long()}
+        when={kind() === "compare"}
         fallback={
           <div class="flex flex-wrap gap-2 px-4 pb-3">
             <For each={props.request.options}>
@@ -134,13 +143,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
           <textarea
             class="flex-1 px-3 py-1.5 rounded-md border border-line-2 bg-paper outline-none focus:border-ink-3 resize-none placeholder:text-ink-3"
             rows={2}
-            placeholder={
-              long()
-                ? "都不满意？说说想怎么改，或者把两版混搭…（⌘↩ 发送）"
-                : props.request.options.length
-                  ? "或者直接输入…（⌘↩ 发送）"
-                  : "输入回答…（⌘↩ 发送）"
-            }
+            placeholder={`${PLACEHOLDER[kind()]}（⌘↩ 发送）`}
             value={text()}
             onInput={(e) => {
               setText(e.currentTarget.value);
