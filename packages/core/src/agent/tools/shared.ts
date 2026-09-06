@@ -1,13 +1,13 @@
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
-import type { CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
+import type { AgentMode, CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
 import { parseFrontmatter } from "../../project/frontmatter.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../../project/kinds.js";
 import { contentHash } from "../../project/records.js";
 import type { ProjectStore } from "../../project/store.js";
 import type { Gate } from "../gate.js";
 
-export type SpawnMode = "propose" | "commit";
+export type SpawnMode = AgentMode;
 
 /** 没有一句话故事就不能派的角色：排大纲、写正文都建在故事之上 */
 export const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["plotter", "writer"]);

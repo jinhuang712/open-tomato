@@ -243,6 +243,14 @@ export function applyEvent(ev: KernelEvent) {
         }),
       );
       return;
+    case "agent.mode":
+      setState(
+        produce((s) => {
+          const a = s.agents[ev.agentId];
+          if (a) a.mode = ev.mode;
+        }),
+      );
+      return;
     case "agent.status":
       setState(
         produce((s) => {

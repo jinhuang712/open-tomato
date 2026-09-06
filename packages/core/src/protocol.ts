@@ -248,6 +248,8 @@ export interface UiMessage {
 }
 
 export type AgentStatus = "idle" | "running" | "done" | "error";
+/** propose：只出候选、落盘工具被剥掉、作者不直接和它说话；commit：作者已拍板，它孵化落盘，作者可以直接和它对 */
+export type AgentMode = "propose" | "commit";
 
 export interface AgentInfo {
   agentId: string;
@@ -259,6 +261,7 @@ export interface AgentInfo {
   error: string | null;
   /** 模型每轮开头自报的一句「正在……」，运行中滚动显示 */
   statusText: string;
+  mode: AgentMode;
 }
 
 /** spawn_agents / continue_agent 工具的 details：这张派单上每个人是谁、干到哪。渲染层靠它跳会话、显示进度 */
@@ -350,6 +353,7 @@ export type KernelEvent =
   | { type: "models.state"; state: ModelsState }
   | { type: "agent.spawned"; agent: AgentInfo }
   | { type: "agent.status"; agentId: string; status: AgentStatus; error: string | null }
+  | { type: "agent.mode"; agentId: string; mode: AgentMode }
   /** 子 agent 退场：会话和索引都删了，渲染层把它从名单和会话里摘掉 */
   | { type: "agent.retired"; agentId: string }
   | { type: "agent.event"; agentId: string; event: AgentStreamEvent }

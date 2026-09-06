@@ -101,13 +101,16 @@ export function Composer(props: { agentId?: string }) {
   const busy = () => agent()?.status === "running";
   const gone = () => !isLead() && agent()?.status === "error";
   const resting = () => !isLead() && agent()?.status === "done";
+  // 候选阶段方向还没定，作者的意见要经主编汇总成一问再拍板，不直接和子 agent 对；拍板后（commit）它在孵化具体的东西，直接说就行
+  const proposing = () => !isLead() && agent()?.mode === "propose";
   const noModel = () => !state.models?.current;
-  const disabled = () => noModel() || gone();
+  const disabled = () => noModel() || gone() || proposing();
   const pending = () => state.queues[agentId()] ?? [];
 
   const placeholder = () => {
     if (noModel()) return "先在右上角选一个模型并填 API key";
     if (gone()) return `${agent()?.label ?? "子 agent"} 出错退场了，这段对话只能看`;
+    if (proposing()) return `${agent()?.label ?? "子 agent"}在出候选，方向还没定；想说的和主编说，拍板后再直接和它聊`;
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊，比如挑一个候选让它往下孵化`;
     if (busy()) return `${isLead() ? "主编" : (agent()?.label ?? "子 agent")}在忙。发出去先排队，它这轮做完一并看；等不了就在上面点「插入」`;
     if (quotes().length) return "对这段说点什么";

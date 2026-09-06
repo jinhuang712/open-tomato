@@ -331,7 +331,7 @@ export class Kernel {
         : SessionManager.create(store.info.root, store.leadSessionsDir);
     const { session, tools } = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
-      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.director.label, task: "", status: "idle", error: null, statusText: "" },
+      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.director.label, task: "", status: "idle", error: null, statusText: "", mode: "commit" },
       session,
       tools,
     );
@@ -364,7 +364,7 @@ export class Kernel {
       try {
         const { session, tools } = await this.buildSession(rec.role, rec.agentId, SessionManager.continueRecent(store.info.root, store.agentSessionDir(rec.agentId)));
         const live = this.register(
-          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: "done", error: null, statusText: "" },
+          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: "done", error: null, statusText: "", mode: rec.mode },
           session,
           tools,
         );
@@ -507,12 +507,12 @@ export class Kernel {
       const store = this.requireStore();
       // 子 agent 会话和主编一样落在项目里：作者可能在候选悬着时关掉应用去休息，重开后主编还能续派它
       const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
+      const mode = task.mode ?? "commit";
       live = this.register(
-        { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "" },
+        { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "", mode },
         session,
         tools,
       );
-      const mode = task.mode ?? "commit";
       this.setMode(live, mode);
       await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
       const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
@@ -570,6 +570,10 @@ export class Kernel {
    */
   private setMode(live: LiveAgent, mode: SpawnMode) {
     live.mode = mode;
+    if (live.info.mode !== mode) {
+      live.info.mode = mode;
+      this.emit({ type: "agent.mode", agentId: live.info.agentId, mode });
+    }
     const blocked = new Set<string>(WRITE_TOOL_NAMES);
     live.session.setActiveToolsByName(mode === "propose" ? live.tools.filter((t) => !blocked.has(t)) : live.tools);
   }

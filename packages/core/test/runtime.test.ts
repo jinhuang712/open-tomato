@@ -113,6 +113,23 @@ describe("派单不阻塞主编", () => {
   });
 });
 
+describe("派单方式随 agent 广播", () => {
+  test("setMode 改了就发 agent.mode，没变不发", () => {
+    const fake = {
+      info: { agentId: "c2", parentId: "director", role: "designer", label: "策划", status: "done", error: null, statusText: "", mode: "commit" },
+      session: { setActiveToolsByName: () => {} },
+      mode: "commit",
+      tools: ["write_doc", "read_doc"],
+    };
+    (kernel as any).agents.set("c2", fake);
+    (kernel as any).setMode(fake, "propose");
+    (kernel as any).setMode(fake, "propose");
+    const modes = events.filter((e) => e.type === "agent.mode");
+    expect(modes).toEqual([{ type: "agent.mode", agentId: "c2", mode: "propose" }]);
+    expect(fake.info.mode).toBe("propose");
+  });
+});
+
 describe("作者手改落批", () => {
   test("doc.write 内容有变就落一条 edit 批，带 patch 与前后 hash", async () => {
     const before = "---\ntitle: 林尧\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n\n铁匠。\n";
