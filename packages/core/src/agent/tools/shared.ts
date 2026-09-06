@@ -117,10 +117,15 @@ export function makeApproveAndWrite(ctx: ToolContext) {
       agentId: ctx.agentId,
     });
     if (outcome.decision === "reject") {
-      const how = preview.isNew
-        ? "文件没有创建。按原因改好后用 write_doc 重新提交全文"
-        : "文件保持原样、被拒的稿子没有落盘。按原因改好后重新提交：整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc";
-      return text(`用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${how}，不要原样重试。`);
+      const state = preview.isNew ? "文件没有创建" : "文件保持原样、被拒的稿子没有落盘";
+      const redo = preview.isNew
+        ? "用 write_doc 重新提交全文"
+        : "整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc";
+      return text(
+        `用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${state}。\n` +
+          `理由是作者对你说的话，先判断它是什么：能照着改的，改好后${redo}，不要原样重试；` +
+          `理由是一个问题，先回答它，不要再提一版；理由和任务书或已有材料对不上、或你拿不准该怎么改，把矛盾写清楚停下，你这一停话就交回主编，由主编和作者定，不要自己编一个说法把两头缝上。`,
+      );
     }
     const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
     const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
