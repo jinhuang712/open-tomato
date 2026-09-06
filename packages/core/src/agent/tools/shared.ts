@@ -48,7 +48,8 @@ export interface ToolContext {
 }
 
 export interface ToolPermissions {
-  canWrite: boolean;
+  /** 能落盘哪些类型；空数组没有 write_doc / edit_doc */
+  writableKinds: readonly DocKindId[];
   canSpawn: boolean;
   canAsk: boolean;
   /** 评审角色以哪个身份落审稿记录；不给就没有 save_review */
@@ -61,6 +62,12 @@ export const zhDir = (kind: DocKindId) => DOC_KINDS[kind].dir || DOC_KINDS[kind]
 export const KIND_SCHEMA = Type.String({
   description: `文档类型，写英文 kind 或中文名都行：${DOC_KIND_IDS.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
 });
+
+/** 写工具用：参数说明只列这个角色能写的类型 */
+export const writableKindSchema = (kinds: readonly DocKindId[]) =>
+  Type.String({
+    description: `文档类型，写英文 kind 或中文名都行。你能写的只有：${kinds.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
+  });
 
 export const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
 
@@ -75,6 +82,14 @@ export function assertKind(kind: unknown): DocKindId {
   return k;
 }
 
+/** 这类材料不归这个角色写：不落盘，让它把要改的内容写进报告交主编派对应角色 */
+export function assertWritableKind(kind: DocKindId, allowed: readonly DocKindId[]): void {
+  if (allowed.includes(kind)) return;
+  throw new Error(
+    `${zhDir(kind)} 不归你写，你能写的只有 ${allowed.map(zhDir).join(" / ")}。要改的内容写进你的报告，由主编派负责这类材料的角色去改。`,
+  );
+}
+
 /** 正文相同，且 frontmatter 变化全落在这类材料的记账字段上 */
 function bookkeepingOnly(kind: DocKindId, before: string, after: string): boolean {
   const b = parseFrontmatter(before);
@@ -85,9 +100,11 @@ function bookkeepingOnly(kind: DocKindId, before: string, after: string): boolea
 }
 
 /** 预览 → 审批门 → 落盘，write_doc 和 edit_doc 共用 */
-export function makeApproveAndWrite(ctx: ToolContext) {
+export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly DocKindId[]) {
   const { store } = ctx;
   return async (toolCallId: string, kind: DocKindId, id: string, after: string, signal?: AbortSignal) => {
+    // 工具参数已经只列了能写的类型；这里落盘前再查一次，模型凭记忆填了别的类型也进不来
+    assertWritableKind(kind, writableKinds);
     const blocked = ctx.writeBlocked?.();
     if (blocked) throw new Error(blocked);
     const preview = await store.previewWrite(kind, id, after);

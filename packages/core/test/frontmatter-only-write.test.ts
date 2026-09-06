@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { DOC_KIND_IDS } from "../src/project/kinds.js";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -32,7 +33,7 @@ function tools() {
   };
   gate = new Gate(sink);
   const ctx: ToolContext = { store, gate, agentId: "lead", runCheck: async () => [], docsChanged: async () => [], search: async () => [] };
-  const all = createTools(ctx, { canWrite: true, canSpawn: false, canAsk: false });
+  const all = createTools(ctx, { writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
   const call = (name: string, params: unknown) => {
     const t = all.find((x) => x.name === name);
     if (!t) throw new Error(`没有 ${name}`);

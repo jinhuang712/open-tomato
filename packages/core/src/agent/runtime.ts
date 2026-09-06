@@ -304,7 +304,7 @@ export class Kernel {
     const store = this.requireStore();
     const def = ROLES[role];
     const tools = createTools(this.toolContext(agentId, def.canSpawn), {
-      canWrite: def.canWrite,
+      writableKinds: def.writableKinds,
       canSpawn: def.canSpawn,
       canAsk: def.canAsk,
       ...(def.canReview ? { reviewAs: role } : {}),

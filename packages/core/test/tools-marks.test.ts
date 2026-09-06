@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { DOC_KIND_IDS } from "../src/project/kinds.js";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -42,7 +43,7 @@ function writeDoc(gate: Gate) {
     docsChanged: async () => [],
     search: async () => [],
   };
-  const tool = createTools(ctx, { canWrite: true, canSpawn: false, canAsk: false }).find((t) => t.name === "write_doc");
+  const tool = createTools(ctx, { writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false }).find((t) => t.name === "write_doc");
   if (!tool) throw new Error("没有 write_doc");
   return (content: string) => tool.execute("t1", { kind: "manuscript", id: "1", content }, undefined as never, undefined as never, undefined as never);
 }
@@ -71,11 +72,11 @@ const textOf = (r: unknown) => (r as { content: Array<{ text?: string }> }).cont
 describe("审稿记录工具", () => {
   test("评审角色有 save_review，落盘后 read_review 能读回；非评审角色没有 save_review", async () => {
     await store.write("manuscript", "3", DRAFT);
-    const reviewer = toolsFor({ canWrite: false, canSpawn: false, canAsk: false, reviewAs: "proofreader" });
+    const reviewer = toolsFor({ writableKinds: [], canSpawn: false, canAsk: false, reviewAs: "proofreader" });
     const out = await reviewer("save_review")({ chapter: "3", verdict: "有一处事实冲突", items: [{ level: "must", where: "他推门进来", issue: "上一章他被锁在外面", fix: "改成翻窗" }] });
     expect(textOf(out)).toContain("必须改 1 条");
 
-    const writer = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const writer = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     expect(() => writer("save_review")).toThrow();
     const read = textOf(await writer("read_review")({ chapter: "3" }));
     expect(read).toContain("## 校对：有一处事实冲突");
@@ -85,7 +86,7 @@ describe("审稿记录工具", () => {
 
   test("正文改过之后读记录会标出审的是上一版", async () => {
     await store.write("manuscript", "3", DRAFT);
-    const reviewer = toolsFor({ canWrite: false, canSpawn: false, canAsk: false, reviewAs: "reader" });
+    const reviewer = toolsFor({ writableKinds: [], canSpawn: false, canAsk: false, reviewAs: "reader" });
     await reviewer("save_review")({ chapter: "3", verdict: "还行", items: [] });
     await store.write("manuscript", "3", DRAFT.replace("推门", "翻窗"));
     const read = textOf(await reviewer("read_review")({ chapter: "3" }));
@@ -94,7 +95,7 @@ describe("审稿记录工具", () => {
   });
 
   test("没审过的章 read_review 说没有记录", async () => {
-    const writer = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const writer = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     expect(textOf(await writer("read_review")({ chapter: "9" }))).toContain("还没有审稿记录");
   });
 });

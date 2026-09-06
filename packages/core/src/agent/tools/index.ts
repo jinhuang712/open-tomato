@@ -33,9 +33,9 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
   tools.push(makeDocTemplateTool(ctx));
   tools.push(makeRunCheckTool(ctx));
 
-  if (perms.canWrite) {
-    tools.push(makeWriteDocTool(ctx));
-    tools.push(makeEditDocTool(ctx));
+  if (perms.writableKinds.length > 0) {
+    tools.push(makeWriteDocTool(ctx, perms.writableKinds));
+    tools.push(makeEditDocTool(ctx, perms.writableKinds));
   }
 
   tools.push(makeReadMarksTool(ctx));

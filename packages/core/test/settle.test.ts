@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { DOC_KIND_IDS } from "../src/project/kinds.js";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -52,7 +53,7 @@ describe("作者说不欠", () => {
     const stall = (issues: Awaited<ReturnType<typeof runCheck>>) => issues.filter((i) => i.kind === "threads" && i.id === "复仇" && i.message.includes("最后一次推进"));
     expect(stall(await runCheck(store)).length).toBe(1);
 
-    const director = toolsFor({ canWrite: true, canSpawn: true, canAsk: true });
+    const director = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: true, canAsk: true });
     const out = textOf(await director("settle")({ kind: "threads", id: "复仇", mode: "defer", text: "这条线故意沉两卷" }));
     expect(out).toContain("不欠");
     expect(stall(await runCheck(store)).length).toBe(0);
@@ -69,7 +70,7 @@ describe("作者说不欠", () => {
   });
 
   test("非主编没有 settle", () => {
-    const writer = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const writer = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     expect(() => writer("settle")).toThrow();
   });
 });
@@ -80,7 +81,7 @@ describe("read_marks", () => {
     await store.records.appendMark({ kind: "manuscript", id: "0001", type: "reject", by: "author", word: "太急" });
     await store.records.appendMark({ kind: "manuscript", id: "0001", type: "approve", by: "author" });
     await store.records.appendMark({ kind: "manuscript", id: "0001", type: "edit", by: "author", patch: "--- a\n+++ b\n@@\n-他推门进来。\n+他翻窗进来。\n" });
-    const any = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const any = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     const out = textOf(await any("read_marks")({ kind: "manuscript", id: "1" }));
     expect(out).toContain("退回：太急");
     expect(out).toContain("放行");
@@ -89,7 +90,7 @@ describe("read_marks", () => {
   });
 
   test("没批过就说没批过", async () => {
-    const any = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const any = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     expect(textOf(await any("read_marks")({ kind: "characters", id: "林尧" }))).toContain("还没批过");
   });
 });
@@ -101,7 +102,7 @@ describe("volume_rhythm", () => {
     await store.write("chapters", "1", ch("[复仇]", "他听见门外有人"));
     await store.write("chapters", "2", ch("[]", "待填"));
     await store.write("manuscript", "1", fm({ words: "0" }, "一二三四五六七八九十。\n"));
-    const any = toolsFor({ canWrite: true, canSpawn: false, canAsk: false });
+    const any = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     const out = textOf(await any("volume_rhythm")({ volume: "1" }));
     expect(out).toContain("| 1 | 11 | 复仇 | 有 |");
     expect(out).toContain("| 2 | 未写 | 无 | 空 |");

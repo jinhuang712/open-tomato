@@ -25,7 +25,7 @@ function listOpen() {
     docsChanged: async () => [],
     search: async () => [],
   };
-  const tool = createTools(ctx, { canWrite: false, canSpawn: false, canAsk: false }).find((t) => t.name === "list_open");
+  const tool = createTools(ctx, { writableKinds: [], canSpawn: false, canAsk: false }).find((t) => t.name === "list_open");
   if (!tool) throw new Error("没有 list_open");
   return async () => {
     const r = await tool.execute("t", {}, undefined as never, undefined as never, undefined as never);
