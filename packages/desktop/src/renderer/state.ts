@@ -252,6 +252,7 @@ export function applyEvent(ev: KernelEvent) {
             a.error = ev.error;
             if (ev.status !== "running") {
               a.statusText = "";
+              retrying.delete(ev.agentId);
               delete s.pausePending[ev.agentId];
               // agent 停了，它挂着的待答 / 待审不可能再有人接，一并撤掉
               s.questions = s.questions.filter((q) => q.agentId !== ev.agentId);
@@ -268,7 +269,10 @@ export function applyEvent(ev: KernelEvent) {
         // 模型出错但 pi 在自动重试：不算失败，弹个小条，状态行也换成人话
         const text = retryText(ev.event);
         toast(text);
-        if (state.agents[ev.agentId]) setState("agents", ev.agentId, "statusText", text);
+        if (state.agents[ev.agentId]) {
+          setState("agents", ev.agentId, "statusText", text);
+          retrying.add(ev.agentId);
+        }
         return;
       }
       applyAgentEvent(ev.agentId, ev.event);
@@ -301,6 +305,9 @@ export function applyEvent(ev: KernelEvent) {
   }
 }
 
+/** 正在自动重试的 agent：模型恢复、开始吐新一条回复时把「N 秒后重试」的状态行撤掉 */
+const retrying = new Set<string>();
+
 const textOf = (m: UiMessage) => m.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
 
 function isDuplicateUser(prev: UiMessage | undefined, next: UiMessage): boolean {
@@ -332,6 +339,10 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
           return;
         }
         case "message_start":
+          if (ev.message.role === "assistant" && retrying.delete(agentId)) {
+            const a = s.agents[agentId];
+            if (a) a.statusText = "";
+          }
           if (findMsg(ev.message.id)) return;
           // 同一条用户消息可能被上游按不同 id 报两次，按内容 + 时间兜底去重
           if (ev.message.role === "user" && isDuplicateUser(list.at(-1), ev.message)) return;
