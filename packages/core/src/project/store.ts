@@ -306,14 +306,36 @@ export class ProjectStore {
     // 和 previewWrite 一致：自动编号类型传空 id 就分配下一个编号
     const nid = DOC_KINDS[kind].autoId && id.trim() === "" ? await this.nextId(kind) : this.normalizeId(kind, id);
     const abs = this.absPath(kind, nid);
-    if (opts.expectBefore !== undefined) {
-      const current = (await fs.readFile(abs, "utf8").catch(() => null)) ?? "";
-      if (current !== opts.expectBefore) throw new StaleWriteError(this.relPath(kind, nid));
-    }
-    await fs.mkdir(path.dirname(abs), { recursive: true });
-    const normalized = raw.endsWith("\n") ? raw : `${raw}\n`;
-    await writeAtomic(abs, normalized);
-    return this.toHeader(kind, nid, normalized);
+    // 「读旧版 → 比对 → 写入」必须是一个整体：两个 agent 拿着同一份旧版并发落盘，只能有一个成功，
+    // 另一个得到 StaleWriteError，而不是两个都以为写成了、后写的把前写的静默盖掉。原子替换只保证不出半截文件，不管这个。
+    return this.serialized(abs, async () => {
+      if (opts.expectBefore !== undefined) {
+        const current = (await fs.readFile(abs, "utf8").catch(() => null)) ?? "";
+        if (current !== opts.expectBefore) throw new StaleWriteError(this.relPath(kind, nid));
+      }
+      await fs.mkdir(path.dirname(abs), { recursive: true });
+      const normalized = raw.endsWith("\n") ? raw : `${raw}\n`;
+      await writeAtomic(abs, normalized);
+      return this.toHeader(kind, nid, normalized);
+    });
+  }
+
+  /** 同一路径上的写入排队跑；不同路径互不等待 */
+  private readonly writeQueues = new Map<string, Promise<unknown>>();
+
+  private serialized<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.writeQueues.get(key) ?? Promise.resolve();
+    const run = prev.then(fn, fn);
+    // 队尾记的是「跑完了」而不是结果：前一个失败不该拦住后一个
+    const tail = run.then(
+      () => {},
+      () => {},
+    );
+    this.writeQueues.set(key, tail);
+    void tail.then(() => {
+      if (this.writeQueues.get(key) === tail) this.writeQueues.delete(key);
+    });
+    return run;
   }
 
   // ───────────── 内部 ─────────────

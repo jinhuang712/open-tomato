@@ -99,6 +99,32 @@ describe("ProjectStore", () => {
     expect(await store.readSection("characters", "lin-yao", "语音签名")).toBe("短句。");
   });
 
+  test("同一文件两个并发写入带同一份旧版：只有一个成功，另一个 StaleWriteError，磁盘上是赢家的内容", async () => {
+    const base = await store.write("world", "sect", "---\ntitle: 宗门\nsummary: s\n---\n\n## 定义\nv1\n");
+    const before = (await store.read("world", base.id))!.raw;
+    const a = "---\ntitle: 宗门\nsummary: s\n---\n\n## 定义\nA 写的\n";
+    const b = "---\ntitle: 宗门\nsummary: s\n---\n\n## 定义\nB 写的\n";
+    const results = await Promise.allSettled([
+      store.write("world", "sect", a, { expectBefore: before }),
+      store.write("world", "sect", b, { expectBefore: before }),
+    ]);
+    const ok = results.filter((r) => r.status === "fulfilled");
+    const bad = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+    expect(ok.length).toBe(1);
+    expect(bad.length).toBe(1);
+    expect(bad[0]!.reason.name).toBe("StaleWriteError");
+    const final = (await store.read("world", "sect"))!.raw;
+    expect(final).toBe(results[0]!.status === "fulfilled" ? a : b);
+  });
+
+  test("不同文件的并发写入互不等待、都成功", async () => {
+    const [x, y] = await Promise.all([
+      store.write("world", "x", "---\ntitle: X\nsummary: s\n---\n\n## 定义\nx\n"),
+      store.write("world", "y", "---\ntitle: Y\nsummary: s\n---\n\n## 定义\ny\n"),
+    ]);
+    expect([x.id, y.id]).toEqual(["x", "y"]);
+  });
+
   test("write 带 expectBefore：审批期间文件被改就拒写", async () => {
     const v1 = "---\ntitle: 铁盟\nsummary: a\nkeywords: []\nstatus: draft\n---\n\n旧\n";
     const v2 = v1.replace("旧", "作者手改");
