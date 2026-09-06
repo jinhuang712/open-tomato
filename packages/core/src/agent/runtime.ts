@@ -129,6 +129,7 @@ export class Kernel {
       closeProject: () => this.closeProject(),
       afterOpen: (mode) => this.afterOpen(mode),
       disposeAgents: (retire) => this.disposeAgents(retire),
+      retireChild: (agentId) => this.retireChild(agentId),
       createLead: (mode) => this.createLead(mode),
       sendTo: (agentId, text, deliverAs = "steer") => this.sendTo(agentId, text, deliverAs),
       requireLive: (agentId) => this.requireLive(agentId),
@@ -278,6 +279,7 @@ export class Kernel {
     if (withSpawn) {
       ctx.spawn = (tasks, onProgress, signal) => this.spawn(agentId, tasks, onProgress, signal);
       ctx.continueAgent = (childId, message, mode, onProgress, signal) => this.continueChild(childId, message, mode, onProgress, signal);
+      ctx.retireAgent = (childId) => this.retireChild(childId);
     }
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
@@ -514,6 +516,23 @@ export class Kernel {
     const roster = this.roster([slot], onProgress);
     const text = await this.promptChild(live, prefix + message, slot, roster, signal);
     return { text, details: roster.snapshot() };
+  }
+
+  /**
+   * 子 agent 退场：摘表、释放会话、删索引和会话目录。主编或作者判断不再需要它时调用。
+   * 在跑的不能退：它这轮的结论还没交回，掐了主编那边的 spawn / continue 会悬着。
+   * 删是不可逆的（第五条：上下文是资产），所以只做判断后的执行，不做自动清理。
+   */
+  private async retireChild(childId: string): Promise<void> {
+    if (childId === LEAD_ID) throw new Error("主编不能退场");
+    const live = this.agents.get(childId);
+    if (!live) throw new Error(`没有这个子 agent：${childId}`);
+    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再退`);
+    this.agents.delete(childId);
+    live.unsubscribe();
+    live.session.dispose();
+    await this.requireStore().dropAgentRecord(childId);
+    this.emit({ type: "agent.retired", agentId: childId });
   }
 
   /**

@@ -9,7 +9,7 @@ const PAUSE_PROMPT_CHILD = loadPrompt("kernel/pause-child");
 
 export function chatHandlers(
   api: KernelApi,
-): Pick<HandlerMap, "chat.send" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new"> {
+): Pick<HandlerMap, "chat.send" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.retire"> {
   return {
     "chat.send": async ({ text, agentId, deliverAs }) => {
       const live = api.requireLive(agentId ?? LEAD_ID);
@@ -75,6 +75,10 @@ export function chatHandlers(
       api.requireStore();
       await api.disposeAgents(true);
       await api.createLead("new");
+      return null;
+    },
+    "agent.retire": async ({ agentId }) => {
+      await api.retireChild(agentId);
       return null;
     },
   };

@@ -73,13 +73,23 @@ export function AgentStrip() {
                 <div class="absolute right-0 top-8 z-30 w-72 max-h-80 overflow-auto py-1 rounded-lg border border-line bg-paper-2 shadow-xl">
                   <For each={rest()}>
                     {(a) => (
-                      <button class="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-paper-3" title={a.task} onClick={() => go(a.agentId)}>
-                        <span class="w-5.5 h-5.5 rounded-full bg-paper-4 text-ink-2 flex items-center justify-center text-[11px] shrink-0">
-                          {a.label.slice(0, 1)}
-                        </span>
-                        <span class="shrink-0">{a.label}</span>
-                        <span class="flex-1 truncate text-ink-3">{a.task || STATUS[a.status]}</span>
-                      </button>
+                      <div class="group flex items-center hover:bg-paper-3">
+                        <button class="flex-1 min-w-0 pl-3 py-1.5 flex items-center gap-2 text-left" title={a.task} onClick={() => go(a.agentId)}>
+                          <span class="w-5.5 h-5.5 rounded-full bg-paper-4 text-ink-2 flex items-center justify-center text-[11px] shrink-0">
+                            {a.label.slice(0, 1)}
+                          </span>
+                          <span class="shrink-0">{a.label}</span>
+                          <span class="flex-1 truncate text-ink-3">{a.task || STATUS[a.status]}</span>
+                        </button>
+                        {/* 歇着的才有退场：在跑的不在这份名单里 */}
+                        <button
+                          class="px-3 py-1.5 text-ink-3 hover:text-danger opacity-0 group-hover:opacity-100 shrink-0"
+                          title="让它退场：删掉会话和上下文"
+                          onClick={() => void actions.retireAgent(a.agentId)}
+                        >
+                          退场
+                        </button>
+                      </div>
                     )}
                   </For>
                 </div>

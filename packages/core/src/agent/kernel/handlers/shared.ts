@@ -22,6 +22,7 @@ export interface KernelApi {
   closeProject(): Promise<void>;
   afterOpen(mode: "new" | "continue"): Promise<void>;
   disposeAgents(retire: boolean): Promise<void>;
+  retireChild(agentId: string): Promise<void>;
   createLead(mode: "new" | "continue"): Promise<void>;
   sendTo(agentId: string, text: string, deliverAs?: "steer" | "followUp"): void;
   requireLive(agentId: string): LiveAgent;

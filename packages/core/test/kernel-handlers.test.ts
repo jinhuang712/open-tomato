@@ -313,6 +313,43 @@ describe("capability 全流程", () => {
   });
 });
 
+describe("agent.retire", () => {
+  /** 往表里塞一个假的子 agent，并写一条索引，模拟它已经派过一轮 */
+  async function fakeChild(status: "done" | "running") {
+    fakeLead(false);
+    let disposed = 0;
+    let unsubscribed = 0;
+    const fake = {
+      info: { agentId: "c1", parentId: "director", role: "writer", label: "写手", task: "写第一章", status, error: null, statusText: "" },
+      session: { isStreaming: false, prompt: async () => {}, clearQueue: () => ({ steering: [], followUp: [] }), abort: async () => {}, dispose: () => void disposed++ },
+      unsubscribe: () => void unsubscribed++,
+      streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit" as const, tools: [], inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, pendingError: null,
+    };
+    (kernel as any).agents.set("c1", fake);
+    const store: ProjectStore = (kernel as any).store;
+    await store.saveAgentRecord({ agentId: "c1", parentId: "director", role: "writer", label: "写手", task: "写第一章", mode: "commit" });
+    return { store, counts: () => ({ disposed, unsubscribed }) };
+  }
+
+  test("跑完的能退：摘表、释放会话、删索引、发 agent.retired", async () => {
+    const { store, counts } = await fakeChild("done");
+    await kernel.handle("agent.retire", { agentId: "c1" });
+    expect((kernel as any).agents.has("c1")).toBe(false);
+    expect(counts()).toEqual({ disposed: 1, unsubscribed: 1 });
+    expect((await store.agentRecords()).find((r) => r.agentId === "c1")).toBeUndefined();
+    expect(events.some((e) => e.type === "agent.retired" && e.agentId === "c1")).toBe(true);
+  });
+
+  test("在跑的不能退，主编不能退，不存在的报错", async () => {
+    const { store } = await fakeChild("running");
+    await expect(kernel.handle("agent.retire", { agentId: "c1" })).rejects.toThrow("还在跑");
+    expect((kernel as any).agents.has("c1")).toBe(true);
+    expect((await store.agentRecords()).some((r) => r.agentId === "c1")).toBe(true);
+    await expect(kernel.handle("agent.retire", { agentId: "director" })).rejects.toThrow("主编不能退场");
+    await expect(kernel.handle("agent.retire", { agentId: "nope" })).rejects.toThrow("没有这个子 agent");
+  });
+});
+
 describe("cloud.download replace", () => {
   test("覆盖当前项目：先关后下，重开后是新项目", async () => {
     const root2 = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj2-"));

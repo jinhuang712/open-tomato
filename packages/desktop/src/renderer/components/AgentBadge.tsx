@@ -49,19 +49,31 @@ export function AgentBadge() {
           <div class="absolute left-0 top-8 z-30 w-72 py-1 rounded-lg border border-line bg-paper-2 shadow-xl">
             <For each={subs()}>
               {(a) => (
-                <button class="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-paper-3" onClick={() => actions.openChat(a.agentId)}>
-                  <span class="w-5.5 h-5.5 rounded-full bg-paper-4 text-ink-2 flex items-center justify-center text-[11px] shrink-0">
-                    {a.label.slice(0, 1)}
-                  </span>
-                  <span class="shrink-0">{a.label}</span>
-                  <span class="flex-1 truncate text-ink-3">{statusOf(a)}</span>
-                  <Show when={a.status === "running"}>
-                    <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                <div class="group flex items-center hover:bg-paper-3">
+                  <button class="flex-1 min-w-0 pl-3 py-1.5 flex items-center gap-2 text-left" onClick={() => actions.openChat(a.agentId)}>
+                    <span class="w-5.5 h-5.5 rounded-full bg-paper-4 text-ink-2 flex items-center justify-center text-[11px] shrink-0">
+                      {a.label.slice(0, 1)}
+                    </span>
+                    <span class="shrink-0">{a.label}</span>
+                    <span class="flex-1 truncate text-ink-3">{statusOf(a)}</span>
+                    <Show when={a.status === "running"}>
+                      <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                    </Show>
+                    <Show when={a.status === "error"}>
+                      <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
+                    </Show>
+                  </button>
+                  {/* 在跑的不能退，内核也会拒；这里干脆不给按钮 */}
+                  <Show when={a.status !== "running"} fallback={<span class="w-3" />}>
+                    <button
+                      class="px-3 py-1.5 text-ink-3 hover:text-danger opacity-0 group-hover:opacity-100 shrink-0"
+                      title="让它退场：删掉会话和上下文"
+                      onClick={() => void actions.retireAgent(a.agentId)}
+                    >
+                      退场
+                    </button>
                   </Show>
-                  <Show when={a.status === "error"}>
-                    <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
-                  </Show>
-                </button>
+                </div>
               )}
             </For>
           </div>

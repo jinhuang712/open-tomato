@@ -350,6 +350,8 @@ export type KernelEvent =
   | { type: "models.state"; state: ModelsState }
   | { type: "agent.spawned"; agent: AgentInfo }
   | { type: "agent.status"; agentId: string; status: AgentStatus; error: string | null }
+  /** 子 agent 退场：会话和索引都删了，渲染层把它从名单和会话里摘掉 */
+  | { type: "agent.retired"; agentId: string }
   | { type: "agent.event"; agentId: string; event: AgentStreamEvent }
   | { type: "approval.requested"; request: ApprovalRequest }
   | { type: "approval.resolved"; approvalId: string; decision: ApprovalDecision }
@@ -408,6 +410,8 @@ export interface RequestMap {
   /** 优雅暂停：让 agent 不再开新工具，收尾总结；主编会接着用 ask_user 问作者想怎么调整 */
   "chat.pause": { params: { agentId?: string }; result: null };
   "chat.new": { params: Record<string, never>; result: null };
+  /** 作者让某位子 agent 退场：删会话和索引。在跑的不能退，主编不能退 */
+  "agent.retire": { params: { agentId: string }; result: null };
   "capabilities.list": { params: Record<string, never>; result: CapabilityInfo[] };
   "capability.run": {
     params: { id: CapabilityId; params: Record<string, string> };

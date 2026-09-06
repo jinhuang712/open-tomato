@@ -264,6 +264,20 @@ export function applyEvent(ev: KernelEvent) {
         }),
       );
       return;
+    case "agent.retired":
+      setState(
+        produce((s) => {
+          delete s.agents[ev.agentId];
+          s.agentOrder = s.agentOrder.filter((id) => id !== ev.agentId);
+          delete s.transcripts[ev.agentId];
+          delete s.interruptedAfter[ev.agentId];
+          delete s.queues[ev.agentId];
+          delete s.pausePending[ev.agentId];
+          // 正看着它的会话就回主编，别停在一个已经不存在的人身上
+          if (s.view.type === "chat" && s.view.agentId === ev.agentId) s.view = { type: "chat", agentId: "director" };
+        }),
+      );
+      return;
     case "agent.event":
       if (ev.event.type === "retry") {
         // 模型出错但 pi 在自动重试：不算失败，弹个小条，状态行也换成人话
@@ -567,6 +581,22 @@ export const actions = {
       setState("pausePending", agentId ?? "director", true);
       await bridge.request("chat.pause", agentId && agentId !== "director" ? { agentId } : {});
       toast("已请求暂停，它收尾这一步就停下来问你；再按一次是立刻停止");
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /** 作者让某位子 agent 退场。删了就回不来，先确认一句 */
+  async retireAgent(agentId: string) {
+    const a = state.agents[agentId];
+    if (!a) return;
+    const ok = await bridge.confirm({
+      message: `让${a.label}退场？`,
+      detail: "它的会话和上下文会一起删掉，主编之后不能再续派它。",
+      okLabel: "退场",
+    });
+    if (!ok) return;
+    try {
+      await bridge.request("agent.retire", { agentId });
     } catch (e) {
       toast(errText(e), "error");
     }
