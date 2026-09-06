@@ -14,8 +14,14 @@ export interface SessionFactoryArgs {
   sessionManager: SessionManager;
 }
 
-/** 会话工厂：默认用 pi 的 createAgentSession 挂真模型；测试换成假会话，打开项目就不再要求模型就绪 */
-export type SessionFactory = (args: SessionFactoryArgs) => Promise<AgentSession>;
+/**
+ * 会话工厂：默认用 pi 的 createAgentSession 挂真模型；测试换成假会话。
+ * ready() 说现在能不能建：默认工厂看有没有选中模型，没有就先不建主编，项目照常能开能看；假工厂永远能。
+ */
+export interface SessionFactory {
+  ready(): boolean;
+  create(args: SessionFactoryArgs): Promise<AgentSession>;
+}
 
 export const LEAD_ID = "director";
 

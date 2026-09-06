@@ -12,6 +12,7 @@ export function chatHandlers(
 ): Pick<HandlerMap, "chat.send" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.retire"> {
   return {
     "chat.send": async ({ text, agentId, deliverAs }) => {
+      if (!agentId) await api.ensureLead();
       const live = api.requireLive(agentId ?? LEAD_ID);
       api.authorActed(live);
       const how = deliverAs ?? "steer";

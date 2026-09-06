@@ -81,13 +81,18 @@ export class Kernel {
   private markReady!: () => void;
   private failReady!: (e: Error) => void;
   private readonly sessionFactory: SessionFactory;
+  /** 打开项目时模型没就位，主编欠着没建；记下该以哪种方式建，模型一到位就补 */
+  private pendingLead: "new" | "continue" | null = null;
 
   constructor(
     private readonly home: string,
     private readonly emit: (event: KernelEvent) => void,
     opts: { sessionFactory?: SessionFactory } = {},
   ) {
-    this.sessionFactory = opts.sessionFactory ?? ((args) => this.createPiSession(args));
+    this.sessionFactory = opts.sessionFactory ?? {
+      ready: () => this.models.currentModel() !== undefined,
+      create: (args) => this.createPiSession(args),
+    };
     this.legacySessionsDir = path.join(home, "sessions");
     this.clouds = new CloudManager(home, emit);
     this.gate = new Gate({
@@ -135,6 +140,7 @@ export class Kernel {
       disposeAgents: (retire) => this.disposeAgents(retire),
       retireChild: (agentId) => this.retireChild(agentId),
       createLead: (mode) => this.createLead(mode),
+      ensureLead: () => this.ensureLead(),
       sendTo: (agentId, text, deliverAs = "steer") => this.sendTo(agentId, text, deliverAs),
       requireLive: (agentId) => this.requireLive(agentId),
       authorActed: (live) => this.authorActed(live),
@@ -175,7 +181,7 @@ export class Kernel {
     this.emit({ type: "models.state", state: this.models.state() });
     this.emit({ type: "project.opened", project: store.info, docs: await store.listAll(), kinds: kindInfos() });
     await this.refreshCheck();
-    await this.createLead(mode);
+    await this.ensureLead(mode);
     this.clouds.start(() => this.store?.info ?? null);
     if (this.store) {
       const store = this.store;
@@ -190,6 +196,7 @@ export class Kernel {
     await this.disposeAgents(false);
     this.store = null;
     this.index = null;
+    this.pendingLead = null;
     this.models.unbindProject();
     this.emit({ type: "project.closed" });
     this.emit({ type: "models.state", state: this.models.state() });
@@ -302,7 +309,7 @@ export class Kernel {
       canAsk: def.canAsk,
       ...(def.canReview ? { reviewAs: role } : {}),
     });
-    const session = await this.sessionFactory({
+    const session = await this.sessionFactory.create({
       cwd: store.info.root,
       agentDir: this.home,
       systemPrompt: `${def.systemPrompt}\n\n${STATUS_LINE_RULE}`,
@@ -335,6 +342,20 @@ export class Kernel {
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
     return live;
+  }
+
+  /**
+   * 没配模型也能打开项目：看材料、改材料都不需要主编。主编欠着，等模型到位（选了模型 / 作者首次开口）再补建。
+   * 返回现在有没有主编。
+   */
+  private async ensureLead(mode?: "new" | "continue"): Promise<boolean> {
+    if (mode) this.pendingLead = mode;
+    if (this.agents.has(LEAD_ID)) return true;
+    if (!this.store || !this.pendingLead || !this.sessionFactory.ready()) return false;
+    const m = this.pendingLead;
+    this.pendingLead = null;
+    await this.createLead(m);
+    return true;
   }
 
   private async createLead(mode: "new" | "continue") {
@@ -393,7 +414,7 @@ export class Kernel {
 
   private requireLive(agentId: string): LiveAgent {
     const live = this.agents.get(agentId);
-    if (!live) throw new Error(agentId === LEAD_ID ? "主编会话不存在，先打开项目" : "这个子 agent 不存在或已随项目关闭回收");
+    if (!live) throw new Error(agentId === LEAD_ID ? "主编还没就位：先打开项目，并在模型选择器里选一个模型" : "这个子 agent 不存在或已随项目关闭回收");
     return live;
   }
 

@@ -14,6 +14,7 @@ export function workflowHandlers(api: KernelApi): Pick<HandlerMap, "capabilities
         if (param.required && !(capParams[param.name] ?? "").trim()) throw new Error(`缺参数：${param.label}`);
       }
       const text = stubPrompt(cap.label, cap.render(capParams));
+      await api.ensureLead();
       const live = api.requireLive(LEAD_ID);
       api.authorActed(live);
       api.sendTo(LEAD_ID, text);

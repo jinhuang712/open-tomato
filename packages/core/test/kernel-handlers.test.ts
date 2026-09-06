@@ -72,6 +72,33 @@ function fakeLead(isStreaming: boolean) {
 }
 
 describe("project.*", () => {
+  test("没模型时开项目不建主编，材料照常可读；模型到位后作者首次开口才补建", async () => {
+    const other = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj3-"));
+    await fs.rm(other, { recursive: true, force: true });
+    let hasModel = false;
+    const { factory, created } = fakeSessionFactory({ ready: () => hasModel });
+    const evs: KernelEvent[] = [];
+    const k = new Kernel(home, (e) => evs.push(e), { sessionFactory: factory });
+    await k.init("test");
+    try {
+      await k.handle("project.create", { root: other, name: "无模型" });
+      expect(created.length).toBe(0);
+      expect(evs.some((e) => e.type === "project.opened")).toBe(true);
+      expect(evs.some((e) => e.type === "agent.status")).toBe(false);
+      // 主编不在，材料层不受影响
+      const tpl = await k.handle("doc.template", { kind: "characters" });
+      expect(typeof tpl).toBe("string");
+      await expect(k.handle("chat.send", { text: "在吗" })).rejects.toThrow("主编还没就位");
+      hasModel = true;
+      await k.handle("chat.send", { text: "在吗" });
+      expect(created.length).toBe(1);
+      expect(created[0]!.cwd).toBe(other);
+    } finally {
+      await k.dispose().catch(() => {});
+      await fs.rm(other, { recursive: true, force: true });
+    }
+  });
+
   test("建项目走注入的会话工厂：主编会话在项目目录下建，不碰真模型", async () => {
     const other = await fs.mkdtemp(path.join(os.tmpdir(), "ot-h-proj2-"));
     await fs.rm(other, { recursive: true, force: true });

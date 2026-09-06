@@ -10,6 +10,9 @@ export function modelHandlers(api: KernelApi): Pick<HandlerMap, "models.list" | 
       if (lead) {
         await lead.session.setModel(model);
         lead.session.setThinkingLevel(api.models.thinkingLevel);
+      } else {
+        // 开项目时没模型，主编欠着；现在有了就补建，建出来的会话直接拿当前模型
+        await api.ensureLead();
       }
       const state = api.models.state();
       api.emit({ type: "models.state", state });
