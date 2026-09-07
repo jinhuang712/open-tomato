@@ -96,6 +96,15 @@ export function Message(props: { message: UiMessage; dimText?: boolean }) {
         <For each={visible()}>
           {(part) => (
             <Switch>
+              {/* 主编派活时的阶段标记：提示词本身不露，只留一个小标签说明这轮能不能落盘 */}
+              <Match when={part.type === "mode" && part}>
+                {(p) => (
+                  <div class="mb-1 text-[11px] text-ink-3 select-none" title={p().mode === "propose" ? "这一轮只出候选、不落盘，作者拍板后主编再让它落盘" : "作者已拍板，这一轮可以落盘"}>
+                    <span class="mr-1">{p().mode === "propose" ? "◇" : "◆"}</span>
+                    {p().mode === "propose" ? "候选阶段" : "落盘阶段"}
+                  </div>
+                )}
+              </Match>
               {/* 作者圈的原话：引用卡排在他自己的话前面，和输入框里看到的是同一张 */}
               <Match when={part.type === "quote" && part}>
                 {(p) => (

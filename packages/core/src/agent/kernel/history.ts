@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { UiMessage, UiPart } from "../../protocol.js";
-import { STUB_PATTERN, userTextParts } from "../../protocol.js";
+import { STUB_PATTERN, takeMode, userTextParts } from "../../protocol.js";
 import { STATUS_LINE_PATTERN } from "../roles.js";
 
 export interface RawMessage {
@@ -44,6 +44,12 @@ export function contentText(result: unknown): string {
     .join("");
 }
 
+/** 用户消息开头带阶段围栏的，围栏 + 提示词折成一个 mode part，正文照常拆 */
+function userParts(text: string): UiPart[] {
+  const mode = takeMode(text);
+  return mode ? [{ type: "mode", mode: mode.mode }, ...userTextParts(mode.rest)] : userTextParts(text);
+}
+
 export function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
   const m = raw as RawMessage | undefined;
   if (!m || (m.role !== "user" && m.role !== "assistant")) return null;
@@ -51,7 +57,7 @@ export function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
   if (typeof m.content === "string") {
     const stub = m.role === "user" ? STUB_PATTERN.exec(m.content) : null;
     if (stub) parts.push({ type: "stub", label: stub[1]!.trim() });
-    else if (m.role === "user") parts.push(...userTextParts(m.content));
+    else if (m.role === "user") parts.push(...userParts(m.content));
     else if (m.content) parts.push({ type: "text", text: m.content });
   } else if (Array.isArray(m.content)) {
     for (const c of m.content as Array<Record<string, unknown>>) {
@@ -66,7 +72,7 @@ export function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
             }
           }
           if (m.role === "user") {
-            parts.push(...userTextParts(c.text));
+            parts.push(...(parts.length === 0 ? userParts(c.text) : userTextParts(c.text)));
             break;
           }
           // assistant 第一段正文开头的状态行不进消息体，它走 status_text。

@@ -20,7 +20,7 @@ import type {
   RequestMethod,
   RoleId,
 } from "../protocol.js";
-import { formatAnswer, stubPrompt } from "../protocol.js";
+import { formatAnswer, modePrompt, stubPrompt } from "../protocol.js";
 import { stubStripExtension } from "./stub-strip.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
@@ -297,7 +297,7 @@ export class Kernel {
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
       if (!live || live.mode === "commit") return null;
-      return "这一轮是候选阶段（propose），不能落盘。把候选写在回复里交给主编，作者拍板后主编会让你接着落盘。";
+      return PROPOSE_NOTICE;
     };
     return ctx;
   }
@@ -588,8 +588,7 @@ export class Kernel {
       );
       this.setMode(live, mode);
       await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
-      const prefix = mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
-      return await this.promptChild(live, prefix + task.task, slot, roster);
+      return await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (live) this.setStatus(live, "error", msg);
@@ -608,14 +607,14 @@ export class Kernel {
       const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
       if (rec) await store.saveAgentRecord({ ...rec, mode });
     }
-    const prefix = mode === "commit" ? `${COMMIT_NOTICE}\n` : mode === "propose" ? `${PROPOSE_NOTICE}\n` : "";
+    const prompt = mode === "commit" ? modePrompt(mode, COMMIT_NOTICE, message) : mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, message) : message;
     const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
     let returned = false;
     const roster = this.roster([slot], (t, d) => {
       if (!returned) onProgress(t, d);
     });
     const parentId = live.info.parentId ?? LEAD_ID;
-    void this.promptChild(live, prefix + message, slot, roster).then((report) => this.deliverReport(parentId, live.info.role, report));
+    void this.promptChild(live, prompt, slot, roster).then((report) => this.deliverReport(parentId, live.info.role, report));
     returned = true;
     return { text: `${DISPATCHED_NOTICE}\n- ${live.info.label}（${live.info.role}，id=${childId}）`, details: roster.snapshot() };
   }

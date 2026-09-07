@@ -1,22 +1,28 @@
 import type { ContextEvent, Extension, ExtensionHandler } from "@earendil-works/pi-coding-agent";
-import { STUB_PATTERN } from "../protocol.js";
+import { MODE_FENCE_PATTERN, STUB_PATTERN } from "../protocol.js";
 
 type AgentMessage = ContextEvent["messages"][number];
 /** pi 内部把处理器统一存成 (...args: unknown[]) => Promise<unknown>，类型上对不齐，这里只做一次转换 */
 type HandlerFn = Extension["handlers"] extends Map<string, (infer H)[]> ? H : never;
 
 /**
- * 界面按钮发出的消息带 ⟦stub:标签⟧ 前缀，前缀只给渲染层画芯片用，模型不需要看见。
+ * 界面按钮发出的消息带 ⟦stub:标签⟧ 前缀，主编派活带 ⟦mode:阶段⟧ 围栏，两种前缀只给渲染层用，模型不需要看见。
  * 消息原样存进会话（渲染层回放时靠它认标签），发给模型前在这里剥掉。
  */
+function stripPrefix(text: string): string {
+  return text.replace(STUB_PATTERN, "").replace(MODE_FENCE_PATTERN, "");
+}
+
 function stripStub(m: AgentMessage): AgentMessage {
   if (m.role !== "user") return m;
   if (typeof m.content === "string") {
-    return STUB_PATTERN.test(m.content) ? { ...m, content: m.content.replace(STUB_PATTERN, "") } : m;
+    const stripped = stripPrefix(m.content);
+    return stripped === m.content ? m : { ...m, content: stripped };
   }
   const first = m.content[0];
-  if (!first || first.type !== "text" || !STUB_PATTERN.test(first.text)) return m;
-  return { ...m, content: [{ ...first, text: first.text.replace(STUB_PATTERN, "") }, ...m.content.slice(1)] };
+  if (!first || first.type !== "text") return m;
+  const stripped = stripPrefix(first.text);
+  return stripped === first.text ? m : { ...m, content: [{ ...first, text: stripped }, ...m.content.slice(1)] };
 }
 
 const onContext: ExtensionHandler<ContextEvent, { messages: AgentMessage[] }> = (event) => ({ messages: event.messages.map(stripStub) });

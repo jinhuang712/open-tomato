@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { stubStripExtension } from "../src/agent/stub-strip.js";
-import { stubPrompt } from "../src/protocol.js";
+import { modePrompt, stubPrompt } from "../src/protocol.js";
 
 const run = async (messages: unknown[]) => {
   const handler = stubStripExtension().handlers.get("context")![0]!;
@@ -16,6 +16,10 @@ describe("stub-strip", () => {
   test("数组内容只剥第一段文字的前缀", async () => {
     const [m] = await run([{ role: "user", content: [{ type: "text", text: stubPrompt("批注", "改这句") }, { type: "text", text: "⟦stub:x⟧不动" }], timestamp: 0 }]);
     expect(m!.content).toEqual([{ type: "text", text: "改这句" }, { type: "text", text: "⟦stub:x⟧不动" }]);
+  });
+  test("阶段围栏剥掉，提示词和正文留给模型", async () => {
+    const [m] = await run([{ role: "user", content: modePrompt("propose", "【候选阶段】", "重摆坐标"), timestamp: 0 }]);
+    expect(m!.content).toBe("【候选阶段】\n重摆坐标");
   });
   test("没前缀的和 assistant 消息原样返回", async () => {
     const input = [{ role: "user", content: "你好", timestamp: 0 }, { role: "assistant", content: [{ type: "text", text: "⟦stub:a⟧" }], timestamp: 0 }];

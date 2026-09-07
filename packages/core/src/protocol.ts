@@ -225,6 +225,24 @@ export function systemStubLabel(text: string): string | null {
   return label;
 }
 
+/**
+ * 主编派活时给子 agent 的阶段提示（候选 / 落盘）。第一行是围栏，第二行是给模型看的提示词，之后才是任务正文。
+ * 模型只看提示词 + 正文（围栏发送前剥掉）；UI 只看围栏 + 正文（提示词那一行折成一个小标签，正文照常）。
+ */
+export const MODE_FENCE_PATTERN = /^⟦mode:(propose|commit)⟧\r?\n?/;
+/** 围栏连同紧跟的那一行提示词一起吃掉，剩下的才是要给作者看的任务正文 */
+export const MODE_NOTICE_PATTERN = /^⟦mode:(propose|commit)⟧\r?\n[^\n]*\r?\n?/;
+
+export function modePrompt(mode: AgentMode, notice: string, task: string): string {
+  return `⟦mode:${mode}⟧\n${notice}\n${task}`;
+}
+
+/** 从用户消息开头摘阶段围栏；没有就返回 null */
+export function takeMode(text: string): { mode: AgentMode; rest: string } | null {
+  const m = MODE_NOTICE_PATTERN.exec(text);
+  return m ? { mode: m[1] as AgentMode, rest: text.slice(m[0].length) } : null;
+}
+
 /** 排队里的一条：作者在 agent 跑着的时候发的话或批注。label 是界面上的短标签（排队 / 批注 N / 已插入） */
 export interface QueueItem {
   id: string;
@@ -273,6 +291,8 @@ export type UiPart =
   | { type: "quote"; from: string; text: string }
   /** 内部指令的占位：只显示 label */
   | { type: "stub"; label: string }
+  /** 主编派活时的阶段标记（候选 / 落盘），气泡顶部一个小标签，提示词本身不露 */
+  | { type: "mode"; mode: AgentMode }
   | { type: "thinking"; text: string }
   | {
       type: "tool";
