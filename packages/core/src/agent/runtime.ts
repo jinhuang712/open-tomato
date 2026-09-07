@@ -21,6 +21,7 @@ import type {
   RoleId,
 } from "../protocol.js";
 import { formatAnswer, modePrompt, stubPrompt } from "../protocol.js";
+import { crossModelThinkingExtension } from "./cross-model-thinking.js";
 import { stubStripExtension } from "./stub-strip.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
@@ -265,7 +266,11 @@ export class Kernel {
 
   private loaderFor(systemPrompt: string): ResourceLoader {
     return {
-      getExtensions: () => ({ extensions: [stubStripExtension()], errors: [], runtime: createExtensionRuntime() }),
+      getExtensions: () => ({
+        extensions: [stubStripExtension(), crossModelThinkingExtension()],
+        errors: [],
+        runtime: createExtensionRuntime(),
+      }),
       getSkills: () => ({ skills: [], diagnostics: [] }),
       getPrompts: () => ({ prompts: [], diagnostics: [] }),
       getThemes: () => ({ themes: [], diagnostics: [] }),
