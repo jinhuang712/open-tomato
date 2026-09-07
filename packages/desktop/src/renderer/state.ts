@@ -586,8 +586,9 @@ export const actions = {
   async stop(agentId?: string) {
     const id = agentId ?? "director";
     try {
-      setState("pausePending", id, false);
+      // 等内核真的停下再把按钮收回：提前清掉的话，abort 在路上时按钮会退回「暂停」，像没点上
       await bridge.request("chat.abort", id !== "director" ? { agentId: id } : {});
+      setState("pausePending", id, false);
       const last = state.transcripts[id]?.at(-1);
       if (last) setState("interruptedAfter", id, last.id);
       toast("已停下");

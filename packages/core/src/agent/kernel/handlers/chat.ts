@@ -95,6 +95,20 @@ export function chatHandlers(
       for (const a of targets) {
         // 作者按了停止：这轮的 agent_end 不算「没问就停」，也不去取收件箱，作者再开口才动
         a.hold = true;
+        // pi 在一轮结束后会自动续跑它队列里剩下的 steer / followUp（暂停桩就排在那儿），
+        // 掐断前先把队列倒空，否则 abort 一落地它就接着下一轮，界面上像没停。
+        // 作者自己插的话不丢，退回我们的收件箱，作者再开口时一并送
+        const q = a.session.clearQueue();
+        const kept = [...q.steering, ...q.followUp]
+          .filter((text) => systemStubLabel(text) === null)
+          .map((text) => {
+            const stub = STUB_PATTERN.exec(text);
+            return { id: randomUUID(), label: stub ? stub[1]!.trim() : "排队", text };
+          });
+        a.inbox.unshift(...kept);
+        a.steering = [];
+        a.flushRest = false;
+        api.emitQueue(a);
         await a.session.abort().catch(() => {});
       }
       return null;

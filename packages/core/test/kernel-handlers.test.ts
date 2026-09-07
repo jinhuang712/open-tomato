@@ -246,6 +246,46 @@ describe("chat.*", () => {
     await kernel.handle("chat.abort", {});
     expect(fake.hold).toBe(true);
   });
+
+  test("abort 先倒空 pi 队列再掐断：暂停桩丢掉，作者插的话退回收件箱", async () => {
+    const { fake } = fakeLead(true);
+    fake.info.status = "running";
+    const order: string[] = [];
+    fake.session.clearQueue = () => {
+      order.push("clear");
+      return { steering: [stubPrompt("暂停", "请立刻收尾"), "作者插的话"], followUp: ["作者排队的话"] };
+    };
+    fake.session.abort = async () => {
+      order.push("abort");
+    };
+    fake.steering = ["x"];
+    fake.flushRest = true;
+    await kernel.handle("chat.abort", {});
+    expect(order).toEqual(["clear", "abort"]);
+    expect(fake.inbox.map((e: { text: string }) => e.text)).toEqual(["作者插的话", "作者排队的话"]);
+    expect(fake.steering).toEqual([]);
+    expect(fake.flushRest).toBe(false);
+  });
+
+  test("abort 指定子 agent：只碰那一个，主编不动", async () => {
+    const { fake: lead } = fakeLead(true);
+    lead.info.status = "running";
+    let leadAborted = 0;
+    lead.session.abort = async () => void leadAborted++;
+    const { fake: child } = fakeLead(true);
+    child.info.agentId = "child-1";
+    child.info.parentId = "director";
+    child.info.status = "running";
+    let childAborted = 0;
+    child.session.abort = async () => void childAborted++;
+    (kernel as any).agents.set("director", lead);
+    (kernel as any).agents.set("child-1", child);
+    await kernel.handle("chat.abort", { agentId: "child-1" });
+    expect(childAborted).toBe(1);
+    expect(leadAborted).toBe(0);
+    expect(child.hold).toBe(true);
+    expect(lead.hold).toBe(false);
+  });
 });
 
 describe("cloud.* 无配置", () => {
