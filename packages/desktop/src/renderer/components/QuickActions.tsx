@@ -51,7 +51,10 @@ export function QuickActions(props: { hasHistory: boolean }) {
               hint: `${p.stage}阶段，接着往下推`,
               run: () =>
                 void actions.send(
-                  stubPrompt("继续", `继续上次的工作。现状：${p.line}先 project_overview 核对，用两三句话告诉我停在哪一步、下一步是什么，然后直接接着做。`),
+                  stubPrompt(
+                    "继续",
+                    "继续上次的工作。上面的对话就是现场，不要重看盘面，也不要复述我在侧栏就能看到的现状。接着上次停下的那一步做：候选悬着就接着讲清再问，作者拍过板的就接着落，都没有就取这本书欠得最久的那件。要我拍板的用 ask_user 问。",
+                  ),
                 ),
             },
       );
