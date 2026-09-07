@@ -63,6 +63,4 @@ export interface InboxEntry {
   id: string;
   label: string;
   text: string;
-  /** 这条是子 agent 的报告（值是唯一报告编号） */
-  report?: string;
 }

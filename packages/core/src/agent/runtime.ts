@@ -583,7 +583,7 @@ export class Kernel {
     });
     for (const task of tasks) {
       // runChild 在第一个 await 之前就把 slot 推进名册，所以下面的 snapshot 拿得到全员
-      void this.runChild(parentId, task, slots, roster).then((report) => this.deliverReport(parentId, task.role, report));
+      void this.runChild(parentId, task, slots, roster).then(({ handle, report }) => this.deliverReport(parentId, handle, report));
     }
     returned = true;
     const lines = slots.map((x) => `- ${x.handle}：${x.task}`).join("\n");
@@ -594,16 +594,15 @@ export class Kernel {
    * 子 agent 交回的报告送给派它的人：它在跑就进收件箱等轮末，暂停中也进收件箱等作者开口，空着就直接送。
    * 和作者的排队消息走同一条路，主编按「作者的话排最前」的顺序自己取。
    */
-  private deliverReport(parentId: string, role: RoleId, report: string) {
+  private deliverReport(parentId: string, handle: string, report: string) {
     const live = this.agents.get(parentId);
     if (!live) return;
-    const label = `${ROLES[role].label}交回`;
-    const reportId = `${ROLES[role].label}:${randomUUID()}`;
-    const text = stubPrompt(label, `报告编号：${reportId}\n\n${report}`);
+    const label = `${handle}交回`;
+    const text = stubPrompt(label, report);
     // 报告到了就是新一轮：上一轮补过的提示不算数，这轮再漏话照样补
     live.nudged = false;
     if (live.session.isStreaming || live.hold) {
-      live.inbox.push({ id: randomUUID(), label, text, report: reportId });
+      live.inbox.push({ id: randomUUID(), label, text });
       this.emitQueue(live);
       return;
     }
@@ -620,7 +619,7 @@ export class Kernel {
     task: SpawnTask,
     slots: DispatchSlot[],
     roster: ReturnType<Kernel["roster"]>,
-  ): Promise<string> {
+  ): Promise<{ handle: string; report: string }> {
     const def = ROLES[task.role];
     const agentId = randomUUID();
     const handle = this.nextHandle(task.role);
@@ -639,12 +638,13 @@ export class Kernel {
       );
       this.setMode(live, mode);
       await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode });
-      return await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
+      const report = await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
+      return { handle, report };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (live) this.setStatus(live, "error", msg);
       roster.touch(slot, "error", msg);
-      return `## ${handle}\n\n派单失败：${msg}`;
+      return { handle, report: `## ${handle}\n\n派单失败：${msg}` };
     }
   }
 
@@ -665,7 +665,7 @@ export class Kernel {
       if (!returned) onProgress(t, d);
     });
     const parentId = live.info.parentId ?? LEAD_ID;
-    void this.promptChild(live, prompt, slot, roster).then((report) => this.deliverReport(parentId, live.info.role, report));
+    void this.promptChild(live, prompt, slot, roster).then((report) => this.deliverReport(parentId, live.info.handle, report));
     returned = true;
     return { text: `${DISPATCHED_NOTICE}\n- ${live.info.handle}：${message}`, details: roster.snapshot() };
   }

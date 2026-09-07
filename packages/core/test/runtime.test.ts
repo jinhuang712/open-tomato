@@ -89,7 +89,7 @@ describe("派单不阻塞主编", () => {
       unsubscribe: () => {},
       mode: "commit" as const,
       tools: [],
-      inbox: [] as Array<{ id: string; label: string; text: string; report?: string }>,
+      inbox: [] as Array<{ id: string; label: string; text: string }>,
       steering: [] as string[],
       hold,
       flushRest: false,
@@ -103,7 +103,7 @@ describe("派单不阻塞主编", () => {
     let finish!: (s: string) => void;
     (kernel as any).runChild = async (_p: string, task: { role: string }, slots: unknown[]) => {
       slots.push({ agentId: "c1", role: task.role, label: "策划", handle: "策划1", task: "t", status: "running", error: null });
-      return await new Promise<string>((r) => (finish = r));
+      return { handle: "策划1", report: await new Promise<string>((r) => (finish = r)) };
     };
     const progress: string[] = [];
     const result = await (kernel as any).spawn("director", [{ role: "designer", task: "t" }], (t: string) => progress.push(t));
@@ -115,48 +115,47 @@ describe("派单不阻塞主编", () => {
     finish("## 策划1\n\n三个候选");
     await new Promise((r) => setTimeout(r, 0));
     expect(calls).toEqual([]);
-    expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
+    expect(fake.inbox.map((e) => e.label)).toEqual(["策划1交回"]);
     expect(fake.inbox[0]!.text).toContain("三个候选");
   });
 
-  test("主编空着：报告直接送进去开新一轮，带报告编号", () => {
+  test("主编空着：报告直接送进去开新一轮，是谁交的写在标签上", () => {
     const { fake, calls } = fakeLead(false);
-    (kernel as any).deliverReport("director", "designer", "报告正文");
+    (kernel as any).deliverReport("director", "策划1", "报告正文");
     expect(fake.inbox).toEqual([]);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("报告正文");
-    expect(calls[0]).toMatch(/报告编号：策划:/);
+    expect(calls[0]).toContain("策划1交回");
   });
 
-  test("主编暂停中：报告进收件箱等作者开口，收件箱那条带角色标签", () => {
+  test("主编暂停中：报告进收件箱等作者开口，收件箱那条带名字标签", () => {
     const { fake, calls } = fakeLead(false, true);
-    (kernel as any).deliverReport("director", "designer", "报告正文");
+    (kernel as any).deliverReport("director", "策划1", "报告正文");
     expect(calls).toEqual([]);
-    expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
-    expect(fake.inbox[0]!.report).toMatch(/^策划:/);
+    expect(fake.inbox.map((e) => e.label)).toEqual(["策划1交回"]);
   });
 
   test("收件箱里的报告轮末送出去", async () => {
     const { fake, calls } = fakeLead(false);
-    fake.inbox.push({ id: "r1", label: "策划交回", text: "报告", report: "策划" });
+    fake.inbox.push({ id: "r1", label: "策划1交回", text: "报告" });
     (kernel as any).flushInbox(fake);
     await new Promise((r) => setTimeout(r, 0));
     expect(calls).toHaveLength(1);
   });
 
-  test("同角色多份报告拥有不同编号，报告正文完整传递", () => {
-    const { fake, calls } = fakeLead(false);
+  test("同角色的两位各自交回，报告正文完整传递", () => {
+    const { calls } = fakeLead(false);
     const report = "方案依据与取舍\n".repeat(3000);
-    (kernel as any).deliverReport("director", "designer", report);
-    (kernel as any).deliverReport("director", "designer", "第二份报告");
-    const ids = calls.map((c) => /报告编号：(策划:[^\n]+)/.exec(c as string)?.[1]);
-    expect(new Set(ids).size).toBe(2);
+    (kernel as any).deliverReport("director", "策划1", report);
+    (kernel as any).deliverReport("director", "策划2", "第二份报告");
+    expect(calls[0]).toContain("策划1交回");
     expect(calls[0]).toContain(report);
+    expect(calls[1]).toContain("策划2交回");
   });
 
   test("派单人已不在：报告丢弃不报错", () => {
     (kernel as any).agents.delete("director");
-    expect(() => (kernel as any).deliverReport("director", "designer", "x")).not.toThrow();
+    expect(() => (kernel as any).deliverReport("director", "策划1", "x")).not.toThrow();
   });
 });
 
