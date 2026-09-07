@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { isCollection, parse as parseYaml, parseDocument, stringify as stringifyYaml } from "yaml";
 
 export interface ParsedDoc {
   frontmatter: Record<string, unknown>;
@@ -50,6 +50,44 @@ export function stringifyFrontmatter(frontmatter: Record<string, unknown>, body:
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
   const trimmedBody = body.replace(/^\r?\n+/, "");
   return `---\n${yaml}\n---\n\n${trimmedBody.endsWith("\n") ? trimmedBody : `${trimmedBody}\n`}`;
+}
+
+const trimBody = (body: string) => body.replace(/^\s*\r?\n/, "").trimEnd();
+
+/** 头是 YAML 原文（逐字保留），正文空就只留头，跟空白模板同形 */
+const withHead = (yaml: string, body: string) => `---\n${yaml}\n---\n${body === "" ? "" : `\n${body}\n`}`;
+
+/**
+ * 换掉正文，frontmatter 原文逐字保留（引号、flow 写法、注释都不动）。
+ * 作者在界面上编辑正文走这条：头没碰，diff 里就只有正文那几行。
+ */
+export function replaceBody(raw: string, body: string): string {
+  const m = FENCE.exec(raw);
+  const next = trimBody(body);
+  if (!m) return next === "" ? "" : `${next}\n`;
+  return withHead(m[1] ?? "", next);
+}
+
+/**
+ * 按 patch 改 frontmatter 字段：只动给到的键，没给到的连原有写法一起留着；值为 undefined 表示删掉这个键。
+ * 用 YAML 文档模型改，不整份重新序列化——否则作者改一个标题，整个头的排版都会跟着变。
+ */
+export function patchFrontmatter(raw: string, patch: Record<string, unknown>): string {
+  const m = FENCE.exec(raw);
+  const doc = parseDocument(m ? (m[1] ?? "") : "");
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) {
+      doc.delete(key);
+      continue;
+    }
+    const before = doc.get(key, true);
+    const node = doc.createNode(value);
+    // 原来写成 `keywords: [a, b]` 的就还写成一行，不要改完变成块状列表
+    if (isCollection(before) && isCollection(node) && before.flow) node.flow = true;
+    doc.set(key, node);
+  }
+  // 跟 stringifyFrontmatter 一套排版口径：长句不折行、flow 列表不加内边距
+  return withHead(doc.toString({ lineWidth: 0, flowCollectionPadding: false }).trimEnd(), trimBody(m ? (m[2] ?? "") : raw));
 }
 
 export interface Section {
