@@ -202,7 +202,12 @@ export type CapabilityId =
   | "review"
   | "recap"
   | "deeper-needs"
-  | "show";
+  | "show"
+  | "fivewhy"
+  | "logline"
+  | "but-therefore"
+  | "hook"
+  | "cool";
 
 /** 能力是主编的一份打包工作流。前端只拿元数据挂按钮，正文只进主编的上下文 */
 export interface CapabilityInfo {

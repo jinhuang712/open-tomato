@@ -162,13 +162,18 @@ describe("doc.* / search", () => {
 });
 
 describe("capabilities / roles", () => {
-  test("capabilities.list 10 个；roles.list 9 个含主编", async () => {
+  test("capabilities.list 15 个；roles.list 9 个含主编", async () => {
     const caps = await kernel.handle("capabilities.list", {});
     expect(caps.map((c) => c.id).sort()).toEqual([
+      "but-therefore",
+      "cool",
       "deeper-needs",
       "design",
       "draft",
+      "fivewhy",
+      "hook",
       "interview",
+      "logline",
       "outline",
       "recap",
       "review",

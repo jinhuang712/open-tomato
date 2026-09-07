@@ -95,6 +95,46 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     when: "审稿报太满 / 说教旁白、改一句就能活时；作者觉得干却说不出怎么改时",
     load: () => loadPrompt("capabilities/show"),
   },
+  fivewhy: {
+    id: "fivewhy",
+    label: "追问五次",
+    kind: "technique",
+    description: "动机模糊时连追为什么，挖到能落卡的因果。",
+    when: "人物要什么说不清、有结果没原因；设定有个结论没来由",
+    load: () => loadPrompt("capabilities/fivewhy"),
+  },
+  logline: {
+    id: "logline",
+    label: "一句话故事",
+    kind: "technique",
+    description: "一句话定住谁要什么、什么挡着他，设定多但没事发生时用。",
+    when: "设定写了很多但没一件事发生；访谈转设卡之前",
+    load: () => loadPrompt("capabilities/logline"),
+  },
+  "but-therefore": {
+    id: "but-therefore",
+    label: "但是因此",
+    kind: "technique",
+    description: "相邻两件事必须用但是 / 因此连上，章纲是流水账时用。",
+    when: "章纲是流水账、被报没有事发生时",
+    load: () => loadPrompt("capabilities/but-therefore"),
+  },
+  hook: {
+    id: "hook",
+    label: "钩子断章",
+    kind: "technique",
+    description: "章首建期待、章末落在问题或危机上，一次只弄一章。",
+    when: "开篇留不住、章末只是停了；黄金开头要磨时",
+    load: () => loadPrompt("capabilities/hook"),
+  },
+  cool: {
+    id: "cool",
+    label: "爽点节拍",
+    kind: "technique",
+    description: "捋清压制多久、何处释放，连续憋屈没出口时用。",
+    when: "连续几章憋屈没释放；爽了但读者没感觉时",
+    load: () => loadPrompt("capabilities/cool"),
+  },
 };
 
 export const CAPABILITY_IDS = Object.keys(CAPABILITIES) as CapabilityId[];
