@@ -44,14 +44,12 @@ function UserText(props: { text: string }) {
 
 /**
  * 思考过程不展示，只靠状态行告诉作者在干什么。
- * dimText：主编对作者说话走 say / ask_user 工具，它工具之外的裸文本是思考过程，直接藏掉；子 agent 的正文是它的报告，照常渲染
+ * 正文就是这个 agent 说的话：主编的是对作者的回复，子 agent 的是报告，都照常渲染（和 pi 一致，没有"工具之外的正文不算话"）
  */
-export function Message(props: { message: UiMessage; dimText?: boolean }) {
+export function Message(props: { message: UiMessage }) {
   const isUser = () => props.message.role === "user";
   // 只剩空白的正文（状态行摘完留下的换行）也不渲染，不然是一段空白撑开行距
-  // 主编裸文本再小也是裸露：和 say 同一条里的英文自言自语会整段铺出来，所以整类藏掉，只留工具卡（say / ask / 派单…）
-  const visible = () =>
-    props.message.parts.filter((p) => p.type !== "thinking" && !(p.type === "text" && !p.text.trim()) && !(props.dimText && p.type === "text"));
+  const visible = () => props.message.parts.filter((p) => p.type !== "thinking" && !(p.type === "text" && !p.text.trim()));
   const stub = () => {
     const p = props.message.parts.find((x) => x.type === "stub");
     return p && p.type === "stub" ? p.label : null;
