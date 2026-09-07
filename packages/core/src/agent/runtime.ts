@@ -44,7 +44,7 @@ import {
 import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orphanedQuestion, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
 import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
-import { nudgePrompt, shouldNudge, wasIdle } from "./kernel/lead-rules.js";
+import { DANGLING_QUESTION_PROMPT, hasDanglingQuestion } from "./kernel/lead-rules.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
@@ -366,7 +366,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, idleRounds: 0, pendingError: null };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -521,7 +521,6 @@ export class Kernel {
   private authorActed(live: LiveAgent | undefined) {
     if (!live) return;
     live.hold = false;
-    live.idleRounds = 0;
   }
 
   /**
@@ -621,8 +620,6 @@ export class Kernel {
     if (!live) return;
     const label = `${handle}交回`;
     const text = stubPrompt(label, report);
-    // 报告到了就是新一轮：上一轮的空转计数不算数
-    live.idleRounds = 0;
     if (live.session.isStreaming || live.hold) {
       live.inbox.push({ id: randomUUID(), label, text });
       this.emitQueue(live);
@@ -843,7 +840,6 @@ export class Kernel {
         this.setStatus(live, "running");
         live.asked = false;
         live.spoke = false;
-        live.acted = false;
         live.tail = "";
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
@@ -863,11 +859,10 @@ export class Kernel {
         if (live.info.status !== "error") this.setStatus(live, live.info.agentId === LEAD_ID ? "idle" : "done");
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
-        // 叫不叫看的是这一轮之前连续空转了几次；记账在后，这一轮干了活就清零
-        const nudge = shouldNudge(live, this.hasRunningChildren(live.info.agentId));
-        live.idleRounds = wasIdle(live) ? live.idleRounds + 1 : 0;
-        if (nudge) {
-          this.sendTo(LEAD_ID, stubPrompt("继续", nudgePrompt(live)), "followUp");
+        // 轮末不推循环：做完一件接着取下一件是主编自己的判断，内核不替它踩油门。
+        // 只管一件事——问题写在正文结尾却没调 ask_user，作者面前没有问题卡，只能干等。
+        if (hasDanglingQuestion(live, this.hasRunningChildren(live.info.agentId))) {
+          this.sendTo(LEAD_ID, stubPrompt("问出来", DANGLING_QUESTION_PROMPT), "followUp");
           return;
         }
         this.flushInbox(live);
@@ -925,7 +920,6 @@ export class Kernel {
         });
         return;
       case "tool_execution_start":
-        live.acted = true;
         if (ev.toolName === "ask_user") live.asked = true;
         this.send(live, {
           type: "tool_start",

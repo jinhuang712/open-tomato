@@ -53,10 +53,6 @@ export interface LiveAgent {
   spoke?: boolean;
   /** 本轮正文的最后几十个字：轮末看结尾是不是一个没配 ask_user 的问句 */
   tail?: string;
-  /** 本轮调过工具：读盘面、派人、落盘都算动了手，用来和空转区分 */
-  acted?: boolean;
-  /** 连续空转（既没说话也没动手）的轮数。循环的刹车在作者手上，这个数只防模型自己空转 */
-  idleRounds: number;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
   pendingError: string | null;
 }

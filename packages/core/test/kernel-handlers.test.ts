@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { IDLE_LIMIT } from "../src/agent/kernel/lead-rules.js";
 import { Kernel } from "../src/agent/runtime.js";
 import { stubPrompt, type KernelEvent } from "../src/protocol.js";
 import { fakeSessionFactory } from "./fake-session.js";
@@ -66,7 +65,6 @@ function fakeLead(isStreaming: boolean) {
     hold: false,
     flushRest: false,
     asked: false,
-    idleRounds: 0,
   };
   (kernel as any).agents.set("director", fake);
   return { fake: fake as any, calls };
@@ -210,22 +208,18 @@ describe("capabilities / roles", () => {
   test("capability.run 未知 id 抛错，不惊动主编", async () => {
     const { fake, calls } = fakeLead(false);
     fake.hold = true;
-    fake.idleRounds = 2;
     await expect(kernel.handle("capability.run", { id: "nope" as any })).rejects.toThrow("未知能力");
     expect(fake.hold).toBe(true);
-    expect(fake.idleRounds).toBe(2);
     expect(calls).toHaveLength(0);
   });
 
-  test("暂停后点击能力解除 hold、空转计数清零，轮末继续取队列", async () => {
+  test("暂停后点击能力解除 hold，轮末继续取队列", async () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
     await kernel.handle("chat.pause", {});
-    fake.idleRounds = 2;
     fake.inbox.push({ id: "queued", label: "排队", text: "下一项" });
     await kernel.handle("capability.run", { id: "draft" });
     expect(fake.hold).toBe(false);
-    expect(fake.idleRounds).toBe(0);
     (kernel as any).forward(fake, { type: "agent_end" });
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(calls.at(-1)?.[0]).toBe("下一项");
@@ -431,33 +425,24 @@ describe("forward 事件映射", () => {
     (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "ask_user", toolCallId: "t1", args: {} });
     (kernel as any).forward(fake, { type: "tool_execution_end", toolName: "ask_user", toolCallId: "t1", result: { content: "作者回答：第二个" }, isError: false });
     (kernel as any).forward(fake, { type: "agent_end" });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).not.toContain("没有调 ask_user");
-    expect(calls[0]![0]).toContain("接着取下一件");
+    expect(calls).toHaveLength(0);
   });
 
-  test("agent_end 一个字没说也没动手：记一轮空转，补一句", async () => {
-    const { fake, calls } = fakeLead(false);
-    fake.info.status = "running";
-    (kernel as any).forward(fake, { type: "agent_end" });
-    expect(fake.idleRounds).toBe(1);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("一个字也没对作者说");
-  });
-
-  test("连着空转到上限就不再叫，等作者开口", async () => {
+  test("agent_end 一个字没说也没动手：内核不补，也不再数空转", async () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
     for (let i = 0; i < 5; i++) (kernel as any).forward(fake, { type: "agent_end" });
-    expect(fake.idleRounds).toBeGreaterThanOrEqual(IDLE_LIMIT);
-    expect(calls).toHaveLength(IDLE_LIMIT);
+    expect(calls).toHaveLength(0);
   });
 
-  test("nudge 只说正文与 ask_user 两个通道，不再提 say", () => {
+  test("补的那一句只说正文与 ask_user 两个通道，不再提 say", () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
+    fake.spoke = true;
+    fake.tail = "这三个方向你挑哪个？";
     (kernel as any).forward(fake, { type: "agent_end" });
     expect(calls).toHaveLength(1);
+    expect(calls[0]![0] as string).toMatch(/^⟦stub:问出来⟧/);
     const text = calls[0]![0] as string;
     expect(text).toContain("正文");
     expect(text).toContain("ask_user");
@@ -516,7 +501,6 @@ describe("models.*", () => {
     expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n恢复当前会话/);
     expect(calls[0]![0]).toContain("会话已重建");
     expect(calls[0]![0]).toContain("不包含新的选择、答案或执行授权");
-    expect(fake.idleRounds).toBe(0);
   });
 
   test("chat.resume 送的是同一句「接着上次」", async () => {
@@ -530,15 +514,13 @@ describe("models.*", () => {
     test(`${action} 恢复普通循环，保留可见回应兜底`, async () => {
       const { fake, calls } = fakeLead(false);
       fake.hold = true;
-      fake.idleRounds = 2;
       await kernel.handle(action, {});
       expect(fake.hold).toBe(false);
-      expect(fake.idleRounds).toBe(0);
       expect(calls).toHaveLength(1);
       expect(calls[0]![0]).toContain("不包含新的选择、答案或执行授权");
+      // 送完这一句就结束：轮末内核不再补第二句
       (kernel as any).forward(fake, { type: "agent_end" });
-      expect(fake.idleRounds).toBe(1);
-      expect(calls).toHaveLength(2);
+      expect(calls).toHaveLength(1);
     });
   }
 
@@ -652,17 +634,14 @@ describe("cloud.download replace", () => {
 });
 
 describe("循环接续", () => {
-  test("说完话不算收尾：轮末叫它接着取下一件，空转计数清零", () => {
+  test("说完一段话正常收尾：内核一句都不补，接不接下一件是主编自己的判断", () => {
     const { fake, calls } = fakeLead(false);
     (kernel as any).sendText(fake, "m1", "我的判断是……");
     expect((fake as any).spoke).toBe(true);
     (kernel as any).forward(fake, { type: "agent_end" });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("接着取下一件");
-    expect(fake.idleRounds).toBe(0);
+    expect(calls).toHaveLength(0);
     (kernel as any).forward(fake, { type: "agent_start" });
     expect((fake as any).spoke).toBe(false);
-    expect((fake as any).acted).toBe(false);
   });
 
   test("作者按了暂停：轮末真停，一句都不补", () => {
@@ -673,12 +652,11 @@ describe("循环接续", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("调过工具就算动了手，不记空转", () => {
-    const { fake } = fakeLead(false);
+  test("调过工具照样不补：内核不数这一轮干没干活", () => {
+    const { fake, calls } = fakeLead(false);
     (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "project_overview", toolCallId: "t1", args: {} });
-    expect((fake as any).acted).toBe(true);
     (kernel as any).forward(fake, { type: "agent_end" });
-    expect(fake.idleRounds).toBe(0);
+    expect(calls).toHaveLength(0);
   });
   test("只有空白正文不算说过话", () => {
     const { fake } = fakeLead(false);
