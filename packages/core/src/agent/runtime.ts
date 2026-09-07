@@ -565,6 +565,8 @@ export class Kernel {
     const label = `${ROLES[role].label}交回`;
     const reportId = `${ROLES[role].label}:${randomUUID()}`;
     const text = stubPrompt(label, `报告编号：${reportId}\n\n${report}`);
+    // 报告到了就是新一轮：上一轮补过的提示不算数，这轮再漏话照样补
+    live.nudged = false;
     if (live.session.isStreaming || live.hold) {
       live.inbox.push({ id: randomUUID(), label, text, report: reportId });
       this.emitQueue(live);
@@ -738,6 +740,8 @@ export class Kernel {
   /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
   /** 给作者看的正文出去了：子 agent 结论就算解释过了 */
   private sendText(live: LiveAgent, messageId: string, delta: string) {
+    // 状态行之外的裸正文出去了：轮末据此判断是「静等报告」还是「话写在了工具外」
+    if (delta.trim()) live.leaked = true;
     this.send(live, { type: "text_delta", messageId, delta });
   }
 
@@ -769,6 +773,7 @@ export class Kernel {
         this.setStatus(live, "running");
         live.asked = false;
         live.spoke = false;
+        live.leaked = false;
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
