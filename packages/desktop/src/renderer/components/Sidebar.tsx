@@ -1,6 +1,7 @@
 import { isSettled } from "@opentomato/core/protocol";
-import type { DocHeader, DocKindId } from "@opentomato/core/protocol";
+import type { DocHeader, DocKindId, PinRef } from "@opentomato/core/protocol";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { bridge } from "../bridge";
 import { actions, state } from "../state";
 
 /**
@@ -9,9 +10,10 @@ import { actions, state } from "../state";
  * 打开一张卡时竖条自动切到它所在的分区；作者手点竖条则以他为准，直到下一次打开卡。
  * 机检结果只在有问题的卡旁点一个点；竖条上聚合成一个点，收在别的分区里的问题不会被藏掉。
  * 已收束（done / retired）的卡从组里挪走，收进「已收束 · n」一行，默认折叠，不计入数量；打开的正是一张已收束的卡时自动展开。
+ * 竖条最上面是「手边」：作者钉住的几张卡，跨分区。它是作者的工作台状态，不是故事内容：存项目的 settings.json，不进卡、不过审批门、模型不看。
  */
 
-type SectionId = "overview" | "outline" | "threads" | "setting" | "manuscript";
+type SectionId = "pinned" | "overview" | "outline" | "threads" | "setting" | "manuscript";
 interface Section {
   id: SectionId;
   glyph: string;
@@ -50,12 +52,31 @@ const orderOf = (d: DocHeader) => {
 
 export function Sidebar() {
   const [picked, setPicked] = createSignal<SectionId | null>(null);
+  const [pins, setPins] = createSignal<PinRef[]>([]);
+  createEffect(() => {
+    const root = state.project?.root;
+    setPins([]);
+    if (!root) return;
+    void bridge
+      .request("project.pins.get", {})
+      .then((p) => {
+        if (state.project?.root === root) setPins(p);
+      })
+      .catch(() => {});
+  });
+  const isPinned = (d: PinRef) => pins().some((p) => p.kind === d.kind && p.id === d.id);
+  const togglePin = (d: PinRef) => {
+    const next = isPinned(d) ? pins().filter((p) => !(p.kind === d.kind && p.id === d.id)) : [...pins(), { kind: d.kind, id: d.id }];
+    setPins(next);
+    void bridge.request("project.pins.set", { pins: next }).catch(() => {});
+  };
+  // 钉住的卡按钉的顺序排；已经删掉的卡自动消失
+  const pinnedDocs = () => pins().flatMap((p) => state.docs.filter((d) => d.kind === p.kind && d.id === p.id));
   // 跟随正在看的卡；作者手点竖条后以他为准，直到下一次打开卡
   createEffect(() => {
     if (state.view.type === "doc") setPicked(sectionOf(state.view.kind).id);
   });
   const active = () => picked() ?? (state.view.type === "doc" ? sectionOf(state.view.kind).id : "overview");
-  const section = () => SECTIONS.find((s) => s.id === active())!;
 
   const activeDoc = () => (state.view.type === "doc" ? `${state.view.kind}/${state.view.id}` : null);
   // 侧栏只为必须修 / 建议改亮点；info 是事实不是判词，不亮
@@ -71,19 +92,23 @@ export function Sidebar() {
     const on = () => activeDoc() === `${d.kind}/${d.id}`;
     const settled = () => isSettled(d.status);
     return (
-      <button
-        class={`w-full h-7 flex items-center gap-2 pr-2 rounded-md text-left ${on() ? "bg-paper-3 text-ink" : settled() ? "text-ink-3 hover:bg-paper-3 hover:text-ink-2" : "text-ink-2 hover:bg-paper-3 hover:text-ink"}`}
-        style={{ "padding-left": `${indent}px` }}
-        onClick={() => actions.openDoc(d.kind, d.id)}
-        title={issue()?.message ?? d.summary}
-      >
-        <span class="truncate">{d.title}</span>
-        <span class="flex-1" />
-        <Show when={right}>
-          <span class="shrink-0 text-xs text-ink-3 tabular-nums">{right}</span>
-        </Show>
-        <Show when={issue()}>{(i) => <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${i().level === "error" ? "bg-danger" : "bg-warn"}`} />}</Show>
-      </button>
+      <div class={`group w-full h-7 flex items-center gap-2 pr-1 rounded-md ${on() ? "bg-paper-3 text-ink" : settled() ? "text-ink-3 hover:bg-paper-3 hover:text-ink-2" : "text-ink-2 hover:bg-paper-3 hover:text-ink"}`} style={{ "padding-left": `${indent}px` }}>
+        <button class="flex-1 min-w-0 h-full flex items-center gap-2 text-left" onClick={() => actions.openDoc(d.kind, d.id)} title={issue()?.message ?? d.summary}>
+          <span class="truncate">{d.title}</span>
+          <span class="flex-1" />
+          <Show when={right}>
+            <span class="shrink-0 text-xs text-ink-3 tabular-nums">{right}</span>
+          </Show>
+          <Show when={issue()}>{(i) => <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${i().level === "error" ? "bg-danger" : "bg-warn"}`} />}</Show>
+        </button>
+        <button
+          class={`w-5 h-5 shrink-0 flex items-center justify-center rounded hover:bg-paper-4 ${isPinned(d) ? "text-ink-2" : "text-ink-3 opacity-0 group-hover:opacity-100"}`}
+          onClick={() => togglePin(d)}
+          title={isPinned(d) ? "从手边取下" : "钉到手边"}
+        >
+          <PinIcon />
+        </button>
+      </div>
     );
   };
 
@@ -163,6 +188,16 @@ export function Sidebar() {
       </>
     );
   };
+
+  /** 手边：钉住的卡按钉的顺序排，行尾标类别，跨分区混排光看名字分不清 */
+  const Pinned = () => (
+    <>
+      {heading("手边", pinnedDocs().length === 0 ? "—" : pinnedDocs().length, true)}
+      <Show when={pinnedDocs().length > 0} fallback={<div class="px-2 pt-1 text-xs text-ink-3 leading-relaxed">正在写的几张卡钉在这里。把鼠标放到任意一张卡上，点右边的钉子。</div>}>
+        <For each={pinnedDocs()}>{(d) => item(d, 8, kindLabel(d.kind))}</For>
+      </Show>
+    </>
+  );
 
   /** 综述：简介一行（单例）+ 守则按必须 / 尽量 */
   const Overview = () => {
@@ -319,6 +354,14 @@ export function Sidebar() {
   return (
     <div class="h-full flex min-h-0">
       <div class="w-10 shrink-0 border-r border-line flex flex-col items-center gap-1 pt-2">
+        <button
+          class={`w-8 h-8 rounded-md flex items-center justify-center ${active() === "pinned" ? "bg-paper-3 text-ink" : "text-ink-3 hover:bg-paper-3 hover:text-ink-2"}`}
+          onClick={() => setPicked("pinned")}
+          title="手边"
+        >
+          <PinIcon />
+        </button>
+        <div class="w-5 h-px bg-line my-0.5" />
         <For each={SECTIONS}>
           {(s) => (
             <button
@@ -335,6 +378,9 @@ export function Sidebar() {
         </For>
       </div>
       <div class="flex-1 min-w-0 h-full overflow-y-auto px-2 py-3">
+        <Show when={active() === "pinned"}>
+          <Pinned />
+        </Show>
         <Show when={active() === "overview"}>
           <Overview />
         </Show>
@@ -353,6 +399,15 @@ export function Sidebar() {
         </Show>
       </div>
     </div>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7.5 1.5l3 3-2 1-1.5 3.5L4.5 6.5 1 7.5l2-2z" />
+      <path d="M4.5 7.5l-3 3" />
+    </svg>
   );
 }
 

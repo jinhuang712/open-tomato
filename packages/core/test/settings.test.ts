@@ -43,3 +43,29 @@ describe("project settings", () => {
     expect(await readProjectSettings(file)).toEqual({ model: null });
   });
 });
+
+describe("项目设置里的手边", () => {
+  test("钉的顺序原样保留，重复的只留第一个，类型不对的丢掉", async () => {
+    await writeProjectSettings(file, {
+      pins: [
+        { kind: "threads", id: "上海一统" },
+        { kind: "characters", id: "陈默" },
+        { kind: "threads", id: "上海一统" },
+        { kind: "nope" as never, id: "x" },
+        { kind: "world", id: "" },
+      ],
+    });
+    expect((await readProjectSettings(file)).pins).toEqual([
+      { kind: "threads", id: "上海一统" },
+      { kind: "characters", id: "陈默" },
+    ]);
+  });
+
+  test("清空后字段不出现；不影响模型设置", async () => {
+    await writeProjectSettings(file, { model: { provider: "p", id: "m" }, pins: [{ kind: "rules", id: "001" }] });
+    const s = await writeProjectSettings(file, { pins: [] });
+    expect(s.pins).toBeUndefined();
+    expect(s.model).toEqual({ provider: "p", id: "m" });
+    expect(JSON.parse(await fs.readFile(file, "utf8"))).not.toHaveProperty("pins");
+  });
+});

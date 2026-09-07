@@ -1,3 +1,4 @@
+import { readProjectSettings, writeProjectSettings } from "../../../project/settings.js";
 import { ProjectStore } from "../../../project/store.js";
 import { buildStorySeed, storySeedFilename } from "../../../project/seed.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
@@ -6,7 +7,7 @@ export function systemHandlers(
   api: KernelApi,
 ): Pick<
   HandlerMap,
-  "kernel.reset" | "project.create" | "project.open" | "project.close" | "project.recent" | "project.forget" | "project.exportSeed"
+  "kernel.reset" | "project.create" | "project.open" | "project.close" | "project.recent" | "project.forget" | "project.exportSeed" | "project.pins.get" | "project.pins.set"
 > {
   return {
     "kernel.reset": async () => {
@@ -43,6 +44,9 @@ export function systemHandlers(
       await api.models.forgetProject(root);
       return null;
     },
+    // 手边是作者的工作台状态：存项目 settings.json，不进卡、不过审批门
+    "project.pins.get": async () => (await readProjectSettings(api.requireStore().settingsPath)).pins ?? [],
+    "project.pins.set": async ({ pins }) => (await writeProjectSettings(api.requireStore().settingsPath, { pins })).pins ?? [],
     "project.exportSeed": async () => {
       const store = api.requireStore();
       const now = new Date();
