@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { docRefVersion, linkifyDocRefs } from "./doclink";
+import { type DocRef, docRefVersion, linkifyDocRefs } from "./doclink";
 import { shortenUrls } from "./extlink";
 
 marked.setOptions({ gfm: true, breaks: true });
@@ -19,12 +19,13 @@ export function sanitizeHtml(html: string): string {
 
 const cache = new Map<string, string>();
 
-export function renderMarkdown(src: string): string {
+/** `self` 是正在渲染的那张卡：它自己的名字在自己正文里不成链 */
+export function renderMarkdown(src: string, self?: DocRef): string {
   // 文档表变了（新建了卡），同一段文字要重新识别引用
-  const key = `${docRefVersion()}${src}`;
+  const key = `${docRefVersion()}${self ? `${self.kind}/${self.id}` : ""}${src}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
-  const html = sanitizeHtml(shortenUrls(linkifyDocRefs(marked.parse(src, { async: false }) as string)));
+  const html = sanitizeHtml(shortenUrls(linkifyDocRefs(marked.parse(src, { async: false }) as string, self)));
   if (cache.size > 500) cache.clear();
   cache.set(key, html);
   return html;

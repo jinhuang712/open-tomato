@@ -198,7 +198,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                     ref={prose}
                     data-quote-src={JSON.stringify(quoteSource())}
                     class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`}
-                    innerHTML={renderMarkdown(d().body)}
+                    innerHTML={renderMarkdown(d().body, { kind: props.kind, id: props.id })}
                   />
                   <Show when={props.kind === "rules" && !d().body.trim()}>
                     <p class="text-sm text-ink-3">还没写「展开」：这条规则管到哪、不管哪、哪些情形容易误伤。跟主编聊一句就会补上。</p>
