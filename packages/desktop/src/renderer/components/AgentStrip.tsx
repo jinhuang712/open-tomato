@@ -19,6 +19,8 @@ export function AgentStrip() {
   const needsEye = (a: AgentInfo) => a.status === "running" || a.status === "error" || a.agentId === active();
   const shown = createMemo(() => [...lead(), ...subs().filter(needsEye)]);
   const statusOf = (a: AgentInfo) => (a.status === "running" && a.statusText) || STATUS[a.status];
+  /** 主编在正文里管它们叫「策划1」，名单上就得是同一个名字，作者才对得上人。旧会话没有 handle，退回角色名 */
+  const name = (a: AgentInfo) => a.handle || a.label;
   const inChild = () => active() !== null && active() !== "director";
 
   return (
@@ -36,7 +38,7 @@ export function AgentStrip() {
               <button
                 class="flex items-center gap-2 min-w-0 shrink hover:text-ink"
                 classList={{ "text-ink": active() === a.agentId }}
-                title={`${a.label} · ${STATUS[a.status]}${a.task ? `\n${a.task}` : ""}`}
+                title={`${name(a)} · ${STATUS[a.status]}${a.task ? `\n${a.task}` : ""}`}
                 onClick={() => actions.openChat(a.agentId)}
               >
                 <span
@@ -45,7 +47,7 @@ export function AgentStrip() {
                 >
                   {a.label.slice(0, 1)}
                 </span>
-                <span class="shrink-0">{a.label}</span>
+                <span class="shrink-0">{name(a)}</span>
                 <span class="truncate text-ink-3 max-w-[200px]">{statusOf(a)}</span>
                 <Show when={a.status === "running"}>
                   <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0 ring-3 ring-accent-soft" />

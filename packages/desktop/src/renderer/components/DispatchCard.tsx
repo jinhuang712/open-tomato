@@ -62,13 +62,14 @@ export function DispatchCard(props: { part: ToolPart }) {
     const roster = rosterOf(props.part);
     // 新内核：details 里直接有名册，按 agentId 对上
     if (roster.length > 0) {
-      return roster.map((r) => ({ role: r.role, label: r.label, task: r.task, agent: state.agents[r.agentId] ?? null, roster: r }));
+      // 旧会话回放：名册项那会儿还没有 handle，退回角色名
+      return roster.map((r) => ({ role: r.role, label: r.handle || r.label, task: r.task, agent: state.agents[r.agentId] ?? null, roster: r }));
     }
     // 旧会话回放：没有 details，退回从入参和回传文本里拼
     const all = state.agentOrder.map((id) => state.agents[id]).filter((x): x is AgentInfo => !!x);
     if (isContinue()) {
-      const agent = state.agents[String(a().agentId ?? "")] ?? null;
-      return [{ role: agent?.role ?? "", label: agent?.label ?? "原来那位", task: String(a().message ?? ""), agent, roster: null }];
+      const agent = state.agents[String(a().agent ?? a().agentId ?? "")] ?? null;
+      return [{ role: agent?.role ?? "", label: agent?.handle || agent?.label || "原来那位", task: String(a().message ?? ""), agent, roster: null }];
     }
     const tasks = Array.isArray(a().tasks) ? (a().tasks as Array<{ role: string; task: string }>) : [];
     const used = new Set<string>();

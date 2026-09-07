@@ -2,7 +2,6 @@ import type { AgentInfo } from "@opentomato/core/protocol";
 import { createMemo, For, Show } from "solid-js";
 import { actions, state } from "../state";
 import { STATUS } from "./agent-status";
-import { ROLE_LABELS } from "./DispatchCard";
 
 /**
  * 子 agent 的花名册：一本书写下来派过的每一位都在这儿，按「在场 / 完成 / 已封存」分三段。
@@ -31,8 +30,7 @@ export function AgentHistory() {
         </span>
         <span class="min-w-0 flex-1">
           <span class="flex items-center gap-2">
-            <span class="text-ink">{a.label}</span>
-            <span class="text-ink-3 text-xs">{ROLE_LABELS[a.role] ?? a.role}</span>
+            <span class="text-ink">{a.handle || a.label}</span>
             <span class="text-ink-3 text-xs">· {(a.status === "running" && a.statusText) || STATUS[a.status]}</span>
             <Show when={a.status === "running"}>
               <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0 ring-3 ring-accent-soft" />
