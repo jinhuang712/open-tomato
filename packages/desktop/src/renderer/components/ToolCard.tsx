@@ -1,4 +1,4 @@
-import { hasLongOptions, optionLabel, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
+import { hasLongOptions, optionLabel, parseChecklistAnswer, summarizeChecklistMarks, type ChecklistMark, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { DispatchCard, ROLE_LABELS } from "./DispatchCard";
@@ -126,6 +126,35 @@ function AskCard(props: { part: ToolPart }) {
   const raw = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]) : []);
   const options = () => (hasLongOptions(raw()) ? [] : raw().map(optionLabel));
   const answer = () => props.part.output.replace(/^作者回答：/, "");
+  // checklist 历史：按「作者逐条表态」拆回三组序号展示。老会话的 kind 可能缺失，认答案前缀兜底
+  const isChecklist = () => (a() as { kind?: unknown }).kind === "checklist" || answer().startsWith("作者逐条表态");
+  const parsed = () => (isChecklist() ? parseChecklistAnswer(answer()) : null);
+  // 结构化展示的条件：拆得开、候选还在。野句式回退到原来的 chips + 原文
+  const structured = () => parsed() !== null && raw().length > 0;
+  const markOf = (i: number): ChecklistMark => {
+    const p = parsed();
+    if (!p) return null;
+    if (p.yes.includes(i)) return "yes";
+    if (p.no.includes(i)) return "no";
+    return null;
+  };
+  const badgeOf = (i: number): { label: string; cls: string } => {
+    const m = markOf(i);
+    if (m === "yes") return { label: "改", cls: "border-ink-2 bg-paper-3 text-ink" };
+    if (m === "no") return { label: "不改", cls: "border-line-2 text-ink-3" };
+    return { label: "没表态", cls: "border-dashed border-line-2 text-ink-3" };
+  };
+  // 「答」行只留补充说明；没有就报紧凑序号（正文由上面的选项行展示，不复读）
+  const checklistReply = (): string | null => {
+    const p = parsed();
+    if (!p || raw().length === 0) return null;
+    if (p.tail) return p.tail;
+    const n = raw().length;
+    const inRange = (ids: number[]) => ids.filter((i) => i < n);
+    const cited = new Set([...p.yes, ...p.no, ...p.undecided]);
+    const missing = raw().map((_, i) => i).filter((i) => !cited.has(i));
+    return summarizeChecklistMarks(inRange(p.yes), inRange(p.no), [...inRange(p.undecided), ...missing].sort((x, y) => x - y));
+  };
   // 高亮作者选中的：single 是整句，multi 是「作者选了：A、C」里的每一项
   const chosen = () => {
     const a = answer();
@@ -141,11 +170,25 @@ function AskCard(props: { part: ToolPart }) {
       <div class="px-4 pt-3 pb-1 flex items-start gap-2">
         <div class="prose-zh flex-1" innerHTML={renderMarkdown(talk(a().question))} />
       </div>
-      <Show when={options().length > 0}>
+      <Show when={options().length > 0 && !structured()}>
         <div class="px-4 pb-2 flex flex-wrap gap-1.5">
           <For each={options()}>
             {(o) => (
               <span class={`h-6.5 px-2.5 rounded-md border text-xs flex items-center ${chosen().has(o) ? "border-ink-2 bg-paper-3 text-ink" : "border-line-2 text-ink-3"}`}>{o}</span>
+            )}
+          </For>
+        </div>
+      </Show>
+      {/* checklist：每条一行打标，未填的就是没表态，不再全灰 */}
+      <Show when={structured()}>
+        <div class="px-4 pb-2 flex flex-col gap-1">
+          <For each={raw()}>
+            {(opt, i) => (
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-ink-3 shrink-0">{i() + 1}.</span>
+                <span class="flex-1 min-w-0 truncate" title={optionLabel(opt)}>{optionLabel(opt)}</span>
+                <span class={`shrink-0 px-1.5 py-0.5 rounded border ${badgeOf(i()).cls}`}>{badgeOf(i()).label}</span>
+              </div>
             )}
           </For>
         </div>
@@ -156,7 +199,7 @@ function AskCard(props: { part: ToolPart }) {
       >
         <div class="px-4 pb-3 flex gap-2.5 selectable">
           <span class="text-ink-3 shrink-0">答</span>
-          <span class={props.part.status === "error" ? "text-danger" : "text-ink"}>{answer()}</span>
+          <span class={props.part.status === "error" ? "text-danger" : "text-ink"}>{checklistReply() ?? answer()}</span>
         </div>
       </Show>
     </div>

@@ -455,7 +455,8 @@ export type ChecklistMark = "yes" | "no" | null;
 /**
  * checklist 的答案：三组一组都不省，空组写「无」，条目用序号加短名引用，主编好在 say 里转述。
  * 「没表态」单独报，因为主编对「不要」和「没表态」做的事不一样：不要就丢，没表态是主编自己拿主意。
- * tail 是逃生口追加的一句指令（比如「没表态的你替我定」），没有就不加。
+ * tail 是逃生口或输入框追加的一句补充（比如「没表态的你替我定」），换行另起：checklist 候选里不可能有
+ * 换行（有换行的问题形态会变成 compare），历史展示切第一处换行一定是补充说明，不会误伤。
  */
 export function formatChecklistAnswer(options: readonly QuestionOption[], marks: readonly ChecklistMark[], tail?: string): string {
   const cite = (i: number) => `第 ${i + 1} 条（${optionLabel(options[i]!)}）`;
@@ -464,7 +465,57 @@ export function formatChecklistAnswer(options: readonly QuestionOption[], marks:
     return items.length ? items.map(cite).join("、") : "无";
   };
   const body = `作者逐条表态。改：${group("yes")}；不改：${group("no")}；没表态：${group(null)}`;
-  return tail ? `${body}。${tail}` : body;
+  const t = tail?.trim();
+  return t ? `${body}\n${t}` : body;
+}
+
+/** parseChecklistAnswer 拆出来的三组序号（0 起）与补充说明 */
+export interface ParsedChecklistAnswer {
+  yes: number[];
+  no: number[];
+  undecided: number[];
+  tail: string | null;
+}
+
+/**
+ * 把 checklist 答案拆回三组序号，供历史展示按条打标。只认引用 opener「第 N 条（」，
+ * 候选正文里即使出现「第 N 条」字样也不会误认；序号越界由展示层按 options 长度过滤。
+ * 组头对不上（手写的野句式）返回 null，展示层原样显示，不硬拆。
+ */
+export function parseChecklistAnswer(answer: string): ParsedChecklistAnswer | null {
+  if (!answer.startsWith("作者逐条表态")) return null;
+  let rest = answer.slice("作者逐条表态".length).replace(/^[。．.\s]+/, "");
+  let tail: string | null = null;
+  const nl = rest.indexOf("\n");
+  if (nl >= 0) {
+    tail = rest.slice(nl + 1).trim() || null;
+    rest = rest.slice(0, nl);
+  } else {
+    // 旧格式兼容：换行分隔之前，逃生口的追加句以句号缀在末尾，只认这一句固定的
+    const legacy = "没表态的你替我定，说清为什么。";
+    if (rest.endsWith(`。${legacy}`)) {
+      tail = legacy;
+      rest = rest.slice(0, rest.length - legacy.length - 1);
+    }
+  }
+  if (!/(^|[；;])\s*改\s*[:：]/.test(rest)) return null;
+  const pick = (label: string): number[] => {
+    const seg = rest.split(/[；;]/).find((s) => new RegExp(`^\\s*${label}\\s*[:：]`).test(s));
+    if (!seg) return [];
+    const out: number[] = [];
+    for (const m of seg.matchAll(/第\s*(\d+)\s*条\s*[（(]/g)) {
+      const i = Number(m[1]) - 1;
+      if (i >= 0 && !out.includes(i)) out.push(i);
+    }
+    return out.sort((a, b) => a - b);
+  };
+  return { yes: pick("改"), no: pick("不改"), undecided: pick("没表态"), tail };
+}
+
+/** checklist 历史展示的紧凑兜底：只报序号不重复贴正文，正文由上面的选项行展示 */
+export function summarizeChecklistMarks(yes: readonly number[], no: readonly number[], undecided: readonly number[]): string {
+  const ref = (ids: readonly number[]) => (ids.length ? ids.map((i) => `第 ${i + 1} 条`).join("、") : "无");
+  return `改：${ref(yes)}；不改：${ref(no)}；没表态：${ref(undecided)}`;
 }
 
 /** 有没有候选长到不适合用 chip 排：带 label 的、含换行的、超过 40 字的 */

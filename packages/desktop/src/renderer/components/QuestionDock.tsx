@@ -94,7 +94,8 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       else next.add(i);
       return next;
     });
-  // checklist：每条三态，随时可确定，没表态的单独报给主编
+  // checklist：每条三态放本地，统一走右下角「回答」+ ⌘↩ 交出去，输入框里的字当补充说明缀在末尾。
+  // 没碰的条目就是没表态，不预设为不改；一个没定但写了话也照样能交。
   const [marks, setMarks] = createSignal<ChecklistMark[]>([]);
   createEffect(() => {
     props.request.questionId;
@@ -107,7 +108,13 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       next[i] = next[i] === m ? null : m;
       return next;
     });
-  const submitChecklist = () => void actions.answer(props.request.questionId, formatChecklistAnswer(props.request.options, marks()));
+  const markedCount = () => marks().filter((m) => m !== null && m !== undefined).length;
+  const canSubmitChecklist = () => markedCount() > 0 || text().trim().length > 0;
+  const submitChecklist = () => {
+    if (!canSubmitChecklist()) return;
+    const t = text().trim();
+    void actions.answer(props.request.questionId, formatChecklistAnswer(props.request.options, marks(), t || undefined));
+  };
   const checklistEscapes = (): Escape[] => {
     const n = props.request.options.length;
     const all = (m: ChecklistMark) => Array<ChecklistMark>(n).fill(m);
@@ -231,9 +238,16 @@ export function QuestionDock(props: { request: QuestionRequest }) {
           </For>
         </div>
         <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
-          <button class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110" onClick={() => submitChecklist()}>
-            确定
-          </button>
+          {/* 输入框收起（allowFreeText 关掉）时才留确定按钮，平时统一走右下角「回答」 */}
+          <Show when={!props.request.allowFreeText}>
+            <button
+              class="h-8 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30"
+              disabled={markedCount() === 0}
+              onClick={() => submitChecklist()}
+            >
+              确定{markedCount() > 0 ? `（已定 ${markedCount()}/${props.request.options.length}）` : ""}
+            </button>
+          </Show>
           <For each={checklistEscapes()}>
             {(e) => (
               <button
@@ -290,13 +304,18 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                submit();
+                if (kind() === "checklist") submitChecklist();
+                else submit();
               }
             }}
           />
           <div class="flex justify-end px-2 pb-2">
-            <button class="h-7 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30" disabled={!text().trim()} onClick={submit}>
-              回答
+            <button
+              class="h-7 px-3 rounded-md bg-ink text-paper font-medium hover:brightness-110 disabled:opacity-30"
+              disabled={kind() === "checklist" ? !canSubmitChecklist() : !text().trim()}
+              onClick={() => (kind() === "checklist" ? submitChecklist() : submit())}
+            >
+              {kind() === "checklist" && markedCount() > 0 ? `回答（已定 ${markedCount()}/${props.request.options.length}）` : "回答"}
             </button>
           </div>
         </div>
