@@ -10,7 +10,7 @@
     "dev": "bun run --filter @opentomato/core build && concurrently -k -n core,desktop \"bun run --filter @opentomato/core watch\" \"bun run --filter @opentomato/desktop dev\"",
     "build": "bun run --filter @opentomato/core build && bun run --filter @opentomato/desktop build",
     "typecheck": "bun run --filter @opentomato/core build && bun run --filter '*' typecheck",
-    "test": "bun run --filter @opentomato/core test",
+    "test": "bun run --filter '*' test",
     "dist": "bun run build && bun run --filter @opentomato/desktop dist"
   },
   "devDependencies": {

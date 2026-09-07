@@ -9,6 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "test": "bun test",
     "dist": "electron-builder --mac --config electron-builder.yml"
   },
   "dependencies": {
@@ -16,7 +17,14 @@
     "electron-window-state": "5.0.3"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "20.14.0",
     "@tailwindcss/vite": "4.3.3",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-hard-break": "3.31.3",
+    "@tiptap/extension-link": "3.31.3",
+    "@tiptap/extension-table": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
     "@types/diff": "8.0.0",
     "@types/node": "24.13.3",
     "diff": "8.0.4",
@@ -27,6 +35,7 @@
     "marked": "18.0.11",
     "solid-js": "1.9.15",
     "tailwindcss": "4.3.3",
+    "tiptap-markdown": "0.9.0",
     "vite": "7.3.6",
     "vite-plugin-solid": "2.11.14"
   }
