@@ -72,6 +72,29 @@ describe("接着开项目时悬着的提问挂回门上", () => {
     expect(events.some((e) => e.type === "question.resolved" && e.questionId === asked!.request.questionId)).toBe(true);
   });
 
+  test("问题挂着时点「接着上次」不送话：主编不会把同一个问题再问一遍；答完之后再点才送", async () => {
+    const events: KernelEvent[] = [];
+    const prompts: string[] = [];
+    const { factory } = fakeSessionFactory({ messages: [askCall("c1", ARGS), result("c1", "会话已重建", true)], onPrompt: (t) => prompts.push(t) });
+    kernel = new Kernel(home, (e) => events.push(e), { sessionFactory: factory });
+    await kernel.init("test");
+    await kernel.handle("project.open", { root });
+
+    // 回放的历史不标「没收尾」：界面不该给出「接着上次」
+    const history = events.find((e) => e.type === "agent.event" && e.agentId === "director" && e.event.type === "history") as Extract<KernelEvent, { type: "agent.event" }> | undefined;
+    expect(history?.event).toMatchObject({ type: "history", interrupted: false });
+
+    await kernel.handle("chat.resume", {});
+    expect(prompts).toEqual([]);
+
+    const asked = events.find((e) => e.type === "question.requested") as Extract<KernelEvent, { type: "question.requested" }>;
+    await kernel.handle("question.reply", { questionId: asked.request.questionId, answer: "铺人" });
+    await kernel.handle("chat.resume", {});
+    expect(prompts.length).toBe(2);
+    expect(prompts[0]).toBe("作者回答：铺人");
+    expect(prompts[1]).toContain("⟦stub:接着上次⟧");
+  });
+
   test("上次收尾干净：不弹问题", async () => {
     const events: KernelEvent[] = [];
     const { factory } = fakeSessionFactory({ messages: [askCall("c1", ARGS), result("c1", "作者回答：样板")] });

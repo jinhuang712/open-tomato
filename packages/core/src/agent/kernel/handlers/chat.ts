@@ -15,6 +15,8 @@ export const RESUME_PROMPT = loadPrompt("kernel/resume");
 export async function resumeLead(api: KernelApi) {
   await api.ensureLead();
   const live = api.requireLive(LEAD_ID);
+  // 断在等作者答题：问题已经原样挂回门上，作者答了就接着走。这时再送「接着上次」，主编只会把同一个问题重问一遍
+  if (api.gate.hasPendingQuestion(LEAD_ID)) return;
   api.authorActed(live);
   api.sendTo(LEAD_ID, stubPrompt("接着上次", RESUME_PROMPT), "followUp");
 }

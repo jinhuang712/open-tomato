@@ -58,6 +58,18 @@ import { workflowHandlers } from "./kernel/handlers/workflow.js";
 
 /** 发给模型的控制消息统一收拢在 prompts/kernel/ 下，这里只留加载，用法点不动 */
 const PROPOSE_NOTICE = loadPrompt("kernel/propose-notice");
+
+/** 上次断在 ask_user 上、且实参修得出一个能问的问题：返回实参，否则 null */
+function revivableQuestion(raws: unknown[]): AskArgs | null {
+  const raw = orphanedQuestion(raws);
+  if (!raw) return null;
+  try {
+    const args = repairAskArgs(raw);
+    return args.question ? args : null;
+  } catch {
+    return null;
+  }
+}
 const COMMIT_NOTICE = loadPrompt("kernel/commit-notice");
 const CHILD_REPORT_NOTICE = loadPrompt("shared/child-report-notice");
 const DISPATCHED_NOTICE = loadPrompt("kernel/dispatched-notice");
@@ -398,15 +410,8 @@ export class Kernel {
    * 必须在 setStatus(idle) 之后：渲染层收到非 running 的状态会把这个 agent 的待答撤掉。
    */
   private reviveQuestion(live: LiveAgent) {
-    const raw = orphanedQuestion(live.session.messages as unknown[]);
-    if (!raw) return;
-    let args: AskArgs;
-    try {
-      args = repairAskArgs(raw);
-    } catch {
-      return;
-    }
-    if (!args.question) return;
+    const args = revivableQuestion(live.session.messages as unknown[]);
+    if (!args) return;
     this.gate
       .requestQuestion({ agentId: LEAD_ID, text: args.question, kind: args.kind, options: args.options ?? [], allowFreeText: args.allowFreeText ?? true })
       .then((answer) => {
@@ -423,7 +428,8 @@ export class Kernel {
     this.emit({
       type: "agent.event",
       agentId,
-      event: { type: "history", messages: normalizeHistory(raws), interrupted: wasInterrupted(raws) },
+      // 断在等作者答题的，问题会原样挂回门上，不算没收尾：界面不画分隔线、不给「接着上次」，免得作者点了让主编再问一遍
+      event: { type: "history", messages: normalizeHistory(raws), interrupted: wasInterrupted(raws) && !revivableQuestion(raws) },
     });
   }
 

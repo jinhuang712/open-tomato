@@ -79,6 +79,12 @@ export class Gate {
     }
   }
 
+  /** 这个 agent 此刻有没有问题悬在门上等作者答 */
+  hasPendingQuestion(agentId: string): boolean {
+    for (const p of this.questions.values()) if (p.agentId === agentId) return true;
+    return false;
+  }
+
   get pendingCount(): number {
     return this.approvals.size + this.questions.size;
   }
