@@ -25,6 +25,8 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [draftBody, setDraftBody] = createSignal("");
   /** 编辑器里动过没有：没动过的退出不问，动过了才拦一下 */
   const [dirty, setDirty] = createSignal(false);
+  /** 正在落盘：⌘S 连按两下不能发两次写入，第二次会撞上自己刚写的版本报 stale */
+  const [saving, setSaving] = createSignal(false);
   /** 编辑模式下头部各字段的文字；headBase 是进编辑那一刻的原值，保存时只把改过的字段写回 */
   const [headText, setHeadText] = createSignal<Record<string, string>>({});
   const [headBase, setHeadBase] = createSignal<Record<string, unknown>>({});
@@ -139,7 +141,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     setBase(null);
   };
   const save = async () => {
-    if (!editor) return;
+    if (!editor || saving()) return;
     const b = base();
     if (b === null) return;
     // 标题是这张卡在侧栏里的身份，空着存下去等于把卡弄丢
@@ -149,6 +151,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     }
     // 改过的头字段 + 整段正文；没碰的部分（含 frontmatter 的写法）逐字留着，diff 里只出现真改动
     const raw = replaceBody(patchFrontmatter(b, headPatch()), cardMarkdown(editor));
+    setSaving(true);
     try {
       await bridge.request("doc.write", { kind: props.kind, id: props.id, raw, expectBefore: b });
       setEditing(false);
@@ -165,6 +168,8 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
       } else {
         toast(msg, "error");
       }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -213,7 +218,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
               }
             >
               <span class="text-ink-3">编辑中</span>
-              <button class="px-2.5 py-1 rounded-md bg-ink text-paper" title={`保存并回到预览（${keyHint("doc.save")}）`} onClick={() => void save()}>
+              <button class="px-2.5 py-1 rounded-md bg-ink text-paper disabled:opacity-60" disabled={saving()} title={`保存并回到预览（${keyHint("doc.save")}）`} onClick={() => void save()}>
                 保存
               </button>
               <button class="px-2.5 py-1 rounded-md border border-line" onClick={() => void stopEdit()}>

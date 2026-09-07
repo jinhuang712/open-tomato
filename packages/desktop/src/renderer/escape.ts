@@ -17,19 +17,10 @@ export function registerEscape(close: Closer): void {
   });
 }
 
-/**
- * Escape 的唯一裁决点：每按一次只退一层，从最上面的浮层开始，
- * 浮层都关完了再退二级视图（文档 / 子 agent 会话），回到主编的主会话就停。
- *
- * 局部想自己吃掉 Escape（搜索框里清选中、拒绝原因框退回按钮态、文档编辑态取消），
- * 在自己的 onKeyDown 里处理完调 preventDefault，这里看到 defaultPrevented 就不再动。
- *
- * 返回 true 表示这次按键被消费了。
- */
 /** 全局浮层，越靠前的越可能叠在最上面（关闭确认 > 审阅 > 表单类弹窗 > 设置 / 搜索） */
 const OVERLAYS: { open: () => boolean; close: () => void }[] = [
   { open: () => state.closePromptOpen, close: () => setState("closePromptOpen", false) },
-  { open: () => state.reviewOpen !== null, close: () => setState("reviewOpen", null) },
+  { open: () => Boolean(state.reviewOpen), close: () => setState("reviewOpen", null) },
   { open: () => state.cloudSettingsOpen, close: () => setState("cloudSettingsOpen", false) },
   { open: () => state.modelPickerOpen, close: () => setState("modelPickerOpen", false) },
   { open: () => state.settingsOpen, close: () => setState("settingsOpen", false) },
@@ -41,6 +32,15 @@ export function overlayOpen(): boolean {
   return OVERLAYS.some((o) => o.open());
 }
 
+/**
+ * Escape 的唯一裁决点：每按一次只退一层，从最上面的浮层开始，
+ * 浮层都关完了再退二级视图（文档 / 子 agent 会话），回到主编的主会话就停。
+ *
+ * 局部想自己吃掉 Escape（搜索框里清选中、拒绝原因框退回按钮态、文档编辑态取消），
+ * 在自己的 onKeyDown 里处理完调 preventDefault，这里看到 defaultPrevented 就不再动。
+ *
+ * 返回 true 表示这次按键被消费了。
+ */
 export function escapeOneLevel(): boolean {
   // 0. 本地登记的轻量层（顶栏下拉这类组件内 signal，全局 store 看不见），后登记的先问
   for (const close of [...closers].reverse()) if (close()) return true;
