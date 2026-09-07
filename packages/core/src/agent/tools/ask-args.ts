@@ -13,6 +13,8 @@ export interface AskArgs {
   kind: QuestionKind;
   options?: AskOption[];
   allowFreeText?: boolean;
+  /** 模型照着旧历史传了 say：内容界面照样展示，但要在结果里告诉它以后写正文 */
+  legacySay?: true;
 }
 
 const isKind = (v: unknown): v is QuestionKind => typeof v === "string" && (QUESTION_KINDS as readonly string[]).includes(v);
@@ -66,5 +68,6 @@ export function repairAskArgs(args: unknown): AskArgs {
     kind: resolveQuestionKind(raw.kind, options),
     ...(options.length ? { options } : {}),
     ...(typeof raw.allowFreeText === "boolean" ? { allowFreeText: raw.allowFreeText } : {}),
+    ...(typeof raw.say === "string" && raw.say.trim() ? { legacySay: true as const } : {}),
   };
 }

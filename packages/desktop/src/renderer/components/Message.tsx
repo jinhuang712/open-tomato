@@ -1,4 +1,4 @@
-import type { UiMessage } from "@opentomato/core/protocol";
+import type { UiMessage, UiPart } from "@opentomato/core/protocol";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { splitAttachments } from "../attachments";
@@ -50,6 +50,17 @@ export function Message(props: { message: UiMessage }) {
   const isUser = () => props.message.role === "user";
   // 只剩空白的正文（状态行摘完留下的换行）也不渲染，不然是一段空白撑开行距
   const visible = () => props.message.parts.filter((p) => p.type !== "thinking" && !(p.type === "text" && !p.text.trim()));
+  /**
+   * 一段正文是「说给作者的话」还是「干活时的叙述」，按位置定，不靠模型配合：
+   * 同一条消息里，这段正文后面还跟着读文档 / 派单这类工具调用，就是「先读原文：」「重试：」这种过程叙述，压成小字；
+   * 正文收尾了、或紧跟的是 ask_user（问题卡上方的解释），才是正式说话。
+   */
+  const narration = (part: UiPart) => {
+    if (isUser()) return false;
+    const parts = props.message.parts;
+    const i = parts.indexOf(part);
+    return parts.slice(i + 1).some((p) => p.type === "tool" && p.name !== "ask_user");
+  };
   const stub = () => {
     const p = props.message.parts.find((x) => x.type === "stub");
     return p && p.type === "stub" ? p.label : null;
@@ -115,7 +126,7 @@ export function Message(props: { message: UiMessage }) {
               </Match>
               <Match when={part.type === "text" && part}>
                 {(p) => (
-                  <Show when={isUser()} fallback={<div class="prose-zh py-1.5" innerHTML={renderMarkdown(p().text)} />}>
+                  <Show when={isUser()} fallback={<div class={narration(p()) ? "prose-zh py-1 text-xs text-ink-3" : "prose-zh py-1.5"} innerHTML={renderMarkdown(p().text)} />}>
                     <UserText text={p().text} />
                   </Show>
                 )}

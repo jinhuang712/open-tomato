@@ -31,6 +31,13 @@ test("旧会话里带 say 的实参照样能问，多出来的键被忽略", asy
   let asked = false;
   const tool = makeAskUserTool(ctxWith(() => (asked = true)));
   const prepared = await tool.prepareArguments!({ say: "铺垫", question: "继续？", explainedReports: ["策划"] });
-  await run(tool, "t2", prepared as Record<string, unknown>);
+  const res = await run(tool, "t2", prepared as Record<string, unknown>);
   expect(asked).toBe(true);
+  expect(res.content[0]!.text).toContain("say 字段已废弃");
+});
+
+test("没传 say 的正常提问，结果不带提醒", async () => {
+  const tool = makeAskUserTool(ctxWith(() => {}));
+  const res = await run(tool, "t3", { question: "继续？" });
+  expect(res.content[0]!.text).not.toContain("已废弃");
 });

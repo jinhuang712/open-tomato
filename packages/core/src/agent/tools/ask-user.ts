@@ -52,7 +52,9 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
         signal,
       );
       const answer = await answerPromise;
-      return text(formatAnswer(answer));
+      // 旧会话的历史里满是 ask_user.say，模型会照着写：内容作者看到了，但下次该直接写正文
+      const note = (params as { legacySay?: true }).legacySay ? "\n\n（say 字段已废弃：这次的解释作者看到了，以后解释直接写在正文里，ask_user 只放问题。）" : "";
+      return text(formatAnswer(answer) + note);
     },
   });
 }
