@@ -162,9 +162,20 @@ describe("doc.* / search", () => {
 });
 
 describe("capabilities / roles", () => {
-  test("capabilities.list 8 个；roles.list 9 个含主编", async () => {
+  test("capabilities.list 10 个；roles.list 9 个含主编", async () => {
     const caps = await kernel.handle("capabilities.list", {});
-    expect(caps.map((c) => c.id).sort()).toEqual(["design", "draft", "interview", "outline", "recap", "review", "seed", "talk"]);
+    expect(caps.map((c) => c.id).sort()).toEqual([
+      "deeper-needs",
+      "design",
+      "draft",
+      "interview",
+      "outline",
+      "recap",
+      "review",
+      "seed",
+      "show",
+      "talk",
+    ]);
     const roles = await kernel.handle("roles.list", {});
     expect(roles).toHaveLength(9);
     expect(roles.find((r) => r.id === "director")?.label).toBe("主编");

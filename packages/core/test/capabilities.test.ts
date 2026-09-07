@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { CAPABILITIES, CAPABILITY_IDS, capabilityEntry, capabilityInfos, capabilityRoster } from "../src/agent/capabilities.js";
 
 describe("能力正文", () => {
-  test("8 条都能加载，无占位符，写的是目标 / 交付物 / 边界而不是步骤", () => {
-    expect(CAPABILITY_IDS).toHaveLength(8);
+  test("10 条都能加载，无占位符，写的是目标 / 交付物 / 边界而不是步骤", () => {
+    expect(CAPABILITY_IDS).toHaveLength(10);
     for (const id of CAPABILITY_IDS) {
       const body = CAPABILITIES[id].load();
       expect(body).not.toMatch(/{{\w+}}/);
@@ -13,7 +13,7 @@ describe("能力正文", () => {
   });
 
   test("缺的信息从盘面读：每条正文都说了怎么定范围", () => {
-    for (const id of ["talk", "design", "outline", "draft", "review", "recap"] as const) {
+    for (const id of ["talk", "design", "outline", "draft", "review", "recap", "deeper-needs", "show"] as const) {
       expect(CAPABILITIES[id].load()).toMatch(/由盘面/);
     }
   });
