@@ -295,6 +295,10 @@ export class Kernel {
       ctx.archiveAgent = (childId) => this.archiveChild(childId);
     }
     ctx.unrelayedReports = () => this.agents.get(agentId)?.unrelayed ?? [];
+    ctx.acknowledgeReports = (ids) => {
+      const live = this.agents.get(agentId);
+      if (live) live.unrelayed = live.unrelayed.filter((id) => !ids.includes(id));
+    };
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
       if (!live || live.mode === "commit") return null;
@@ -546,17 +550,18 @@ export class Kernel {
     const live = this.agents.get(parentId);
     if (!live) return;
     const label = `${ROLES[role].label}交回`;
-    const text = stubPrompt(label, report);
+    const reportId = `${ROLES[role].label}:${randomUUID()}`;
+    const text = stubPrompt(label, `报告编号：${reportId}\n\n${report}`);
     if (live.session.isStreaming || live.hold) {
-      live.inbox.push({ id: randomUUID(), label, text, report: ROLES[role].label });
+      live.inbox.push({ id: randomUUID(), label, text, report: reportId });
       this.emitQueue(live);
       return;
     }
-    this.markUnrelayed(live, ROLES[role].label);
+    this.markUnrelayed(live, reportId);
     this.sendTo(parentId, text);
   }
 
-  /** 一份报告到了模型面前：记下还没讲给作者听。主编 say 一次就清空，其间 ask_user 打回 */
+  /** 报告送到模型面前时登记唯一编号，由对话工具显式确认解释完成 */
   private markUnrelayed(live: LiveAgent, roleLabel: string | undefined) {
     if (roleLabel && !live.unrelayed.includes(roleLabel)) live.unrelayed.push(roleLabel);
   }
@@ -831,13 +836,12 @@ export class Kernel {
         return;
       case "tool_execution_start":
         if (ev.toolName === "ask_user") live.asked = true;
-        // 两个对话通道等价；空白文本不能清除未转述标记。
+        // 可见表达允许自然收尾，但不代表任何报告已经解释。
         if (ev.toolName === "say" || ev.toolName === "ask_user") {
           const args = ev.args as { text?: unknown; say?: unknown } | undefined;
           const speech = ev.toolName === "say" ? args?.text : args?.say;
           if (typeof speech === "string" && speech.trim()) {
             live.spoke = true;
-            live.unrelayed = [];
           }
         }
         this.send(live, {

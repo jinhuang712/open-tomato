@@ -103,8 +103,10 @@ describe("派单不阻塞主编", () => {
     (kernel as any).deliverReport("director", "designer", "报告正文");
     expect(fake.inbox).toEqual([]);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatch(/^⟦stub:策划交回⟧\n报告正文$/);
-    expect(fake.unrelayed).toEqual(["策划"]);
+    expect(calls[0]).toContain("报告正文");
+    expect(calls[0]).toContain(`报告编号：${fake.unrelayed[0]}`);
+    expect(fake.unrelayed).toHaveLength(1);
+    expect(fake.unrelayed[0]).toMatch(/^策划:/);
   });
 
   test("主编暂停中：报告进收件箱等作者开口，收件箱那条带角色标签", () => {
@@ -112,7 +114,7 @@ describe("派单不阻塞主编", () => {
     (kernel as any).deliverReport("director", "designer", "报告正文");
     expect(calls).toEqual([]);
     expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
-    expect(fake.inbox[0]!.report).toBe("策划");
+    expect(fake.inbox[0]!.report).toMatch(/^策划:/);
     // 还没送到模型面前，不算未讲
     expect(fake.unrelayed).toEqual([]);
   });
@@ -124,6 +126,15 @@ describe("派单不阻塞主编", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(calls).toHaveLength(1);
     expect(fake.unrelayed).toEqual(["策划"]);
+  });
+
+  test("同角色多份报告拥有不同编号，报告正文完整传递", () => {
+    const { fake, calls } = fakeLead(false);
+    const report = "方案依据与取舍\n".repeat(3000);
+    (kernel as any).deliverReport("director", "designer", report);
+    (kernel as any).deliverReport("director", "designer", "第二份报告");
+    expect(new Set(fake.unrelayed).size).toBe(2);
+    expect(calls[0]).toContain(report);
   });
 
   test("派单人已不在：报告丢弃不报错", () => {

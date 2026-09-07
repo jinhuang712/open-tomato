@@ -1,7 +1,7 @@
 import { hasLongOptions, QUESTION_KINDS, type QuestionKind, type QuestionOption } from "../../protocol.js";
 
 /** ask_user 的实参键名，漏进 options 数组时要摘掉 */
-const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "kind", "options", "allowFreeText"]);
+const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "kind", "options", "allowFreeText", "explainedReports"]);
 
 /** question 丢了但候选还在时，用这句话把提问撑起来，作者照样能挑 */
 const ASK_FALLBACK_QUESTION = "这些候选里，你更想要哪个方向？";
@@ -14,6 +14,7 @@ export interface AskArgs {
   kind: QuestionKind;
   options?: AskOption[];
   allowFreeText?: boolean;
+  explainedReports?: string[];
 }
 
 const isKind = (v: unknown): v is QuestionKind => typeof v === "string" && (QUESTION_KINDS as readonly string[]).includes(v);
@@ -69,5 +70,6 @@ export function repairAskArgs(args: unknown): AskArgs {
     kind: resolveQuestionKind(raw.kind, options),
     ...(options.length ? { options } : {}),
     ...(typeof raw.allowFreeText === "boolean" ? { allowFreeText: raw.allowFreeText } : {}),
+    ...(raw.explainedReports !== undefined ? { explainedReports: raw.explainedReports as string[] } : {}),
   };
 }

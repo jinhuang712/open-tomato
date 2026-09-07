@@ -45,8 +45,10 @@ export interface ToolContext {
   archiveAgent?: (agentId: string) => Promise<void>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
-  /** 已送到面前、还没 say 过的子 agent 报告的角色标签；非空时 ask_user 打回，先讲清再问 */
+  /** 已送到面前、尚未明确标记解释完成的报告编号 */
   unrelayedReports?: () => string[];
+  /** 只移除本次已解释的报告，不能由普通发言清空 */
+  acknowledgeReports?: (ids: string[]) => void;
 }
 
 export interface ToolPermissions {
@@ -72,6 +74,18 @@ export const writableKindSchema = (kinds: readonly DocKindId[]) =>
   });
 
 export const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
+
+export const explainedReportsSchema = Type.Optional(Type.Array(Type.String(), {
+  description: "本次对作者已讲清的报告编号，逐字取自报告编号字段。只标记已解释其关键方案、依据与取舍的整份报告；进度发言不填。不能用它代替解释，不向作者展示编号。",
+}));
+
+/** 仅验证交接声明，不以字数或非空文本冒充语义质量检查。先全部校验，避免部分清除。 */
+export function validateExplainedReports(ctx: ToolContext, speech: string | undefined, ids: string[] = []): void {
+  if (!ids.length) return;
+  if (!speech?.trim()) throw new Error("标记报告已解释时，必须同时向作者提供解释正文。");
+  const pending = ctx.unrelayedReports?.() ?? [];
+  if (ids.some((id) => !pending.includes(id))) throw new Error(`报告编号不存在或已解释，请使用待解释编号：${pending.join("、")}`);
+}
 
 export const fmtIssue = (i: CheckIssue) => `- ${i.path ?? (i.kind ? zhDir(i.kind) : "全书")}：${i.message}`;
 

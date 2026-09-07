@@ -509,12 +509,12 @@ describe("cloud.download replace", () => {
 
 describe("自然对话收尾", () => {
   for (const toolName of ["say", "ask_user"]) {
-    test(`${toolName} 非空表达清除报告，收尾不追问`, () => {
+    test(`${toolName} 非空表达保留报告，收尾不追问`, () => {
       const { fake, calls } = fakeLead(false);
       (fake as any).unrelayed = ["策划"];
       (kernel as any).forward(fake, { type: "tool_execution_start", toolName, toolCallId: "speech", args: { text: "判断", say: "解释" } });
       expect((fake as any).spoke).toBe(true);
-      expect((fake as any).unrelayed).toEqual([]);
+      expect((fake as any).unrelayed).toEqual(["策划"]);
       (kernel as any).forward(fake, { type: "agent_end" });
       expect(calls).toHaveLength(0);
       (kernel as any).forward(fake, { type: "agent_start" });

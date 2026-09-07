@@ -51,7 +51,7 @@ export interface LiveAgent {
   asked: boolean;
   /** 本轮已向作者发送非空对话，可自然收尾 */
   spoke?: boolean;
-  /** 已送到模型面前、尚未通过 say 或 ask_user.say 转达的报告（角色标签） */
+  /** 已送到模型面前、尚未由对话工具明确确认已解释的报告编号 */
   unrelayed: string[];
   /** 这轮已补过可见回应提示；一次作者发言只补一次 */
   nudged: boolean;
@@ -63,6 +63,6 @@ export interface InboxEntry {
   id: string;
   label: string;
   text: string;
-  /** 这条是子 agent 的报告（值是角色标签）：送到模型面前时记进 unrelayed */
+  /** 这条是子 agent 的报告（值是唯一报告编号）：送到模型面前时记进 unrelayed */
   report?: string;
 }
