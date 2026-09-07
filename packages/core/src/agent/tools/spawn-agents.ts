@@ -12,7 +12,7 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "spawn_agents",
     label: "派子 agent",
-    description: `并行派一个或多个子 agent 干活。派出后立刻返回名册（含每人的 id），完成后报告作为新消息交回。可用角色：${roleList}。任务书说明目标、相关材料（kind/id）、本次要求和边界。mode=propose 禁止落盘；mode=commit 允许经审批写入，仅用于具体内容与写入范围已获授权的任务。可用 continue_agent 续接。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
+    description: `并行派一个或多个子 agent 干活。派出后立刻返回名册（每人一个名字，如 策划1），完成后报告作为新消息交回。可用角色：${roleList}。任务书说明目标、相关材料（kind/id）、本次要求和边界。mode=propose 禁止落盘；mode=commit 允许经审批写入，仅用于具体内容与写入范围已获授权的任务。可用 continue_agent 续接。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
     parameters: Type.Object({
       tasks: Type.Array(
         Type.Object({
