@@ -47,7 +47,7 @@ export interface LiveAgent {
   hold: boolean;
   /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
   flushRest: boolean;
-  /** 这一轮里调过 ask_user，等待作者也是合法收尾 */
+  /** 手上有一个还没收口的 ask_user：等作者答是合法收尾。作者答完就翻篇，不代表这一轮之后都算问过 */
   asked: boolean;
   /** 本轮有状态行之外的正文出去了：那就是对作者说的话，可自然收尾 */
   spoke?: boolean;

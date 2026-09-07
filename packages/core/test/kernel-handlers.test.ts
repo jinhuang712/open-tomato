@@ -365,6 +365,32 @@ describe("forward 事件映射", () => {
     expect(ends).toHaveLength(1);
   });
 
+  test("作者答完 ask_user，同一轮里正文结尾又挂个问句：照样补提示", async () => {
+    const { fake, calls } = fakeLead(false);
+    fake.info.status = "running";
+    (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "ask_user", toolCallId: "t1", args: {} });
+    (kernel as any).forward(fake, { type: "tool_execution_end", toolName: "ask_user", toolCallId: "t1", result: { content: "作者回答：并进去" }, isError: false });
+    expect(fake.asked).toBe(false);
+    // 作者答完，主编接着说了一段，结尾又是个问句，却没再调 ask_user
+    fake.spoke = true;
+    fake.tail = "地图线是并进入口战争线，还是单独立？";
+    (kernel as any).forward(fake, { type: "agent_end" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toContain("没有调 ask_user");
+  });
+
+  test("问答之前那段正文的问号不算悬空：规规矩矩问过了就不补", async () => {
+    const { fake, calls } = fakeLead(false);
+    fake.info.status = "running";
+    // 主编正文结尾就是问句，但它规规矩矩调了 ask_user，作者也答了
+    fake.spoke = true;
+    fake.tail = "这三个方向你挑哪个？";
+    (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "ask_user", toolCallId: "t1", args: {} });
+    (kernel as any).forward(fake, { type: "tool_execution_end", toolName: "ask_user", toolCallId: "t1", result: { content: "作者回答：第二个" }, isError: false });
+    (kernel as any).forward(fake, { type: "agent_end" });
+    expect(calls).toHaveLength(0);
+  });
+
   test("agent_end 触发 nudge：没问就停，补一句", async () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";

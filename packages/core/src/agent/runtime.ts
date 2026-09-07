@@ -899,8 +899,14 @@ export class Kernel {
         });
         return;
       case "tool_execution_end":
-        // ask_user 被打回（参数不合法）不算问过：不然主编解释完就停，轮末以为已问过而不补，作者面前没有问题卡
-        if (ev.toolName === "ask_user" && ev.isError) live.asked = false;
+        // ask_user 一收口，「手上有问题悬着」就作废：
+        // 被打回（参数不合法）不算问过——不然主编解释完就停，轮末以为已问过而不补，作者面前没有问题卡；
+        // 作者答了也一样翻篇——同一轮里问答之后还能再说话，后面在正文结尾挂个问句照样是悬空问题，得补提示。
+        // tail 一并清掉：问答之前那段正文的结尾往往就是这个问号，留着会被当成没配 ask_user 的悬空问句。
+        if (ev.toolName === "ask_user") {
+          live.asked = false;
+          live.tail = "";
+        }
         this.send(live, {
           type: "tool_end",
           toolCallId: String(ev.toolCallId),
