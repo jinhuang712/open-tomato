@@ -354,6 +354,22 @@ describe("forward 事件映射", () => {
     expect(calls[0]![0]).toContain("可见回应");
   });
 
+  test("nudge 点名可见通道与待解释编号：裸文本不算回应，编号直接附上不用回翻", async () => {
+    const { fake, calls } = fakeLead(false);
+    fake.info.status = "running";
+    (fake as any).unrelayed = ["编剧:aaa", "编剧:bbb"];
+    (kernel as any).forward(fake, { type: "agent_end" });
+    expect(calls).toHaveLength(1);
+    const text = calls[0]![0] as string;
+    // 裸文本只显示为小字过程：必须点名 say / ask_user.say，模型才不会再写裸文本补发
+    expect(text).toContain("say");
+    expect(text).toContain("裸文本");
+    // 待解释编号直接附在提示里，模型逐字复制即可
+    expect(text).toContain("编剧:aaa");
+    expect(text).toContain("编剧:bbb");
+    expect(text).toContain("explainedReports");
+  });
+
   test("queue_update 同步已插入列表", async () => {
     const { fake } = fakeLead(false);
     (kernel as any).forward(fake, { type: "queue_update", steering: ["a", "b"] });

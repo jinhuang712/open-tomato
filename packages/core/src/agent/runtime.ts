@@ -790,7 +790,11 @@ export class Kernel {
         this.markCloudDirty();
         if (shouldNudge(live, this.hasRunningChildren(live.info.agentId))) {
           live.nudged = true;
-          this.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
+          // 待解释报告的编号只出现在历史里的报告头中，轮次多了容易被模型写错或遗漏：
+          // 补提示时把当前待解释编号直接附上，模型逐字复制即可，不用回翻历史找。
+          const pending = live.unrelayed ?? [];
+          const nudge = pending.length > 0 ? `${NUDGE_PROMPT}\n待解释报告编号：${pending.join("、")}` : NUDGE_PROMPT;
+          this.sendTo(LEAD_ID, stubPrompt("继续", nudge), "followUp");
           return;
         }
         this.flushInbox(live);
