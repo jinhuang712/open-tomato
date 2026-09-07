@@ -18,6 +18,19 @@ describe("提示词口径", () => {
     }
   });
 
+  /**
+   * e0da920 那次改口把整节「问作者」删掉了，没人拦住：主编随后连着几十轮拿 open 问
+   * 本该摆候选的问题，作者只能手打「给我选择题」。这几条是那节的骨头，钉在这里防再删。
+   */
+  test("主编的提问口径：默认摆候选、按形态选 kind、一次一问、没感觉换差异更大的、下一步先看搁置清单", () => {
+    const p = ROLES.director.systemPrompt;
+    expect(p).toContain("默认摆候选让作者点，不默认开放问答");
+    expect(p).toContain("按形态选 kind");
+    expect(p).toContain("一次只问一件事");
+    expect(p).toContain("换一批差异更大的");
+    expect(p).toContain("先 list_open");
+  });
+
   test("主编的系统提示带能力清单与授权边界", () => {
     const p = ROLES.director.systemPrompt;
     expect(p).toContain("## 能力");
