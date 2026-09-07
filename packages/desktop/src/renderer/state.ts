@@ -544,6 +544,15 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
+  /** 「继续」：不带任务书，内核给主编一句 nudge，在上面的对话尾巴上接着做 */
+  async continueLead() {
+    try {
+      setState("pausePending", "director", false);
+      await bridge.request("chat.continue", {});
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
   /** 排队里的某一条等不了了，插进当前这轮 */
   async insertQueued(id: string, agentId?: string) {
     try {

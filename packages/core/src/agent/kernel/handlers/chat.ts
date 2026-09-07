@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { STUB_PATTERN, stubPrompt } from "../../../protocol.js";
 import { loadPrompt } from "../../prompt-text.js";
+import { NUDGE_PROMPT } from "../lead-rules.js";
 import { LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 
@@ -9,7 +10,7 @@ const PAUSE_PROMPT_CHILD = loadPrompt("kernel/pause-child");
 
 export function chatHandlers(
   api: KernelApi,
-): Pick<HandlerMap, "chat.send" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.retire"> {
+): Pick<HandlerMap, "chat.send" | "chat.continue" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.retire"> {
   return {
     "chat.send": async ({ text, agentId, deliverAs }) => {
       if (!agentId) await api.ensureLead();
@@ -24,6 +25,15 @@ export function chatHandlers(
         return null;
       }
       api.sendTo(live.info.agentId, text, how);
+      return null;
+    },
+    "chat.continue": async () => {
+      await api.ensureLead();
+      const live = api.requireLive(LEAD_ID);
+      api.authorActed(live);
+      // 历史都在会话里，模型知道停在哪；只补一句，不塞现状不塞步骤。这一句已算补过，轮末不再自动补第二句
+      live.nudged = true;
+      api.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
       return null;
     },
     "chat.insert": async ({ agentId, id }) => {

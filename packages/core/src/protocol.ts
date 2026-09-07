@@ -479,6 +479,8 @@ export interface RequestMap {
    * followUp 排队，进它的收件箱，等这一轮完全跑完一并送；steer 插话，在当前这步工具结束后就送到。空闲时两者都是直接发。
    */
   "chat.send": { params: { text: string; agentId?: string; deliverAs?: "steer" | "followUp" }; result: null };
+  /** 作者点「继续」：不带任务书，只给主编一句和内核 nudge 相同的话，让它在上面的对话尾巴上接着做 */
+  "chat.continue": { params: Record<string, never>; result: null };
   /** 把排队里的某一条立刻插进当前这轮：作者等不了它这轮跑完 */
   "chat.insert": { params: { agentId?: string; id: string }; result: null };
   /** 把还没送到的消息全部撤回，原文交还给输入框 */
