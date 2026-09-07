@@ -18,12 +18,12 @@ describe("提示词口径", () => {
     }
   });
 
-  test("主编的系统提示带能力清单与三种进场方式", () => {
+  test("主编的系统提示带能力清单与授权边界", () => {
     const p = ROLES.director.systemPrompt;
     expect(p).toContain("## 能力");
     expect(p).toContain("- interview（立项访谈）");
     expect(p).toContain("load_capability");
-    expect(p).toContain("先 ask_user 问一句");
+    expect(p).toContain("加载说明不意味着作者批准");
   });
 
   test("写手限制扩读故事材料，保留工具例外", () => {
@@ -42,6 +42,15 @@ describe("提示词口径", () => {
     expect(pause).not.toContain("ask_user");
   });
 });
+
+  test("所有角色共用一份交流原则，报告规则不限制主编正文", () => {
+    const communication = loadPrompt("shared/communication");
+    const report = loadPrompt("shared/child-report");
+    for (const role of Object.values(ROLES)) {
+      expect(role.systemPrompt.split(communication)).toHaveLength(2);
+      expect(role.systemPrompt.split(report)).toHaveLength(role.id === "director" ? 1 : 2);
+    }
+  });
 
 describe("评审手册", () => {
   test("三路评审各拼进自己那份手册，读者只有人设", () => {

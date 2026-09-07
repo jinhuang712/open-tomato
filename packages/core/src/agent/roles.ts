@@ -31,8 +31,10 @@ export interface RoleDef extends RoleInfo {
 /** 评审对照意图，不对照通用标准：先读章纲，第一项检查是章纲承诺的做到了没有 */
 const REVIEW_INTENT = loadPrompt("shared/review-intent");
 
-/** 评审的杂活自己做：结论落审稿记录，回主编的只是一句话。写手返修和下一章开写时读记录，不靠主编转述 */
+/** 正式评审落记录，分析报告交主编整理；写手返修直接读记录 */
 const REVIEW_SAVE = loadPrompt("shared/review-save");
+const CHILD_REPORT = loadPrompt("shared/child-report");
+const COMMUNICATION = loadPrompt("shared/communication");
 
 /** 类型表从 schema 生成：schema 是唯一来源，提示词里不再手抄一份 */
 const KIND_TABLE = kindInfos()
@@ -160,7 +162,7 @@ const TRUST_BOUNDARY = loadPrompt("shared/trust-boundary");
 export const ROLES: Record<RoleId, RoleDef> = Object.fromEntries(
   Object.entries(SPECS).map(([id, spec]) => [
     id,
-    { ...spec, canWrite: spec.writableKinds.length > 0, systemPrompt: `${spec.systemPrompt}\n\n${TRUST_BOUNDARY}` },
+    { ...spec, canWrite: spec.writableKinds.length > 0, systemPrompt: `${spec.systemPrompt}\n\n${COMMUNICATION}\n\n${TRUST_BOUNDARY}${id === "director" ? "" : `\n\n${CHILD_REPORT}`}` },
   ]),
 ) as Record<RoleId, RoleDef>;
 
