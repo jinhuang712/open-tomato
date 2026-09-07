@@ -6,6 +6,7 @@ import { ClosePrompt } from "./components/ClosePrompt";
 import { CloudSettings } from "./components/CloudSettings";
 import { AgentHistory } from "./components/AgentHistory";
 import { Chat } from "./components/Chat";
+import { DocPeek } from "./components/DocPeek";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
 import { ReviewModal } from "./components/ReviewModal";
@@ -126,6 +127,7 @@ export function App() {
         <SearchPalette />
       </Show>
       <Show when={state.approvals.find((a) => a.approvalId === state.reviewOpen)} keyed>{(r) => <ReviewModal request={r} />}</Show>
+      <DocPeek />
       <Toasts />
     </div>
   );

@@ -288,32 +288,23 @@ mark {
 .tc-blk p {
   margin: 0.2em 0;
 }
-/* 文档引用：胶囊，和正文明显区分 */
+/* 文档引用：安静的点状下划线。一句话里三四个名字时句子仍是句子；悬停变实线并染 accent，停一下出速览 */
 .doc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  padding: 0 0.5em 0 0.4em;
-  margin: 0 0.1em;
-  border-radius: 6px;
-  border: 1px solid var(--color-line);
-  background: var(--color-paper-3);
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
   color: var(--color-ink);
-  font-size: 0.9em;
-  line-height: 1.6;
-  text-decoration: none;
+  text-decoration: underline dotted var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
-  white-space: nowrap;
   vertical-align: baseline;
 }
-.doc-link::before {
-  content: "▤";
-  font-size: 0.85em;
-  color: var(--color-accent);
-}
 .doc-link:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  text-decoration-style: solid;
 }
 /* 外链：只露域名，完整地址留在 title 和 href 里 */
 .ext-link {

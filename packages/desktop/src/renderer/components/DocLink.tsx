@@ -9,6 +9,7 @@ export function DocLink(props: { kind: DocKindId | string; id: string; class?: s
   return (
     <button
       class={`doc-link ${props.class ?? ""}`}
+      data-doc={`${ref().kind}/${ref().id}`}
       title={`打开 ${shown()}`}
       onClick={(e) => {
         e.stopPropagation();
