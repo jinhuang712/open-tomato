@@ -10,17 +10,27 @@ type ToolPart = Extract<UiPart, { type: "tool" }>;
 const LABELS: Record<string, string> = {
   project_overview: "看盘面",
   list_docs: "列文档",
+  list_open: "搁置清单",
   read_doc: "读文档",
+  read_marks: "读作者的批",
+  read_review: "读审稿记录",
+  save_review: "落审稿记录",
   search_docs: "搜文档",
   web_search: "搜网络",
   doc_template: "拿模板",
   run_check: "一致性机检",
+  volume_rhythm: "看一卷的节奏",
   write_doc: "写文档",
   edit_doc: "改文档",
+  settle: "记下作者说不欠",
   say: "对作者说",
   ask_user: "问作者",
   spawn_agents: "派子 agent",
   continue_agent: "续派子 agent",
+  archive_agent: "封存子 agent",
+  // 改名前的历史会话回放：老工具名不再有定义，但行还得是中文
+  retire_agent: "让子 agent 退场",
+  load_capability: "进入能力",
 };
 
 
@@ -60,6 +70,19 @@ function summarize(part: ToolPart): string {
     }
     case "continue_agent":
       return str(a.message);
+    case "archive_agent":
+    case "retire_agent":
+      return str(a.agentId);
+    case "load_capability":
+      return str(a.id);
+    case "read_marks":
+    case "settle":
+      return str(a.id);
+    case "read_review":
+    case "save_review":
+      return str(a.chapter);
+    case "volume_rhythm":
+      return str(a.volume);
     default:
       return "";
   }
