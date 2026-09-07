@@ -80,7 +80,7 @@ function BookMenu(props: { name: string }) {
         {props.name}
       </span>
       <Show when={open()}>
-        <div class="absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
+        <div class="no-drag absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
           <MenuItem label="导出故事种子" hint={keyHint("project.exportSeed")} onClick={() => run(actions.exportSeed)} />
           <MenuItem label="复制会话路径" tag="dev" hint={keyHint("chat.copyPath")} onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
