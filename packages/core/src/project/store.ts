@@ -58,6 +58,12 @@ export interface AgentRecord {
   mode: "propose" | "commit";
   /** 已封存：重开项目接回来时状态是 archived 而不是 done */
   archived?: boolean;
+  /**
+   * 报告交回了没有：派出时 false，这一轮出了结论（成功或失败都算，两种都会送报告）才 true。
+   * 重开项目时还停在 false 的，就是跑到一半被杀的那位——它的报告永远不会来了，
+   * 派它的人要是不知道，就会一直等一个不存在的回音。旧索引没有这个字段，按交回过算，不冤枉它。
+   */
+  reported?: boolean;
 }
 /** .opentomato/.gitignore：会话记录大且噪音多，不进 git；project.json 等保留 */
 const MARKER_GITIGNORE = `${SESSIONS_DIR}/\n`;

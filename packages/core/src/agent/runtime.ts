@@ -453,7 +453,20 @@ export class Kernel {
       try {
         const { session, tools } = await this.buildSession(rec.role, rec.agentId, SessionManager.continueRecent(store.info.root, store.agentSessionDir(rec.agentId)));
         const live = this.register(
-          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, handle, task: rec.task, status: rec.archived ? "archived" : "done", error: null, statusText: "", mode: rec.mode },
+          {
+            agentId: rec.agentId,
+            parentId: rec.parentId,
+            role: rec.role,
+            label: rec.label,
+            handle,
+            task: rec.task,
+            // 派出去还没交回的接回来是 interrupted，不是 done：报告的回路是内存里一个 Promise，
+            // 进程一没就断了，报告永远不会来。谎报成 done，派它的人就会一直等一个不存在的回音。
+            status: rec.archived ? "archived" : rec.reported === false ? "interrupted" : "done",
+            error: null,
+            statusText: "",
+            mode: rec.mode,
+          },
           session,
           tools,
         );
@@ -644,7 +657,7 @@ export class Kernel {
         tools,
       );
       this.setMode(live, mode);
-      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode });
+      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode, reported: false });
       const report = await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
       return { handle, report };
     } catch (e) {
@@ -748,6 +761,25 @@ export class Kernel {
       this.gate.rejectAgent(live.info.agentId, msg);
       roster.touch(slot, "error", msg);
       return `${header}\n\n执行失败：${msg}`;
+    } finally {
+      // 出了结论就记一笔：成功、失败都算交回，两种都会送报告给派它的人。
+      // 走到这儿之前进程没了的，索引上留着 false，接回来才知道那位是被打断的。
+      await this.noteReported(info.agentId);
+    }
+  }
+
+  /**
+   * 在索引上记「这一位交回过报告」。回路本身是内存里的一个 Promise，进程一没就断了，
+   * 磁盘上这一笔是唯一能证明它交回过的东西。
+   * 索引写失败不连累报告：吞掉异常，最坏是下次接回来多报一位「被打断」。
+   */
+  private async noteReported(agentId: string): Promise<void> {
+    try {
+      const store = this.requireStore();
+      const rec = (await store.agentRecords()).find((r) => r.agentId === agentId);
+      if (rec && rec.reported !== true) await store.saveAgentRecord({ ...rec, reported: true });
+    } catch {
+      // 索引写不了就算了，报告照送
     }
   }
 

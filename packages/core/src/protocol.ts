@@ -377,7 +377,8 @@ export interface UiMessage {
 }
 
 /** archived：这条线上的活干完了，封存只读。会话保留能回看，不能再续派；删是另一步 */
-export type AgentStatus = "idle" | "running" | "done" | "error" | "archived";
+/** interrupted：上次跑到一半被杀（作者停止 / 应用退出），报告没交回，重开项目接回来就是这个状态 */
+export type AgentStatus = "idle" | "running" | "done" | "error" | "archived" | "interrupted";
 /** propose：只出候选、落盘工具被剥掉、作者不直接和它说话；commit：作者已拍板，它孵化落盘，作者可以直接和它对 */
 export type AgentMode = "propose" | "commit";
 

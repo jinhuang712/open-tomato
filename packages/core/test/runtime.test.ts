@@ -390,6 +390,52 @@ describe("子 agent 会话落盘", () => {
     expect(spawned.find((e) => e.agent.agentId === "child-9")?.agent.status).toBe("archived");
   });
 
+  /** 报告的回路是内存里一个 Promise，进程一没就断了。索引上这一笔是唯一能证明它交回过的东西 */
+  const reopenStatus = async (rec2: Record<string, unknown>) => {
+    const store = (kernel as any).requireStore();
+    await store.saveAgentRecord(rec2);
+    await kernel.handle("project.close", {});
+    events.length = 0;
+    await kernel.handle("project.open", { root });
+    const spawned = events.filter((e) => e.type === "agent.spawned") as Array<{ type: "agent.spawned"; agent: { agentId: string; status: string } }>;
+    return spawned.find((e) => e.agent.agentId === "child-9")?.agent.status;
+  };
+
+  test("派出去还没交回就被杀的，接回来是 interrupted，不是 done", async () => {
+    expect(await reopenStatus({ ...rec, reported: false })).toBe("interrupted");
+  });
+
+  test("交回过报告的接回来是 done", async () => {
+    expect(await reopenStatus({ ...rec, reported: true })).toBe("done");
+  });
+
+  test("旧索引没有这个字段：按交回过算，不冤枉它", async () => {
+    expect(await reopenStatus({ ...rec })).toBe("done");
+  });
+
+  test("封存优先于被打断：封存过的就算没交回也还是 archived", async () => {
+    expect(await reopenStatus({ ...rec, reported: false, archived: true })).toBe("archived");
+  });
+
+  test("promptChild 出了结论就在索引上落 reported，成功和失败都算交回", async () => {
+    const store = (kernel as any).requireStore();
+    const roster = { touch: () => {} };
+    const slot = { agentId: "child-9", role: "designer", label: "策划", handle: "策划1", task: "t", status: "running", error: null };
+    const live = (ok: boolean) => ({
+      session: { prompt: async () => { if (!ok) throw new Error("被停了"); }, abort: async () => {}, messages: [{ role: "assistant", content: [{ type: "text", text: "结论" }] }] },
+      info: { agentId: "child-9", role: "designer", label: "策划", handle: "策划1" },
+    });
+    const reported = async () => (await store.agentRecords()).find((r: { agentId: string }) => r.agentId === "child-9")?.reported;
+
+    await store.saveAgentRecord({ ...rec, reported: false });
+    await (kernel as any).promptChild(live(true), "任务", slot, roster);
+    expect(await reported()).toBe(true);
+
+    await store.saveAgentRecord({ ...rec, reported: false });
+    await (kernel as any).promptChild(live(false), "任务", slot, roster);
+    expect(await reported()).toBe(true);
+  });
+
   test("主编开新会话时子 agent 退役：索引清空，会话目录删掉", async () => {
     const store = (kernel as any).requireStore();
     await store.saveAgentRecord(rec);
