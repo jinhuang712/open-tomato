@@ -22,13 +22,13 @@ export function EmptyStart() {
         <Show when={primary()}>
           {(c) => (
             <button
-              class="w-full text-left px-5 py-3.5 rounded-lg bg-ink text-paper hover:brightness-110 transition disabled:opacity-40 flex items-center gap-4"
+              class="w-full text-left px-5 py-3.5 rounded-lg bg-paper-3 border border-line-2 hover:bg-paper-4 hover:border-ink-3 transition-colors disabled:opacity-40 flex items-center gap-4"
               disabled={disabled()}
               onClick={() => runStep(c())}
             >
               <span class="flex-1">
                 <span class="block text-sm font-medium">{c().title}</span>
-                <span class="block text-xs opacity-70 mt-0.5">{c().desc}</span>
+                <span class="block text-xs text-ink-2 mt-0.5">{c().desc}</span>
               </span>
             </button>
           )}
