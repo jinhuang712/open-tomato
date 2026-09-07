@@ -22,6 +22,12 @@ function kindOf(v: unknown): DocKindId {
 
 const clip = (patch: string) => (patch.length <= PATCH_LIMIT ? patch : `${patch.slice(0, PATCH_LIMIT)}\n…（diff 太长，后面截断了，要看全文自己 read_doc）`);
 
+/** 把作者这次手改的 diff 送给主编复核；排在它当前这一轮之后，不打断正在做的事 */
+async function requestDoubleCheck(api: KernelApi, kind: DocKindId, id: string, patch: string): Promise<void> {
+  if (!(await api.ensureLead())) return;
+  api.sendTo(LEAD_ID, stubPrompt("作者手改", fill(AUTHOR_EDIT_CHECK, { PATH: zhPath(kind, id), PATCH: clip(patch) })), "followUp");
+}
+
 export function docHandlers(api: KernelApi): Pick<HandlerMap, "doc.read" | "doc.write" | "doc.template" | "search.query"> {
   return {
     "doc.read": async ({ kind, id }) => api.requireStore().read(kindOf(kind), id),
@@ -41,10 +47,9 @@ export function docHandlers(api: KernelApi): Pick<HandlerMap, "doc.read" | "doc.
           version: contentHash(preview.after),
           patch: preview.patch,
         });
-        // 落完盘把 diff 交给主编 double check：牵连了别的材料、或跟已定的东西对不上，由它说出来
-        if (await api.ensureLead()) {
-          api.sendTo(LEAD_ID, stubPrompt("作者手改", fill(AUTHOR_EDIT_CHECK, { PATH: zhPath(k, preview.id), PATCH: clip(preview.patch) })), "followUp");
-        }
+        // 落完盘把 diff 交给主编 double check：牵连了别的材料、或跟已定的东西对不上，由它说出来。
+        // 送不出去（没模型、主编刚退场）只是没人复核，不能反过来让作者以为没存上，所以吞掉
+        await requestDoubleCheck(api, k, preview.id, preview.patch).catch(() => {});
       }
       await api.emitDocsChanged();
       return header;
