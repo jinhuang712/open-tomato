@@ -31,3 +31,22 @@ describe("open 与正文一致", () => {
     expect(issues.some((i) => i.message.includes("open 里没有记"))).toBe(false);
   });
 });
+
+const thread = (status: string) =>
+  `---\ntitle: 三方归一\nsummary: 三方合并\nkeywords: []\nstatus: ${status}\ntype: 主题\n---\n\n## 起点\n三方同城。\n\n## 终点\n合成一家。\n`;
+const chapter = `---\ntitle: 前世最后一天\nsummary: 开篇\nkeywords: []\nstatus: draft\nvolume: 1\ncharacters: []\nthreads: []\nwords: 3000\n---\n\n## 本章目标\n开篇。\n\n## 场景序列\n- 出租屋 / 陈默 / 送单 / 选了继续 / 猝死\n\n## 信息控制\n揭示：\n- 重生\n隐藏：\n- 谁在背后\n\n## 章末钩子\n醒来。\n`;
+
+describe("孤儿线索", () => {
+  test("没被章纲指向的线索 → 建议改", async () => {
+    await store.write("chapters", "1", chapter);
+    await store.write("threads", "三方归一", thread("draft"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.id === "三方归一" && i.message.includes("没有任何章纲或里程碑指向"))).toBe(true);
+  });
+  test("已退场的线索不算孤儿", async () => {
+    await store.write("chapters", "1", chapter);
+    await store.write("threads", "三方归一", thread("retired"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.id === "三方归一" && i.message.includes("没有任何章纲或里程碑指向"))).toBe(false);
+  });
+});

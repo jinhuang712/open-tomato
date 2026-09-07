@@ -19,6 +19,10 @@ export type DocKindId =
 export const THREAD_TYPES = ["主线", "支线", "主题", "小故事"] as const;
 export type ThreadType = (typeof THREAD_TYPES)[number];
 
+/** 线索 status 到了这几个值就算收束：不再报推进情况与孤儿，侧栏也淡出。已经收束的线不欠读者 */
+export const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
+export const isSettled = (status: string) => SETTLED_STATUS.has(status);
+
 export interface DocKindInfo {
   id: DocKindId;
   label: string;

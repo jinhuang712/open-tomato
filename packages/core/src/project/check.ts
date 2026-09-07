@@ -1,4 +1,5 @@
 import type { CheckIssue, DocHeader, DocKindId } from "../protocol.js";
+import { isSettled } from "../protocol.js";
 import { asStringArray, splitSections } from "./frontmatter.js";
 import { DOC_KINDS, enumFieldsOf, PLACEHOLDER, requiredFieldsOf, requiredSectionsOf } from "./kinds.js";
 import type { ProjectStore } from "./store.js";
@@ -6,8 +7,6 @@ import type { ProjectStore } from "./store.js";
 export { PLACEHOLDER };
 /** 旧写法里的软占位。现在没想好的段不落盘，作者明确搁置的决定记在 frontmatter open 里 */
 export const DEFERRED = "待定";
-/** 线索 status 到了这几个值就不再报推进情况：已经收束的线不欠读者 */
-const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
 /** 正文里这些说法都是「先放一放」：出现了却没记进 frontmatter open，机检会漏掉这笔欠账 */
 const DEFER_PHRASES = ["先放一放", "先不落细", "先不定", "先不写死", "待拍板", "等你拍板", "等作者拍板", "记 open", "记进 open", "记open", "open 清单"];
 
@@ -120,6 +119,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   if ((byKind.get("chapters") ?? []).length > 0) {
     const used = referenced(["chapters", "milestones"], "threads", "threads");
     for (const h of byKind.get("threads") ?? []) {
+      if (isSettled(h.status)) continue; // 已收束的线本来就不该再被章纲指向
       if (!used.has(h.id)) push("warning", h, "没有任何章纲或里程碑指向这条线索", "threads", `${ref("threads", h)}还没排进任何章纲，帮我看看它该在哪几章推进`);
     }
   }
@@ -144,7 +144,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
       }
     }
     for (const h of byKind.get("threads") ?? []) {
-      if (SETTLED_STATUS.has(h.status)) continue;
+      if (isSettled(h.status)) continue;
       const last = lastTouched.get(h.id);
       if (last === undefined) continue; // 从没排进章纲的归孤儿那条报
       const idle = written - last;
