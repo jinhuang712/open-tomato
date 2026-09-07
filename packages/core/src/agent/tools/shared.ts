@@ -54,6 +54,8 @@ export interface ToolContext {
 export interface ToolPermissions {
   /** 能落盘哪些类型；空数组没有 write_doc / edit_doc */
   writableKinds: readonly DocKindId[];
+  /** edit_doc 对其他类型只放开记账字段（status / open / keywords），正文与结构字段照旧拒 */
+  bookkeepAnyKind?: boolean;
   canSpawn: boolean;
   canAsk: boolean;
   /** 评审角色以哪个身份落审稿记录；不给就没有 save_review */
@@ -67,10 +69,12 @@ export const KIND_SCHEMA = Type.String({
   description: `文档类型，写英文 kind 或中文名都行：${DOC_KIND_IDS.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
 });
 
-/** 写工具用：参数说明只列这个角色能写的类型 */
-export const writableKindSchema = (kinds: readonly DocKindId[]) =>
+/** 写工具用：参数说明只列这个角色能写的类型；放开记账的再补一句其他类型能改什么 */
+export const writableKindSchema = (kinds: readonly DocKindId[], bookkeepAnyKind = false) =>
   Type.String({
-    description: `文档类型，写英文 kind 或中文名都行。你能写的只有：${kinds.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
+    description:
+      `文档类型，写英文 kind 或中文名都行。你能写的只有：${kinds.map((k) => `${k}=${zhDir(k)}`).join("、")}` +
+      (bookkeepAnyKind ? "。其他类型只能改 frontmatter 里的记账字段（status / open / keywords），比如把作废的卡标 status: retired；正文一个字都不能动" : ""),
   });
 
 export const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
@@ -115,19 +119,29 @@ function bookkeepingOnly(kind: DocKindId, before: string, after: string): boolea
   return frontmatterDiffKeys(b.frontmatter, a.frontmatter).every((k) => allowed.has(k));
 }
 
-/** 预览 → 审批门 → 落盘，write_doc 和 edit_doc 共用 */
-export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly DocKindId[]) {
+/**
+ * 预览 → 审批门 → 落盘，write_doc 和 edit_doc 共用。
+ * bookkeepAnyKind：不归这个角色写的类型，只要正文没动、frontmatter 只改了记账字段，也放行（统筹者把孤卡标 retired 这类活）。
+ */
+export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly DocKindId[], bookkeepAnyKind = false) {
   const { store } = ctx;
   return async (toolCallId: string, kind: DocKindId, id: string, after: string, signal?: AbortSignal) => {
     // 工具参数已经只列了能写的类型；这里落盘前再查一次，模型凭记忆填了别的类型也进不来
-    assertWritableKind(kind, writableKinds);
+    const ownKind = writableKinds.includes(kind);
+    if (!ownKind && !bookkeepAnyKind) assertWritableKind(kind, writableKinds);
     const blocked = ctx.writeBlocked?.();
     if (blocked) throw new Error(blocked);
     const preview = await store.previewWrite(kind, id, after);
     if (preview.before === preview.after) return text(`${preview.path} 内容没有变化，跳过。`);
     // 正文一字未改、frontmatter 只动了记账字段（open 清单、状态、关键词、字数计数）：不是内容也不是结构，不过审批门，直接落盘。
     // 正文没变不等于故事没变：人物层级、所属卷、关联线索这类字段变了照样审批，按字段含义分，不按它在 frontmatter 里分。
-    if (!preview.isNew && bookkeepingOnly(kind, preview.before, preview.after)) {
+    const bookkeeping = !preview.isNew && bookkeepingOnly(kind, preview.before, preview.after);
+    if (!ownKind && !bookkeeping) {
+      throw new Error(
+        `${zhDir(kind)} 的内容不归你写，你对它只能改记账字段（status / open / keywords）。要改的内容写进你的报告，由主编派负责这类材料的角色去改。`,
+      );
+    }
+    if (bookkeeping) {
       const changed = frontmatterDiffKeys(parseFrontmatter(preview.before).frontmatter, parseFrontmatter(preview.after).frontmatter);
       const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
       const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);

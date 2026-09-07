@@ -21,6 +21,11 @@ export interface RoleDef extends RoleInfo {
    * 这是设计文档说的「角色只改自己那类材料」的代码形态：工具参数只列这些类型，落盘前再查一次，不靠模型自觉。
    */
   writableKinds: readonly DocKindId[];
+  /**
+   * 对不归自己写的类型，也能改记账字段（status / open / keywords）。
+   * 统筹者要能把一张孤卡标成 retired，而不必为此派一个 agent；内容一个字都改不了，那还是归对应角色。
+   */
+  bookkeepAnyKind?: boolean;
   canSpawn: boolean;
   canAsk: boolean;
   /** 评审角色：有 save_review，结论自己落审稿记录，不经主编转述 */
@@ -66,6 +71,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     label: "主编",
     description: "统筹全局：判断当前处在哪个阶段、派发子 agent、把候选结果交给用户拍板。",
     writableKinds: ["brief", "rules", ...CARDS],
+    bookkeepAnyKind: true,
     canSpawn: true,
     canAsk: true,
     systemPrompt: fill(loadPrompt("director"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, CAPABILITIES: capabilityRoster() }),

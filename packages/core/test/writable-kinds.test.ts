@@ -35,7 +35,7 @@ function toolsFor(role: RoleId) {
   gate = new Gate(sink);
   const ctx: ToolContext = { store, gate, agentId: role, runCheck: async () => [], docsChanged: async () => [], search: async () => [] };
   const def = ROLES[role];
-  const all = createTools(ctx, { writableKinds: def.writableKinds, canSpawn: def.canSpawn, canAsk: def.canAsk });
+  const all = createTools(ctx, { writableKinds: def.writableKinds, bookkeepAnyKind: def.bookkeepAnyKind ?? false, canSpawn: def.canSpawn, canAsk: def.canAsk });
   const call = (name: string, params: unknown) => {
     const t = all.find((x) => x.name === name);
     if (!t) throw new Error(`没有 ${name}`);
@@ -47,6 +47,7 @@ function toolsFor(role: RoleId) {
 
 const CARD = "---\ntitle: 陈默\nsummary: 主角\nkeywords: []\nstatus: draft\ntier: 主角\n---\n\n## 一句话\n重生的外卖员。\n";
 const CHAPTER = "---\ntitle: 第一章\nsummary: 开场\nkeywords: []\nstatus: draft\nwords: 12\nrevision: 0\n---\n\n夜里下着雨。\n";
+const MILESTONE = "---\ntitle: 多多一统\nsummary: 三方归一\nkeywords: []\nstatus: draft\norder: 11\nthreads: []\n---\n\n## 发生什么\n三方归一。\n\n## 之后不可逆的变化\n市场只剩一家。\n";
 
 describe("角色只能写自己那类材料", () => {
   test("写手 write_doc 人物卡：直接拒，不敲审批门，文件不建", async () => {
@@ -75,6 +76,33 @@ describe("角色只能写自己那类材料", () => {
     const { asked, call } = toolsFor("director");
     await expect(call("write_doc", { kind: "manuscript", id: "1", content: CHAPTER })).rejects.toThrow("不归你写");
     expect(asked).toEqual([]);
+  });
+
+  test("主编把孤立的里程碑标 retired：只动记账字段，不敲审批门直接落盘", async () => {
+    await store.write("milestones", "多多一统", MILESTONE);
+    const { asked, call } = toolsFor("director");
+    await call("edit_doc", { kind: "milestones", id: "多多一统", edits: [{ old: "status: draft", new: "status: retired" }] });
+    expect(asked).toEqual([]);
+    expect((await store.read("milestones", "多多一统"))?.raw).toContain("status: retired");
+  });
+
+  test("主编改里程碑正文：拒，报错里说清只能改记账字段", async () => {
+    await store.write("milestones", "多多一统", MILESTONE);
+    const { asked, call } = toolsFor("director");
+    await expect(call("edit_doc", { kind: "milestones", id: "多多一统", edits: [{ old: "市场只剩一家", new: "市场只剩两家" }] })).rejects.toThrow("记账字段");
+    expect(asked).toEqual([]);
+    expect((await store.read("milestones", "多多一统"))?.raw).toContain("市场只剩一家");
+  });
+
+  test("主编改里程碑的结构字段 order：不是记账，同样拒", async () => {
+    await store.write("milestones", "多多一统", MILESTONE);
+    const { call } = toolsFor("director");
+    await expect(call("edit_doc", { kind: "milestones", id: "多多一统", edits: [{ old: "order: 11", new: "order: 3" }] })).rejects.toThrow("记账字段");
+  });
+
+  test("主编 edit_doc 的 kind 说明补了一句其他类型只能改记账字段；编剧的没有", () => {
+    expect(toolsFor("director").schemaOf("edit_doc")!.properties.kind.description).toContain("记账字段");
+    expect(toolsFor("plotter").schemaOf("edit_doc")!.properties.kind.description).not.toContain("记账字段");
   });
 
   test("写工具的 kind 参数说明只列该角色能写的类型", () => {

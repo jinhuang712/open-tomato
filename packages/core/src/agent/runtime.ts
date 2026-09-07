@@ -330,6 +330,7 @@ export class Kernel {
     const def = ROLES[role];
     const tools = createTools(this.toolContext(agentId, def.canSpawn), {
       writableKinds: def.writableKinds,
+      ...(def.bookkeepAnyKind ? { bookkeepAnyKind: true } : {}),
       canSpawn: def.canSpawn,
       canAsk: def.canAsk,
       ...(def.canReview ? { reviewAs: role } : {}),
