@@ -337,6 +337,34 @@ describe("chat.*", () => {
     expect(child.hold).toBe(true);
     expect(lead.hold).toBe(false);
   });
+
+  test("停止掐断在跑的子 agent：状态改成 interrupted，主编查得到它死了", async () => {
+    const { fake: lead } = fakeLead(true);
+    lead.info.status = "running";
+    const { fake: child } = fakeLead(true);
+    child.info.agentId = "child-1";
+    child.info.parentId = "director";
+    child.info.status = "running";
+    (kernel as any).agents.set("director", lead);
+    (kernel as any).agents.set("child-1", child);
+    await kernel.handle("chat.abort", {});
+    expect(child.info.status).toBe("interrupted");
+    // 主编不是被打断的：它自己那轮的 agent_end 会把它带回 idle
+    expect(lead.info.status).not.toBe("interrupted");
+  });
+
+  test("没在跑的子 agent 不被停止改状态：已交回的还是 done", async () => {
+    const { fake: lead } = fakeLead(true);
+    lead.info.status = "running";
+    const { fake: child } = fakeLead(true);
+    child.info.agentId = "child-2";
+    child.info.parentId = "director";
+    child.info.status = "done";
+    (kernel as any).agents.set("director", lead);
+    (kernel as any).agents.set("child-2", child);
+    await kernel.handle("chat.abort", {});
+    expect(child.info.status).toBe("done");
+  });
 });
 
 describe("cloud.* 无配置", () => {

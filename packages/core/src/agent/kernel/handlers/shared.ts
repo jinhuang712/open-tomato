@@ -2,7 +2,7 @@ import type { Gate } from "../../gate.js";
 import type { ModelsFacade } from "../../models.js";
 import type { ProjectStore } from "../../../project/store.js";
 import type { SearchIndex } from "../../../project/search.js";
-import type { CheckIssue, KernelEvent, RequestMap, RequestMethod } from "../../../protocol.js";
+import type { AgentStatus, CheckIssue, KernelEvent, RequestMap, RequestMethod } from "../../../protocol.js";
 import type { CloudManager } from "../cloud-manager.js";
 import type { LiveAgent } from "../types.js";
 
@@ -29,6 +29,7 @@ export interface KernelApi {
   ensureLead(): Promise<boolean>;
   sendTo(agentId: string, text: string, deliverAs?: "steer" | "followUp"): void;
   requireLive(agentId: string): LiveAgent;
+  setStatus(live: LiveAgent, status: AgentStatus, error?: string | null): void;
   authorActed(live: LiveAgent | undefined): void;
   emitQueue(live: LiveAgent): void;
   searchIndex(): Promise<SearchIndex>;

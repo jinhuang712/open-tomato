@@ -164,6 +164,7 @@ export class Kernel {
       ensureLead: () => this.ensureLead(),
       sendTo: (agentId, text, deliverAs = "steer") => this.sendTo(agentId, text, deliverAs),
       requireLive: (agentId) => this.requireLive(agentId),
+      setStatus: (live, status, error) => this.setStatus(live, status, error ?? null),
       authorActed: (live) => this.authorActed(live),
       emitQueue: (live) => this.emitQueue(live),
       searchIndex: () => this.searchIndex(),
