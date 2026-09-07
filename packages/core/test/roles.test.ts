@@ -35,8 +35,11 @@ describe("提示词口径", () => {
     expect(p).toContain("返修时 read_review");
   });
 
-  test("暂停收尾明确允许一次提问", () => {
-    expect(loadPrompt("kernel/pause-lead")).toContain("只允许最后用一次 ask_user");
+  test("暂停停止推进并等待输入，不强制开启问卷", () => {
+    const pause = loadPrompt("kernel/pause-lead");
+    expect(pause).toContain("不再派单或写入");
+    expect(pause).toContain("等待作者输入");
+    expect(pause).not.toContain("ask_user");
   });
 });
 

@@ -6,9 +6,9 @@ import type { HandlerMap, KernelApi } from "./shared.js";
 
 const PAUSE_PROMPT_LEAD = loadPrompt("kernel/pause-lead");
 const PAUSE_PROMPT_CHILD = loadPrompt("kernel/pause-child");
-/** 作者按「继续」：主编多半已经说过话、停在等作者点头；这句让它别再等、别重述，直接做下一步 */
+/** 继续只恢复对话循环，不替作者作答或指定下一步动作 */
 export const CONTINUE_PROMPT = loadPrompt("kernel/continue");
-/** 上次被打断：让主编看最后几条说清断在哪，从那一步接着做 */
+/** 会话恢复从已有上下文接续，与继续采用相同的授权边界 */
 export const RESUME_PROMPT = loadPrompt("kernel/resume");
 
 /** 「接着上次」这一句的送法：按钮点的和切模型自动补的是同一条路 */
@@ -16,7 +16,6 @@ export async function resumeLead(api: KernelApi) {
   await api.ensureLead();
   const live = api.requireLive(LEAD_ID);
   api.authorActed(live);
-  live.nudged = true;
   api.sendTo(LEAD_ID, stubPrompt("接着上次", RESUME_PROMPT), "followUp");
 }
 
@@ -43,8 +42,7 @@ export function chatHandlers(
       await api.ensureLead();
       const live = api.requireLive(LEAD_ID);
       api.authorActed(live);
-      // 历史都在会话里，模型知道停在哪；只补一句，不塞现状不塞步骤。这一句已算补过，轮末不再自动补第二句
-      live.nudged = true;
+      // 按普通输入恢复循环，保留正常的可见回应兜底；不指定工具或代答。
       api.sendTo(LEAD_ID, stubPrompt("继续", CONTINUE_PROMPT), "followUp");
       return null;
     },

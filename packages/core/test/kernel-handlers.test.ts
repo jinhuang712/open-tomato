@@ -387,8 +387,8 @@ describe("models.*", () => {
     fake.info.error = "404 <!DOCTYPE html>";
     await kernel.handle("models.select", { provider: target.provider, id: target.id });
     expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n上次会话被打断了/);
-    expect(fake.nudged).toBe(true);
+    expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n恢复当前会话/);
+    expect(fake.nudged).toBe(false);
   });
 
   test("chat.resume 送的是同一句「接着上次」", async () => {
@@ -397,6 +397,24 @@ describe("models.*", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n/);
   });
+
+  for (const action of ["chat.continue", "chat.resume"] as const) {
+    test(`${action} 恢复普通循环，保留未解释报告与可见回应兜底`, async () => {
+      const { fake, calls } = fakeLead(false);
+      fake.hold = true;
+      fake.nudged = true;
+      (fake as any).unrelayed = ["策划:pending"];
+      await kernel.handle(action, {});
+      expect(fake.hold).toBe(false);
+      expect(fake.nudged).toBe(false);
+      expect((fake as any).unrelayed).toEqual(["策划:pending"]);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]![0]).toContain("不包含新的选择、答案或执行授权");
+      (kernel as any).forward(fake, { type: "agent_end" });
+      expect(fake.nudged).toBe(true);
+      expect(calls).toHaveLength(2);
+    });
+  }
 
   test("setApiKey 空 key 抛错，不碰网络", async () => {
     await expect(kernel.handle("models.setApiKey", { provider: "openai", apiKey: "  " })).rejects.toThrow("API key 为空");
