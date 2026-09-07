@@ -91,6 +91,8 @@ export class Kernel {
   private models!: ModelsFacade;
   private readonly gate: Gate;
   private readonly agents = new Map<string, LiveAgent>();
+  /** 每个角色派到第几位，用来起 handle。关项目清空，接回时抬到已用过的最大值 */
+  private readonly handleSeq = new Map<RoleId, number>();
   /** 早期版本把所有项目的会话混放在这个全局目录；现在只用来迁移 */
   private readonly legacySessionsDir: string;
   private readonly ready: Promise<void>;
@@ -244,6 +246,7 @@ export class Kernel {
     for (const a of lives) this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : a.info.status === "archived" ? "archived" : "done");
     for (const a of lives) a.unsubscribe();
     this.agents.clear();
+    this.handleSeq.clear();
     for (const a of lives) {
       await a.session.abort().catch(() => {});
       a.session.dispose();
@@ -312,8 +315,8 @@ export class Kernel {
     };
     if (withSpawn) {
       ctx.spawn = (tasks, onProgress) => this.spawn(agentId, tasks, onProgress);
-      ctx.continueAgent = (childId, message, mode, onProgress) => this.continueChild(childId, message, mode, onProgress);
-      ctx.archiveAgent = (childId) => this.archiveChild(childId);
+      ctx.continueAgent = (ref, message, mode, onProgress) => this.continueChild(this.resolveChild(ref), message, mode, onProgress);
+      ctx.archiveAgent = (ref) => this.archiveChild(this.resolveChild(ref).info.agentId);
     }
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
@@ -391,7 +394,7 @@ export class Kernel {
         : SessionManager.create(store.info.root, store.leadSessionsDir);
     const { session, tools } = await this.buildSession(LEAD_ID, LEAD_ID, sessionManager);
     const live = this.register(
-      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.director.label, task: "", status: "idle", error: null, statusText: "", mode: "commit" },
+      { agentId: LEAD_ID, parentId: null, role: LEAD_ID, label: ROLES.director.label, handle: ROLES.director.label, task: "", status: "idle", error: null, statusText: "", mode: "commit" },
       session,
       tools,
     );
@@ -438,24 +441,59 @@ export class Kernel {
    */
   private async restoreChildren() {
     const store = this.requireStore();
-    for (const rec of await store.agentRecords()) {
+    const records = await store.agentRecords();
+    // 先把已有的号全认一遍，再给旧索引里没名字的补号，补出来的不会撞上后面那位
+    for (const rec of records) if (rec.handle && rec.role in ROLES) this.noteHandle(rec.role, rec.handle);
+    for (const rec of records) {
       if (!(rec.role in ROLES) || rec.role === LEAD_ID) {
         await store.dropAgentRecord(rec.agentId);
         continue;
       }
+      const handle = rec.handle ?? this.nextHandle(rec.role);
       try {
         const { session, tools } = await this.buildSession(rec.role, rec.agentId, SessionManager.continueRecent(store.info.root, store.agentSessionDir(rec.agentId)));
         const live = this.register(
-          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: rec.archived ? "archived" : "done", error: null, statusText: "", mode: rec.mode },
+          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, handle, task: rec.task, status: rec.archived ? "archived" : "done", error: null, statusText: "", mode: rec.mode },
           session,
           tools,
         );
         this.setMode(live, rec.mode);
+        if (!rec.handle) await store.saveAgentRecord({ ...rec, handle });
         this.replayHistory(rec.agentId, session);
       } catch {
         await store.dropAgentRecord(rec.agentId);
       }
     }
+  }
+
+  /**
+   * 给子 agent 起个作者和模型都认得的名字：角色名 + 序号（策划1、策划2）。
+   * 模型手里只有它，uuid 不进上下文——万一漏进正文，作者看到的也是一句人话，不是一串十六进制。
+   * 序号只增不减：删掉一位不把号让出来，免得同一个名字在同一段会话里前后指两个人。
+   */
+  private nextHandle(role: RoleId): string {
+    const n = (this.handleSeq.get(role) ?? 0) + 1;
+    this.handleSeq.set(role, n);
+    return `${ROLES[role].label}${n}`;
+  }
+
+  /** 接回上次留下的子 agent：把序号抬到已用过的最大值，这次新派的不会撞名 */
+  private noteHandle(role: RoleId, handle: string) {
+    const n = Number(handle.slice(ROLES[role].label.length));
+    if (Number.isInteger(n) && n > (this.handleSeq.get(role) ?? 0)) this.handleSeq.set(role, n);
+  }
+
+  /**
+   * 模型给的名字换成人：先按 handle 找，找不到再按 agentId 兜一下——
+   * 旧会话的上下文里还留着 uuid，认一下免得升级后续派突然失灵。
+   */
+  private resolveChild(ref: string): LiveAgent {
+    const name = ref.trim();
+    const children = [...this.agents.values()].filter((a) => a.info.agentId !== LEAD_ID);
+    const hit = children.find((a) => a.info.handle === name) ?? children.find((a) => a.info.agentId === name);
+    if (hit) return hit;
+    const names = children.map((a) => a.info.handle).join("、");
+    throw new Error(`没有这个子 agent：${name}。${names ? `在场的是 ${names}` : "现在一位都没有"}；它可能已随项目关闭回收，需要重新 spawn_agents`);
   }
 
   private requireLive(agentId: string): LiveAgent {
@@ -548,7 +586,7 @@ export class Kernel {
       void this.runChild(parentId, task, slots, roster).then((report) => this.deliverReport(parentId, task.role, report));
     }
     returned = true;
-    const lines = slots.map((x) => `- ${x.label}（${x.role}，id=${x.agentId}）`).join("\n");
+    const lines = slots.map((x) => `- ${x.handle}：${x.task}`).join("\n");
     return { text: `${DISPATCHED_NOTICE}\n${lines}`, details: roster.snapshot() };
   }
 
@@ -585,7 +623,8 @@ export class Kernel {
   ): Promise<string> {
     const def = ROLES[task.role];
     const agentId = randomUUID();
-    const slot: DispatchSlot = { agentId, role: task.role, label: def.label, task: task.task, status: "running", error: null };
+    const handle = this.nextHandle(task.role);
+    const slot: DispatchSlot = { agentId, role: task.role, label: def.label, handle, task: task.task, status: "running", error: null };
     slots.push(slot);
     let live: LiveAgent | null = null;
     try {
@@ -594,26 +633,25 @@ export class Kernel {
       const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
       const mode = task.mode ?? "commit";
       live = this.register(
-        { agentId, parentId, role: task.role, label: def.label, task: task.task, status: "running", error: null, statusText: "", mode },
+        { agentId, parentId, role: task.role, label: def.label, handle, task: task.task, status: "running", error: null, statusText: "", mode },
         session,
         tools,
       );
       this.setMode(live, mode);
-      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, task: task.task, mode });
+      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode });
       return await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (live) this.setStatus(live, "error", msg);
       roster.touch(slot, "error", msg);
-      return `## ${def.label}（${task.role}，id=${agentId}）\n\n派单失败：${msg}`;
+      return `## ${handle}\n\n派单失败：${msg}`;
     }
   }
 
-  private async continueChild(childId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress): Promise<DispatchResult> {
-    const live = this.agents.get(childId);
-    if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
-    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
-    if (live.info.status === "archived") throw new Error(`${live.info.label}（${childId}）已封存，不能再续派；这条线要接着做就重新 spawn_agents`);
+  private async continueChild(live: LiveAgent, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress): Promise<DispatchResult> {
+    const childId = live.info.agentId;
+    if (live.info.status === "running") throw new Error(`${live.info.handle}还在跑，等它这一轮回来再续`);
+    if (live.info.status === "archived") throw new Error(`${live.info.handle}已封存，不能再续派；这条线要接着做就重新 spawn_agents`);
     if (mode && mode !== live.mode) {
       this.setMode(live, mode);
       const store = this.requireStore();
@@ -621,7 +659,7 @@ export class Kernel {
       if (rec) await store.saveAgentRecord({ ...rec, mode });
     }
     const prompt = mode === "commit" ? modePrompt(mode, COMMIT_NOTICE, message) : mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, message) : message;
-    const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, task: message, status: "running", error: null };
+    const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, handle: live.info.handle, task: message, status: "running", error: null };
     let returned = false;
     const roster = this.roster([slot], (t, d) => {
       if (!returned) onProgress(t, d);
@@ -629,7 +667,7 @@ export class Kernel {
     const parentId = live.info.parentId ?? LEAD_ID;
     void this.promptChild(live, prompt, slot, roster).then((report) => this.deliverReport(parentId, live.info.role, report));
     returned = true;
-    return { text: `${DISPATCHED_NOTICE}\n- ${live.info.label}（${live.info.role}，id=${childId}）`, details: roster.snapshot() };
+    return { text: `${DISPATCHED_NOTICE}\n- ${live.info.handle}：${message}`, details: roster.snapshot() };
   }
 
   /**
@@ -641,8 +679,8 @@ export class Kernel {
     if (childId === LEAD_ID) throw new Error("主编不能封存");
     const live = this.agents.get(childId);
     if (!live) throw new Error(`没有这个子 agent：${childId}`);
-    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再封`);
-    if (live.info.status === "archived") throw new Error(`${live.info.label}（${childId}）已经封存了`);
+    if (live.info.status === "running") throw new Error(`${live.info.handle}还在跑，等它这一轮回来再封`);
+    if (live.info.status === "archived") throw new Error(`${live.info.handle}已经封存了`);
     this.setStatus(live, "archived");
     const store = this.requireStore();
     const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
@@ -658,7 +696,7 @@ export class Kernel {
     if (childId === LEAD_ID) throw new Error("主编不能删除");
     const live = this.agents.get(childId);
     if (!live) throw new Error(`没有这个子 agent：${childId}`);
-    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再删`);
+    if (live.info.status === "running") throw new Error(`${live.info.handle}还在跑，等它这一轮回来再删`);
     this.agents.delete(childId);
     live.unsubscribe();
     live.session.dispose();
@@ -688,7 +726,7 @@ export class Kernel {
     roster: ReturnType<Kernel["roster"]>,
   ): Promise<string> {
     const { session, info } = live;
-    const header = `## ${info.label}（${info.role}，id=${info.agentId}）`;
+    const header = `## ${info.handle}`;
     this.setStatus(live, "running");
     roster.touch(slot, "running");
     try {

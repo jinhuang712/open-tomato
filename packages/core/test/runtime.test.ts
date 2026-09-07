@@ -48,14 +48,35 @@ describe("子任务报告标签", () => {
           { role: "assistant", content: [{ type: "text", text: "三个主角方向如下……" }] },
         ],
       },
-      info: { agentId: "child-1", role: "designer", label: "策划" },
+      info: { agentId: "child-1", role: "designer", label: "策划", handle: "策划1" },
     };
-    const slot = { agentId: "child-1", role: "designer", label: "策划", task: "t", status: "running", error: null };
+    const slot = { agentId: "child-1", role: "designer", label: "策划", handle: "策划1", task: "t", status: "running", error: null };
     const roster = { touch: () => {} };
     const out = await (kernel as any).promptChild(fake, "任务", slot, roster);
     expect(out).toContain(notice);
-    expect(out).toContain("## 策划（designer，id=child-1）");
+    expect(out).toContain("## 策划1");
+    expect(out).not.toContain("child-1");
     expect(out).toContain("三个主角方向如下……");
+  });
+});
+
+describe("子 agent 的名字", () => {
+  test("同角色按序号排，号只增不减", () => {
+    const k = kernel as any;
+    expect(k.nextHandle("designer")).toBe("策划1");
+    expect(k.nextHandle("designer")).toBe("策划2");
+    expect(k.nextHandle("writer")).toBe("写手1");
+    // 接回上次的会话：号抬到已用过的最大值，新派的不撞名
+    k.noteHandle("writer", "写手4");
+    expect(k.nextHandle("writer")).toBe("写手5");
+  });
+
+  test("按名字认人，旧会话里的 uuid 也认；认不出的报错带在场名单", () => {
+    const k = kernel as any;
+    k.agents.set("2f9c-uuid", { info: { agentId: "2f9c-uuid", role: "designer", label: "策划", handle: "策划1" } });
+    expect(k.resolveChild("策划1").info.agentId).toBe("2f9c-uuid");
+    expect(k.resolveChild(" 2f9c-uuid ").info.agentId).toBe("2f9c-uuid");
+    expect(() => k.resolveChild("写手1")).toThrow("在场的是 策划1");
   });
 });
 
@@ -81,16 +102,17 @@ describe("派单不阻塞主编", () => {
     const { fake, calls } = fakeLead(true);
     let finish!: (s: string) => void;
     (kernel as any).runChild = async (_p: string, task: { role: string }, slots: unknown[]) => {
-      slots.push({ agentId: "c1", role: task.role, label: "策划", task: "t", status: "running", error: null });
+      slots.push({ agentId: "c1", role: task.role, label: "策划", handle: "策划1", task: "t", status: "running", error: null });
       return await new Promise<string>((r) => (finish = r));
     };
     const progress: string[] = [];
     const result = await (kernel as any).spawn("director", [{ role: "designer", task: "t" }], (t: string) => progress.push(t));
-    expect(result.text).toContain("id=c1");
+    expect(result.text).toContain("- 策划1：t");
+    expect(result.text).not.toContain("c1");
     expect(result.details.slots.map((s: { agentId: string }) => s.agentId)).toEqual(["c1"]);
     expect(fake.inbox).toEqual([]);
 
-    finish("## 策划（designer，id=c1）\n\n三个候选");
+    finish("## 策划1\n\n三个候选");
     await new Promise((r) => setTimeout(r, 0));
     expect(calls).toEqual([]);
     expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);

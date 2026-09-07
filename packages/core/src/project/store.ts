@@ -52,6 +52,8 @@ export interface AgentRecord {
   parentId: string;
   role: RoleId;
   label: string;
+  /** 主编叫它的名字（策划1）。旧索引没有，接回来时按角色重新编 */
+  handle?: string;
   task: string;
   mode: "propose" | "commit";
   /** 已封存：重开项目接回来时状态是 archived 而不是 done */

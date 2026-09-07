@@ -40,9 +40,10 @@ export interface ToolContext {
   /** 只有能派单的角色才有。不阻塞：立刻返回名册，报告跑完后送进派单人的收件箱 */
   spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress) => Promise<DispatchResult>;
   /** 续接一个还活着的子 agent，把新消息发给它；同样不阻塞。mode 给了就切换它的落盘权限 */
-  continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress) => Promise<DispatchResult>;
+  /** 续派：agent 是子 agent 的名字（策划1），内核认名字，也兼容旧会话里的 uuid */
+  continueAgent?: (agent: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress) => Promise<DispatchResult>;
   /** 封存一个跑完的子 agent：会话留着，之后不能再 continue。删由作者在界面上做 */
-  archiveAgent?: (agentId: string) => Promise<void>;
+  archiveAgent?: (agent: string) => Promise<void>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
 }

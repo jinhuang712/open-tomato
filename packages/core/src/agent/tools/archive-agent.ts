@@ -14,11 +14,11 @@ export function makeArchiveAgentTool(ctx: ToolContext): ToolDefinition {
     description:
       "封存一个跑完的子 agent：它退出在场名单进历史，会话保留可回看，之后不能再 continue_agent。用于：作者已拍板、它已把结果落盘、这条线上不再需要它；或它的候选被作者整体否掉、要换人重来。候选还悬着等拍板的不要封。在跑的不能封。",
     parameters: Type.Object({
-      agentId: Type.String({ description: "spawn_agents 结果标题里的 id" }),
+      agent: Type.String({ description: "子 agent 的名字，如 策划1" }),
     }),
     execute: async (_id, params) => {
-      await archiveAgent(params.agentId);
-      return text(`${params.agentId} 已封存。`);
+      await archiveAgent(params.agent);
+      return text(`${params.agent} 已封存。`);
     },
   });
 }

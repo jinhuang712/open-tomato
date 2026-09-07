@@ -483,14 +483,14 @@ describe("agent.archive / agent.retire", () => {
     let disposed = 0;
     let unsubscribed = 0;
     const fake = {
-      info: { agentId: "c1", parentId: "director", role: "writer", label: "写手", task: "写第一章", status, error: null, statusText: "" },
+      info: { agentId: "c1", parentId: "director", role: "writer", label: "写手", handle: "写手1", task: "写第一章", status, error: null, statusText: "" },
       session: { isStreaming: false, prompt: async () => {}, clearQueue: () => ({ steering: [], followUp: [] }), abort: async () => {}, dispose: () => void disposed++ },
       unsubscribe: () => void unsubscribed++,
       streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit" as const, tools: [], inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, pendingError: null,
     };
     (kernel as any).agents.set("c1", fake);
     const store: ProjectStore = (kernel as any).store;
-    await store.saveAgentRecord({ agentId: "c1", parentId: "director", role: "writer", label: "写手", task: "写第一章", mode: "commit" });
+    await store.saveAgentRecord({ agentId: "c1", parentId: "director", role: "writer", label: "写手", handle: "写手1", task: "写第一章", mode: "commit" });
     return { store, counts: () => ({ disposed, unsubscribed }) };
   }
 
@@ -528,7 +528,7 @@ describe("agent.archive / agent.retire", () => {
     await expect(kernel.handle("agent.archive", { agentId: "director" })).rejects.toThrow("主编不能封存");
     const { store } = await fakeChild("archived");
     await expect(kernel.handle("agent.archive", { agentId: "c1" })).rejects.toThrow("已经封存");
-    await expect((kernel as any).continueChild("c1", "再来", undefined, () => {})).rejects.toThrow("已封存");
+    await expect((kernel as any).continueChild((kernel as any).resolveChild("写手1"), "再来", undefined, () => {})).rejects.toThrow("已封存");
     await kernel.handle("agent.retire", { agentId: "c1" });
     expect((kernel as any).agents.has("c1")).toBe(false);
     expect((await store.agentRecords()).find((r) => r.agentId === "c1")).toBeUndefined();

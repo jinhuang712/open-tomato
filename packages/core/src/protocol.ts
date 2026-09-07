@@ -356,6 +356,8 @@ export interface AgentInfo {
   parentId: string | null;
   role: RoleId;
   label: string;
+  /** 作者和主编都用的名字：角色名 + 序号（策划1、策划2）。uuid 只走内核与渲染层，不进模型上下文 */
+  handle: string;
   task: string;
   status: AgentStatus;
   error: string | null;
@@ -369,6 +371,8 @@ export interface DispatchSlot {
   agentId: string;
   role: RoleId;
   label: string;
+  /** 名册与报告里露出的名字，见 AgentInfo.handle */
+  handle: string;
   task: string;
   status: AgentStatus;
   error: string | null;
