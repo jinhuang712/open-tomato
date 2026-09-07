@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldNudge } from "../src/agent/kernel/lead-rules.js";
+import { DANGLING_QUESTION_PROMPT, endsWithQuestion, NUDGE_PROMPT, nudgePrompt, shouldNudge } from "../src/agent/kernel/lead-rules.js";
 
 type Live = Parameters<typeof shouldNudge>[0];
 const lead = (over: Partial<Live> = {}): Live => ({
@@ -24,3 +24,22 @@ describe("shouldNudge", () => {
 });
 
 test("已回应作者可以自然结束", () => expect(shouldNudge(lead({ spoke: true }))).toBe(false));
+
+describe("正文结尾是问句却没调 ask_user", () => {
+  test("补一句，让它把问题问出来", () => expect(shouldNudge(lead({ spoke: true, tail: "这三个画面你的直觉分别是哪个？" }))).toBe(true));
+  test("半角问号一样算", () => expect(shouldNudge(lead({ spoke: true, tail: "which one?" }))).toBe(true));
+  test("问号后跟收尾符号、换行也算", () => expect(shouldNudge(lead({ spoke: true, tail: "**这个推测对不对？**\n\n" }))).toBe(true));
+  test("问了 ask_user 就不补", () => expect(shouldNudge(lead({ spoke: true, asked: true, tail: "对不对？" }))).toBe(false));
+  test("结尾是陈述句不补", () => expect(shouldNudge(lead({ spoke: true, tail: "问题不大？我觉得可以。" }))).toBe(false));
+  test("补过一次就不再补", () => expect(shouldNudge(lead({ spoke: true, nudged: true, tail: "对不对？" }))).toBe(false));
+  test("用问题卡那句提示", () => {
+    expect(nudgePrompt({ spoke: true })).toBe(DANGLING_QUESTION_PROMPT);
+    expect(nudgePrompt({ spoke: false })).toBe(NUDGE_PROMPT);
+  });
+});
+
+describe("endsWithQuestion", () => {
+  test("空的不算", () => expect(endsWithQuestion(undefined)).toBe(false));
+  test("问号在句中不算", () => expect(endsWithQuestion("是吗？我看不是")).toBe(false));
+  test("引号包着的问句算", () => expect(endsWithQuestion("他会问「我们算什么？」")).toBe(true));
+});

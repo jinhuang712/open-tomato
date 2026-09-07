@@ -44,7 +44,7 @@ import {
 import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orphanedQuestion, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
 import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
-import { NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
+import { nudgePrompt, shouldNudge } from "./kernel/lead-rules.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
@@ -55,6 +55,9 @@ import { docHandlers } from "./kernel/handlers/docs.js";
 import { modelHandlers } from "./kernel/handlers/models.js";
 import { systemHandlers } from "./kernel/handlers/system.js";
 import { workflowHandlers } from "./kernel/handlers/workflow.js";
+
+/** 正文结尾留多少字给轮末判断「是不是问句」 */
+const TAIL_KEEP = 80;
 
 /** 发给模型的控制消息统一收拢在 prompts/kernel/ 下，这里只留加载，用法点不动 */
 const PROPOSE_NOTICE = loadPrompt("kernel/propose-notice");
@@ -728,6 +731,7 @@ export class Kernel {
   /** 状态行之外的正文出去了：这就是对作者说的话，轮末据此判断可以自然收尾 */
   private sendText(live: LiveAgent, messageId: string, delta: string) {
     if (delta.trim()) live.spoke = true;
+    live.tail = ((live.tail ?? "") + delta).slice(-TAIL_KEEP);
     this.send(live, { type: "text_delta", messageId, delta });
   }
 
@@ -760,6 +764,7 @@ export class Kernel {
         this.setStatus(live, "running");
         live.asked = false;
         live.spoke = false;
+        live.tail = "";
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
@@ -780,7 +785,7 @@ export class Kernel {
         this.markCloudDirty();
         if (shouldNudge(live, this.hasRunningChildren(live.info.agentId))) {
           live.nudged = true;
-          this.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
+          this.sendTo(LEAD_ID, stubPrompt("继续", nudgePrompt(live)), "followUp");
           return;
         }
         this.flushInbox(live);

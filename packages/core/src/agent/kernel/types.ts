@@ -51,6 +51,8 @@ export interface LiveAgent {
   asked: boolean;
   /** 本轮有状态行之外的正文出去了：那就是对作者说的话，可自然收尾 */
   spoke?: boolean;
+  /** 本轮正文的最后几十个字：轮末看结尾是不是一个没配 ask_user 的问句 */
+  tail?: string;
   /** 这轮已补过可见回应提示；一次作者发言只补一次 */
   nudged: boolean;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
