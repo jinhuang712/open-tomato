@@ -388,6 +388,8 @@ describe("models.*", () => {
     await kernel.handle("models.select", { provider: target.provider, id: target.id });
     expect(calls).toHaveLength(1);
     expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n恢复当前会话/);
+    expect(calls[0]![0]).toContain("会话已重建");
+    expect(calls[0]![0]).toContain("不包含新的选择、答案或执行授权");
     expect(fake.nudged).toBe(false);
   });
 
