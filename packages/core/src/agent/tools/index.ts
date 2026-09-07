@@ -5,6 +5,7 @@ import { makeDocTemplateTool } from "./doc-template.js";
 import { makeEditDocTool } from "./edit-doc.js";
 import { makeListDocsTool } from "./list-docs.js";
 import { makeListOpenTool } from "./list-open.js";
+import { makeLoadCapabilityTool } from "./load-capability.js";
 import { makeProjectOverviewTool } from "./project-overview.js";
 import { makeReadDocTool } from "./read-doc.js";
 import { makeReadMarksTool } from "./read-marks.js";
@@ -53,6 +54,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
 
   if (perms.canSpawn) {
     tools.push(makeSettleTool(ctx));
+    tools.push(makeLoadCapabilityTool(ctx));
   }
 
   if (perms.canSpawn && ctx.spawn) {

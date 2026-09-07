@@ -12,10 +12,18 @@ describe("提示词口径", () => {
     }
   });
   test("主编与审稿能力均按需选择评审", () => {
-    for (const p of [ROLES.director.systemPrompt, CAPABILITIES.review.render({ chapter: "12" })]) {
+    for (const p of [ROLES.director.systemPrompt, CAPABILITIES.review.load()]) {
       expect(p).toContain("选择需要的角色和数量");
       expect(p).toContain("不固定四路");
     }
+  });
+
+  test("主编的系统提示带能力清单与三种进场方式", () => {
+    const p = ROLES.director.systemPrompt;
+    expect(p).toContain("## 能力");
+    expect(p).toContain("- interview（立项访谈）");
+    expect(p).toContain("load_capability");
+    expect(p).toContain("先 ask_user 问一句");
   });
 
   test("写手限制扩读故事材料，保留工具例外", () => {

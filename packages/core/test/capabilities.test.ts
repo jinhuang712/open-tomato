@@ -1,25 +1,35 @@
 import { describe, expect, test } from "bun:test";
-import { CAPABILITIES, CAPABILITY_IDS } from "../src/agent/capabilities.js";
+import { CAPABILITIES, CAPABILITY_IDS, capabilityEntry, capabilityInfos, capabilityRoster } from "../src/agent/capabilities.js";
 
-const FILLED = { topic: "主角", brief: "主角的人物卡", scope: "全书里程碑", chapter: "12", volume: "1" };
-
-describe("能力脚本", () => {
-  test("7 个 render 有参无参都能跑，不留占位符", () => {
+describe("能力正文", () => {
+  test("7 条都能加载，无占位符，写的是目标 / 交付物 / 边界而不是步骤", () => {
     expect(CAPABILITY_IDS).toHaveLength(7);
     for (const id of CAPABILITY_IDS) {
-      const cap = CAPABILITIES[id];
-      for (const params of [{}, FILLED]) {
-        const out = cap.render(params);
-        expect(out).not.toMatch(/{{\w+}}/);
-        expect(out.trim().length).toBeGreaterThan(0);
-      }
+      const body = CAPABILITIES[id].load();
+      expect(body).not.toMatch(/{{\w+}}/);
+      for (const section of ["目标", "交付物", "边界"]) expect(body).toContain(`\n${section}\n`);
+      expect(body).not.toMatch(/第[一二三]步|然后问|先 project_overview/);
     }
   });
 
-  test("参数填进去了：chapter 用两次的地方两处都有", () => {
-    expect(CAPABILITIES.draft.render({ chapter: "12" })).toContain("第 12 章正文");
-    expect(CAPABILITIES.draft.render({ chapter: "12" })).toContain("章纲/12");
-    expect(CAPABILITIES.review.render({ chapter: "3" })).toContain("正文/3");
-    expect(CAPABILITIES.talk.render({ topic: "主角" })).toContain("我们先聊聊：主角");
+  test("缺的信息从盘面读：每条正文都说了怎么定范围", () => {
+    for (const id of ["talk", "design", "outline", "draft", "review", "recap"] as const) {
+      expect(CAPABILITIES[id].load()).toMatch(/由盘面/);
+    }
+  });
+
+  test("进场正文区分谁触发，正文相同", () => {
+    const byAuthor = capabilityEntry("draft", "author");
+    const byLead = capabilityEntry("draft", "lead");
+    expect(byAuthor).toContain("作者点了「章节写作」");
+    expect(byLead).toContain("你进入「章节写作」");
+    expect(byAuthor.split("\n\n").slice(1).join("\n\n")).toBe(byLead.split("\n\n").slice(1).join("\n\n"));
+  });
+
+  test("清单每条带 id、名字和时机；下发前端的元数据不带正文", () => {
+    const roster = capabilityRoster();
+    for (const id of CAPABILITY_IDS) expect(roster).toContain(`- ${id}（${CAPABILITIES[id].label}）`);
+    expect(roster).toContain("时机：");
+    for (const info of capabilityInfos()) expect(Object.keys(info).sort()).toEqual(["description", "id", "label"]);
   });
 });

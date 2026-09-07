@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { DocKindId, RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
+import { capabilityRoster } from "./capabilities.js";
 import { fill, loadPrompt } from "./prompt-text.js";
 
 /**
@@ -65,7 +66,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     writableKinds: ["brief", "rules", ...CARDS],
     canSpawn: true,
     canAsk: true,
-    systemPrompt: fill(loadPrompt("director"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
+    systemPrompt: fill(loadPrompt("director"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, CAPABILITIES: capabilityRoster() }),
   },
 
   designer: {

@@ -170,12 +170,11 @@ describe("capabilities / roles", () => {
     expect(roles.find((r) => r.id === "director")?.label).toBe("主编");
   });
 
-  test("capability.run 未知 id 与缺必填参数都抛错", async () => {
+  test("capability.run 未知 id 抛错，不惊动主编", async () => {
     const { fake, calls } = fakeLead(false);
     fake.hold = true;
     fake.nudged = true;
-    await expect(kernel.handle("capability.run", { id: "nope" as any, params: {} })).rejects.toThrow("未知能力");
-    await expect(kernel.handle("capability.run", { id: "draft", params: {} })).rejects.toThrow("缺参数");
+    await expect(kernel.handle("capability.run", { id: "nope" as any })).rejects.toThrow("未知能力");
     expect(fake.hold).toBe(true);
     expect(fake.nudged).toBe(true);
     expect(calls).toHaveLength(0);
@@ -187,7 +186,7 @@ describe("capabilities / roles", () => {
     await kernel.handle("chat.pause", {});
     fake.nudged = true;
     fake.inbox.push({ id: "queued", label: "排队", text: "下一项" });
-    await kernel.handle("capability.run", { id: "draft", params: { chapter: "12" } });
+    await kernel.handle("capability.run", { id: "draft" });
     expect(fake.hold).toBe(false);
     expect(fake.nudged).toBe(false);
     (kernel as any).forward(fake, { type: "agent_end" });
@@ -196,11 +195,12 @@ describe("capabilities / roles", () => {
     expect(fake.inbox).toHaveLength(0);
   });
 
-  test("capability.run 把渲染好的指令发给主编（锁 md 接线）", async () => {
+  test("capability.run 以作者身份把能力正文送给主编（锁 md 接线）", async () => {
     const { calls } = fakeLead(false);
-    await kernel.handle("capability.run", { id: "draft", params: { chapter: "12" } });
+    await kernel.handle("capability.run", { id: "draft" });
     expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("请写第 12 章正文");
+    expect(calls[0]![0]).toContain("作者点了「章节写作」");
+    expect(calls[0]![0]).toContain("章节写作：派写手按章纲写一章正文");
   });
 });
 
@@ -345,20 +345,17 @@ describe("chat / doc 剩余分支", () => {
 
 describe("capability 全流程", () => {
   test.each([
-    ["talk", { topic: "主角" }, "我们先聊聊：主角"],
-    ["design", { brief: "主角人物卡" }, "请派策划设计：主角人物卡"],
-    ["outline", { scope: "全书里程碑" }, "请派编剧编排：全书里程碑"],
-    ["review", { chapter: "3" }, "请审第 3 章正文"],
-    ["recap", { volume: "2" }, "请派编剧盘点第 2 卷"],
-  ])("%s 渲染后发给主编", async (id, params, phrase) => {
+    ["talk", "聊一张卡：和作者边聊边把一个人物"],
+    ["design", "卡片设计：派策划创作"],
+    ["outline", "大纲编排：派编剧编排"],
+    ["review", "多路审稿：多路只读评审看一章"],
+    ["recap", "卷末盘点：一卷写完"],
+  ])("%s 正文送给主编，范围由主编看盘面定", async (id, phrase) => {
     const { calls } = fakeLead(false);
-    await kernel.handle("capability.run", { id: id as any, params });
+    await kernel.handle("capability.run", { id: id as any });
     expect(calls).toHaveLength(1);
     expect(calls[0]![0]).toContain(phrase);
-  });
-
-  test("talk 缺必填参数抛错", async () => {
-    await expect(kernel.handle("capability.run", { id: "talk", params: {} })).rejects.toThrow("缺参数");
+    expect(calls[0]![0]).toContain("由盘面");
   });
 });
 

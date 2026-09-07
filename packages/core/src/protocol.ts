@@ -190,18 +190,11 @@ export interface RoleInfo {
 
 export type CapabilityId = "interview" | "talk" | "design" | "outline" | "draft" | "review" | "recap";
 
-export interface CapabilityParam {
-  name: string;
-  label: string;
-  placeholder: string;
-  required: boolean;
-}
-
+/** 能力是主编的一份打包工作流。前端只拿元数据挂按钮，正文只进主编的上下文 */
 export interface CapabilityInfo {
   id: CapabilityId;
   label: string;
   description: string;
-  params: CapabilityParam[];
 }
 
 // ───────────────────────── 对话消息 ─────────────────────────
@@ -461,10 +454,8 @@ export interface RequestMap {
   /** 作者让某位子 agent 退场：删会话和索引。在跑的不能退，主编不能退 */
   "agent.retire": { params: { agentId: string }; result: null };
   "capabilities.list": { params: Record<string, never>; result: CapabilityInfo[] };
-  "capability.run": {
-    params: { id: CapabilityId; params: Record<string, string> };
-    result: null;
-  };
+  /** 作者点按钮进场一条能力：内核以主编身份送进正文，和主编自己 load_capability 收到的是同一份 */
+  "capability.run": { params: { id: CapabilityId }; result: null };
   "roles.list": { params: Record<string, never>; result: RoleInfo[] };
   "approval.reply": {
     params: { approvalId: string; decision: ApprovalDecision; reason?: string };
