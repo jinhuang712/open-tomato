@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import { actions, agentErrorText, state } from "../state";
 import { AgentStrip } from "./AgentStrip";
 import { LiveBadges, liveBadgeCount } from "./LiveBadges";
@@ -170,7 +170,9 @@ export function Chat(props: { agentId: string }) {
         </Show>
         </div>
       </div>
-      {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽 */}
+      {/* 有待答 / 待审时，dock 取代输入框：一次只做一件事。和消息流同一列宽。
+        Composer 常驻挂载、仅用 display 隐藏：审批 / 提问弹出来时不卸载输入框，
+        作者打了一半的字和附件都留着，决完回来还能接着写。 */}
       <div class="relative max-w-[760px] mx-auto w-full">
         <Show when={!following() && !dockQuestion()}>
           <button
@@ -181,21 +183,16 @@ export function Chat(props: { agentId: string }) {
             ↓
           </button>
         </Show>
-        <Switch
-          fallback={
-            <>
-              <Show when={isLead()}>
-                <QuickActions hasHistory={messages().length > 0} />
-              </Show>
-              <Composer agentId={props.agentId} />
-            </>
-          }
-        >
-          <Match when={dockQuestion()}>
-            <div class="h-3" />
-          </Match>
-          <Match when={dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Match>
-        </Switch>
+        <Show when={dockQuestion()}>
+          <div class="h-3" />
+        </Show>
+        <Show when={!dockQuestion() && dockApproval()}>{(a) => <div class="pb-4"><ApprovalDock request={a()} /></div>}</Show>
+        <div style={{ display: dockQuestion() || dockApproval() ? "none" : undefined }}>
+          <Show when={isLead()}>
+            <QuickActions hasHistory={messages().length > 0} />
+          </Show>
+          <Composer agentId={props.agentId} />
+        </div>
       </div>
     </div>
   );
