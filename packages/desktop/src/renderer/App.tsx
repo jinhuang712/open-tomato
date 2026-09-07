@@ -2,7 +2,6 @@ import { For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { bridge } from "./bridge";
 import { installDocLinkHandler } from "./doclink";
 import { installEscapeHandler } from "./escape";
-import { CapabilityDialog } from "./components/CapabilityDialog";
 import { ClosePrompt } from "./components/ClosePrompt";
 import { CloudSettings } from "./components/CloudSettings";
 import { Chat } from "./components/Chat";
@@ -81,10 +80,6 @@ export function App() {
       .then(() => actions.refreshCloud())
       .catch(() => {});
     void bridge
-      .request("capabilities.list", {})
-      .then((c) => setState("capabilities", c))
-      .catch(() => {});
-    void bridge
       .request("project.recent", {})
       .then((r) => setState("recent", r))
       .catch(() => {});
@@ -117,7 +112,6 @@ export function App() {
       <Show when={state.settingsOpen}>
         <Settings />
       </Show>
-      <Show when={state.capabilityDialog}>{(c) => <CapabilityDialog capability={c()} />}</Show>
       <Show when={state.cloudSettingsOpen}>
         <CloudSettings />
       </Show>

@@ -55,14 +55,11 @@ export function EmptyStart() {
   );
 }
 
-/** 执行一个下一步候选：能力带了参数或不需要参数就直接跑，否则开参数弹窗；说话类往输入框预填 */
+/** 执行一个下一步候选：能力直接让主编进场，范围由主编看盘面定；说话类往输入框预填 */
 export function runStep(step: StageStep) {
   if (step.kind === "say") {
     setState("composerDraft", step.text);
     return;
   }
-  const cap = state.capabilities.find((c) => c.id === step.cap);
-  if (!cap) return;
-  if (step.params || cap.params.length === 0) void actions.runCapability(step.cap, step.params ?? {});
-  else setState("capabilityDialog", cap);
+  void actions.runCapability(step.cap);
 }

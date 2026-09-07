@@ -2,9 +2,9 @@ import { chapterRange, type CapabilityId, type DocHeader } from "@opentomato/cor
 export { chapterRange };
 import { refId } from "./refid";
 
-/** 下一步的一个候选：要么跑一条能力，要么往输入框预填一句话 */
+/** 下一步的一个候选：要么让主编进场一条能力（范围主编自己看盘面定），要么往输入框预填一句话 */
 export type StageStep =
-  | { title: string; desc: string; kind: "capability"; cap: CapabilityId; params?: Record<string, string>; primary?: boolean }
+  | { title: string; desc: string; kind: "capability"; cap: CapabilityId; primary?: boolean }
   | { title: string; desc: string; kind: "say"; text: string; primary?: boolean };
 
 export interface StagePlan {
@@ -78,7 +78,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       steps: [
         { title: "大纲编排", desc: "先排全书里程碑，再到卷纲、章纲", kind: "capability", cap: "outline", primary: true },
         { title: "继续设卡", desc: "补人物 / 世界设定 / 线索", kind: "capability", cap: "design" },
-        { title: "聊一张卡", desc: "先和主编把一个人物 / 设定聊清楚，边聊边落卡", kind: "capability", cap: "talk", params: { topic: "主角" } },
+        { title: "聊一张卡", desc: "先和主编把一个人物 / 设定聊清楚，边聊边落卡", kind: "capability", cap: "talk" },
         TALK,
       ],
     };
@@ -107,7 +107,6 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
           desc: "编剧把线索推进到哪、坑填了没回写进线索卡，再排下一卷",
           kind: "capability",
           cap: "recap",
-          params: { volume: String(Number(progress.justFinished.id)) },
           primary: true,
         },
       ]
@@ -115,13 +114,13 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
   if (written < chapters) {
     const next = written + 1;
     const review: StageStep[] =
-      written > 0 ? [{ title: `审第 ${written} 章`, desc: "四路评审并行看上一章", kind: "capability", cap: "review", params: { chapter: String(written) } }] : [];
+      written > 0 ? [{ title: `审第 ${written} 章`, desc: "多路评审并行看上一章", kind: "capability", cap: "review" }] : [];
     return {
       stage: "写正文",
       line: `章纲排到第 ${chapters} 章，正文写到第 ${written} 章。${progressLine}`,
       steps: [
         ...recap,
-        { title: `写第 ${next} 章`, desc: "写手按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", params: { chapter: String(next) }, primary: recap.length === 0 },
+        { title: `写第 ${next} 章`, desc: "写手按章纲写，写完你看 diff 再落盘", kind: "capability", cap: "draft", primary: recap.length === 0 },
         ...review,
         { title: "继续排章纲", desc: "把后面几章的施工单排出来", kind: "capability", cap: "outline" },
         TALK,
@@ -130,7 +129,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
   }
   const review: StageStep[] =
     written > 0
-      ? [{ title: `审第 ${written} 章`, desc: "市场 / 读者 / 文风 / 连续性四路并行", kind: "capability", cap: "review", params: { chapter: String(written) }, primary: recap.length === 0 }]
+      ? [{ title: `审第 ${written} 章`, desc: "多路评审并行：市场 / 读者 / 文风 / 连续性按需选", kind: "capability", cap: "review", primary: recap.length === 0 }]
       : [];
   return {
     stage: "审稿",

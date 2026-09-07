@@ -33,7 +33,6 @@ export function escapeOneLevel(): boolean {
   // 1. 浮层：越靠前的越可能叠在最上面（关闭确认 > 审阅 > 表单类弹窗 > 设置 / 搜索）
   if (state.closePromptOpen) return (setState("closePromptOpen", false), true);
   if (state.reviewOpen) return (setState("reviewOpen", null), true);
-  if (state.capabilityDialog) return (setState("capabilityDialog", null), true);
   if (state.cloudSettingsOpen) return (setState("cloudSettingsOpen", false), true);
   if (state.modelPickerOpen) return (setState("modelPickerOpen", false), true);
   if (state.settingsOpen) return (setState("settingsOpen", false), true);

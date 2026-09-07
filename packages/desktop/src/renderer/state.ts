@@ -86,14 +86,12 @@ export interface State {
   questions: QuestionRequest[];
   issues: CheckIssue[] | null;
   view: View;
-  capabilities: CapabilityInfo[];
   recent: string[];
   toasts: Toast[];
   modelPickerOpen: boolean;
   settingsOpen: boolean;
   /** 设置页当前分组 */
   settingsTab: SettingsTab;
-  capabilityDialog: CapabilityInfo | null;
   searchOpen: boolean;
   /** 快捷按钮往输入框里预填的文字；Composer 消费后清空 */
   composerDraft: string | null;
@@ -139,13 +137,11 @@ const initial: State = {
   questions: [],
   issues: null,
   view: { type: "chat", agentId: "director" },
-  capabilities: [],
   recent: [],
   toasts: [],
   modelPickerOpen: false,
   settingsOpen: false,
   settingsTab: "keymap",
-  capabilityDialog: null,
   searchOpen: false,
   composerDraft: null,
   composerQuotes: [],
@@ -430,12 +426,8 @@ function applyAgentEvent(agentId: string, ev: AgentStreamEvent) {
 
 async function refreshAfterReady() {
   try {
-    const [recent, caps, models] = await Promise.all([
-      bridge.request("project.recent", {}),
-      bridge.request("capabilities.list", {}),
-      bridge.request("models.list", {}),
-    ]);
-    setState({ recent, capabilities: caps, models });
+    const [recent, models] = await Promise.all([bridge.request("project.recent", {}), bridge.request("models.list", {})]);
+    setState({ recent, models });
   } catch (e) {
     toast(errText(e), "error");
   }
@@ -609,10 +601,11 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async runCapability(id: CapabilityInfo["id"], params: Record<string, string>) {
+  /** 作者点按钮进场一条能力：范围由主编看盘面定，前端不收参数 */
+  async runCapability(id: CapabilityInfo["id"]) {
     try {
-      await bridge.request("capability.run", { id, params });
-      setState({ capabilityDialog: null, view: { type: "chat", agentId: "director" } });
+      await bridge.request("capability.run", { id });
+      setState({ view: { type: "chat", agentId: "director" } });
     } catch (e) {
       toast(errText(e), "error");
     }
