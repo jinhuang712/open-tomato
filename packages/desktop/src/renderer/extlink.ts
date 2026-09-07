@@ -4,8 +4,13 @@
  */
 
 // 中文标点、括号、引号都不算 URL 的一部分
-const URL_RE = /https?:\/\/[^\s<>"'`（）「」『』【】，。；：、　]+/g;
+const URL_TAIL = `[^\\s<>"'\`（）「」『』【】，。；：、　]+`;
+// 带协议的照常；模型常把协议省掉只写「36kr.com/p/123」，域名后必须跟路径才认，免得把「点评.com」这类正文误当链接
+const URL_RE = new RegExp(`https?:\\/\\/${URL_TAIL}|(?<![\\w.@/])(?:[a-z0-9-]+\\.)+[a-z]{2,}\\/${URL_TAIL}`, "gi");
 const TRAILING = /[.,;:!?)\]]+$/;
+
+/** 没写协议的补成 https，href 才能点开 */
+const withScheme = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -30,8 +35,8 @@ function pill(url: string): string {
 function pillifyText(text: string): string {
   return text.replace(URL_RE, (whole) => {
     const tail = TRAILING.exec(whole)?.[0] ?? "";
-    const url = whole.slice(0, whole.length - tail.length);
-    return pill(unescapeHtml(url)) + tail;
+    const url = withScheme(unescapeHtml(whole.slice(0, whole.length - tail.length)));
+    return pill(url) + tail;
   });
 }
 
