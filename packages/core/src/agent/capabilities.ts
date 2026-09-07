@@ -3,8 +3,7 @@ import { loadPrompt } from "./prompt-text.js";
 
 /**
  * 能力是主编的一份打包工作流：目标、交付物、边界，不写步骤。
- * 三种进场方式共用同一份清单：作者点按钮、主编自己想到就做、主编想到先问作者。
- * 进场后怎么走由主编看盘面定，缺的信息从盘面读，读不到再问作者。
+ * 作者与主编共用同一份说明，如何开展由对话、材料与授权决定。
  */
 export interface CapabilityDef extends CapabilityInfo {
   /** 什么时候该想到它：给主编的清单看，也给按钮的说明 */
@@ -24,7 +23,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
   talk: {
     id: "talk",
     label: "聊一张卡",
-    description: "和作者边聊边把一个人物 / 设定 / 线索聊清楚，拍板一项落一项。",
+    description: "和作者探索人物 / 设定 / 线索，记录已认可且获准写入的内容。",
     when: "某张卡关键段空着，派策划前作者想先自己想清楚",
     load: () => loadPrompt("capabilities/talk"),
   },
@@ -90,5 +89,5 @@ export function capabilityRoster(): string {
 export function capabilityEntry(id: CapabilityId, by: "author" | "lead"): string {
   const c = CAPABILITIES[id];
   const head = by === "author" ? `作者点了「${c.label}」。` : `你进入「${c.label}」。`;
-  return `${head}先看盘面再开口，进场的第一句话由盘面和刚才的对话决定，不照本宣科。\n\n${c.load()}`;
+  return `${head}\n\n${c.load()}`;
 }

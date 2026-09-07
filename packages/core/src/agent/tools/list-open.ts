@@ -12,7 +12,7 @@ export function makeListOpenTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "list_open",
     label: "搁置清单",
-    description: "汇总全书所有文档 frontmatter open 里记的搁置项（作者说先放一放的决定），按文档列出。问作者下一步做什么、阶段收尾给摘要之前看一眼，别让欠账沉底。",
+    description: "按文档汇总全书 frontmatter open 中的搁置事项，供回顾材料或安排后续工作时参考。",
     parameters: Type.Object({}),
     execute: async () => {
       const all = await store.listAll();

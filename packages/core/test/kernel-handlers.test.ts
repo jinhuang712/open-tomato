@@ -435,7 +435,7 @@ describe("chat / doc 剩余分支", () => {
 
 describe("capability 全流程", () => {
   test.each([
-    ["talk", "聊一张卡：和作者边聊边把一个人物"],
+    ["talk", "聊一张卡：和作者一起探索人物"],
     ["design", "卡片设计：派策划创作"],
     ["outline", "大纲编排：派编剧编排"],
     ["review", "多路审稿：多路只读评审看一章"],

@@ -26,10 +26,11 @@ describe("提示词口径", () => {
     expect(p).toContain("加载说明不意味着作者批准");
   });
 
-  test("写手限制扩读故事材料，保留工具例外", () => {
+  test("写手可以补读相关材料，不能将未确认设定当事实", () => {
     const p = ROLES.writer.systemPrompt;
     expect(p).not.toContain("不读别的");
-    expect(p).toContain("以下不受上述清单限制");
+    expect(p).toContain("按需补读相关故事材料");
+    expect(p).toContain("不把未经确认的设定当作既定事实");
     expect(p).toContain("project_overview 查看项目概况");
     expect(p).toContain("web_search 查证本章涉及的现实知识");
     expect(p).toContain("返修时 read_review");
@@ -41,7 +42,6 @@ describe("提示词口径", () => {
     expect(pause).toContain("等待作者输入");
     expect(pause).not.toContain("ask_user");
   });
-});
 
   test("所有角色共用一份交流原则，报告规则不限制主编正文", () => {
     const communication = loadPrompt("shared/communication");
@@ -51,6 +51,7 @@ describe("提示词口径", () => {
       expect(role.systemPrompt.split(report)).toHaveLength(role.id === "director" ? 1 : 2);
     }
   });
+});
 
 describe("评审手册", () => {
   test("三路评审各拼进自己那份手册，读者只有人设", () => {
