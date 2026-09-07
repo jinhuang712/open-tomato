@@ -1,10 +1,11 @@
-import { PROSE_REJECT_WORDS, stubPrompt } from "@opentomato/core/protocol";
+import { PROSE_REJECT_WORDS, quoteBlock, splitQuotes, stubPrompt } from "@opentomato/core/protocol";
 import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { autoGrow } from "../autogrow";
 import { bridge } from "../bridge";
-import { actions, setState, state } from "../state";
+import { actions, quoteLabel, setState, state } from "../state";
+import { QuoteCard } from "./QuoteCard";
 
 interface Attachment {
   id: string;
@@ -23,6 +24,12 @@ async function readFiles(files: Iterable<File>): Promise<{ name: string; content
     out.push({ name: f.name, content: await f.text() });
   }
   return out;
+}
+
+/** 排队条里的一行预览：去掉桩标记，引用只留一个 ❝ 加正文 */
+function queuePreview(text: string): string {
+  const { quotes, rest } = splitQuotes(text.replace(/^⟦stub:[^⟧]*⟧\n?/, ""));
+  return quotes.length ? `❝ ${rest || quotes[0]!.text}` : rest;
 }
 
 /**
@@ -118,7 +125,7 @@ export function Composer(props: { agentId?: string }) {
     return "和主编说话";
   };
 
-  // 引用按 markdown 引用块排在正文前面，主编一眼看出作者在对哪段说话
+  // 引用按围栏排在正文前面：主编一眼看出作者在对哪段说话，气泡里也能拆回引用卡
   const canSend = () => Boolean(text().trim()) || quotes().length > 0 || attachments().length > 0;
   const submit = (deliverAs: "steer" | "followUp") => {
     if (!canSend() || disabled()) return;
@@ -126,7 +133,7 @@ export function Composer(props: { agentId?: string }) {
     const annotation = actions.makeAnnotation(quotes(), text().trim());
     const blocks = quotes()
       .filter((q) => !q.source)
-      .map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n"));
+      .map((q) => quoteBlock(quoteLabel(q), q.text));
     const t = annotation
       ? stubPrompt(annotation.label, [annotation.body, ...blocks, ...inlineAttachments(attachments())].filter(Boolean).join("\n\n"))
       : [...blocks, text().trim(), ...inlineAttachments(attachments())].filter(Boolean).join("\n\n");
@@ -145,7 +152,7 @@ export function Composer(props: { agentId?: string }) {
               {(m) => (
                 <div class="flex items-baseline gap-2 min-w-0">
                   <span class={`shrink-0 ${m.inserted ? "text-accent" : "text-ink-3"}`}>{m.label}</span>
-                  <span class="flex-1 truncate text-ink-2">{m.text.replace(/^⟦stub:[^⟧]*⟧\n?/, "")}</span>
+                  <span class="flex-1 truncate text-ink-2">{queuePreview(m.text)}</span>
                   <Show when={!m.inserted}>
                     <button
                       class="shrink-0 text-ink-3 hover:text-ink"
@@ -177,23 +184,7 @@ export function Composer(props: { agentId?: string }) {
       >
         <Show when={isLead() && quotes().length > 0}>
           <div class="flex flex-col gap-1.5 px-3 pt-3">
-            <For each={quotes()}>
-              {(q) => (
-                <div class="group flex items-start gap-2 pl-3 pr-1 py-0.5 border-l-2 border-ink-3">
-                  <div class="flex-1 min-w-0">
-                    <div class="text-xs text-ink-3 leading-tight">{q.source ? `批注 ${q.source.path}` : q.role === "user" ? "你说过" : "主编说过"}</div>
-                    <div class="font-serif text-sm text-ink-2 whitespace-pre-line line-clamp-2">{q.text}</div>
-                  </div>
-                  <button
-                    class="shrink-0 w-6 h-6 rounded-md text-ink-3 hover:text-ink hover:bg-paper-3 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                    title="去掉这段引用"
-                    onClick={() => dropQuote(q.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </For>
+            <For each={quotes()}>{(q) => <QuoteCard from={quoteLabel(q)} text={q.text} clamp onRemove={() => dropQuote(q.id)} />}</For>
             {/* 圈的是正文时给词汇表：说不出哪里不对的人也能选一个，点了填进输入框，还能接着写 */}
             <Show when={quotes().some((q) => q.source?.path.startsWith("正文/"))}>
               <div class="flex flex-wrap gap-1 pl-3">

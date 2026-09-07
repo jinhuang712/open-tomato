@@ -220,8 +220,43 @@ export interface QueueItem {
   inserted: boolean;
 }
 
+/**
+ * 作者圈出来的一段原话，排在他自己的话前面。from 是圈的谁 / 哪份材料（主编 · 你 · 正文/第一章 · 审阅 xxx）。
+ * 发给模型的还是一段字符串，围栏让 UI 能拆回引用卡，也让模型一眼看出哪句是引的、哪句是作者说的。
+ */
+export const QUOTE_OPEN = "⟦引用 ";
+export const QUOTE_CLOSE = "⟦/引用⟧";
+const QUOTE_PATTERN = /^⟦引用 ([^⟧\n]{1,80})⟧\r?\n([\s\S]*?)\r?\n⟦\/引用⟧(?:\r?\n|$)/;
+
+export function quoteBlock(from: string, text: string): string {
+  return `${QUOTE_OPEN}${from}⟧\n${text.trim()}\n${QUOTE_CLOSE}`;
+}
+
+/** 从用户消息开头把引用围栏一块块摘下来，剩下的是作者自己的话 */
+export function splitQuotes(text: string): { quotes: { from: string; text: string }[]; rest: string } {
+  const quotes: { from: string; text: string }[] = [];
+  let rest = text;
+  for (;;) {
+    const m = QUOTE_PATTERN.exec(rest);
+    if (!m) break;
+    quotes.push({ from: m[1]!.trim(), text: m[2]! });
+    rest = rest.slice(m[0].length).replace(/^(?:[ \t]*\r?\n)+/, "");
+  }
+  return { quotes, rest };
+}
+
+/** 用户一段话拆成 parts：开头的引用各成一张卡，剩下的正文一段 */
+export function userTextParts(text: string): UiPart[] {
+  const { quotes, rest } = splitQuotes(text);
+  const parts: UiPart[] = quotes.map((q) => ({ type: "quote", from: q.from, text: q.text }));
+  if (rest.trim()) parts.push({ type: "text", text: rest });
+  return parts;
+}
+
 export type UiPart =
   | { type: "text"; text: string }
+  /** 作者圈的一段原话：from 是圈的谁 / 哪份材料 */
+  | { type: "quote"; from: string; text: string }
   /** 内部指令的占位：只显示 label */
   | { type: "stub"; label: string }
   | { type: "thinking"; text: string }

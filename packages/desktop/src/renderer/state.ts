@@ -19,6 +19,7 @@ import type {
   UiMessage,
   UiPart,
 } from "@opentomato/core/protocol";
+import { quoteBlock } from "@opentomato/core/protocol";
 import { bridge } from "./bridge";
 
 export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string };
@@ -62,6 +63,12 @@ export interface ComposerQuote {
   role?: "user" | "assistant";
   text: string;
   source?: QuoteSource;
+}
+
+/** 引用卡上那行小字，也是发给主编的围栏标签：圈的谁 / 哪份材料 */
+export function quoteLabel(q: Pick<ComposerQuote, "role" | "source">): string {
+  if (q.source) return `批注 ${q.source.path}`;
+  return q.role === "user" ? "作者" : "主编";
 }
 
 export interface State {
@@ -318,7 +325,7 @@ export function applyEvent(ev: KernelEvent) {
 /** 正在自动重试的 agent：模型恢复、开始吐新一条回复时把「N 秒后重试」的状态行撤掉 */
 const retrying = new Set<string>();
 
-const textOf = (m: UiMessage) => m.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+const textOf = (m: UiMessage) => m.parts.filter((p) => p.type === "text" || p.type === "quote").map((p) => p.text).join("\n");
 
 function isDuplicateUser(prev: UiMessage | undefined, next: UiMessage): boolean {
   return !!prev && prev.role === "user" && textOf(prev) === textOf(next) && Math.abs(next.createdAt - prev.createdAt) < 5000;
@@ -677,7 +684,7 @@ export const actions = {
     const label = `批注${seq}`;
     setState("annotationSeq", seq);
     setState("annotations", (ns) => [...ns, { label, source: src, quotes: sourced.map((q) => q.text), text }]);
-    const blocks = sourced.map((q) => q.text.split("\n").map((l) => `> ${l}`).join("\n")).join("\n\n");
+    const blocks = sourced.map((q) => quoteBlock(quoteLabel(q), q.text)).join("\n\n");
     return { label, body: `[批注 ${src.path}]\n${blocks}\n\n${text}`.trim() };
   },
   /** 点桩：跳回批注所在处并标亮。批注已经没了就只提示 */

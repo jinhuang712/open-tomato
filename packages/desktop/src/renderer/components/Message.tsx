@@ -3,6 +3,7 @@ import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { splitAttachments } from "../attachments";
 import { actions, state } from "../state";
+import { QuoteCard } from "./QuoteCard";
 import { ToolCard } from "./ToolCard";
 
 /** 用户消息里的附件：默认只露文件名和字数，点开才看正文 */
@@ -95,6 +96,14 @@ export function Message(props: { message: UiMessage; dimText?: boolean }) {
         <For each={visible()}>
           {(part) => (
             <Switch>
+              {/* 作者圈的原话：引用卡排在他自己的话前面，和输入框里看到的是同一张 */}
+              <Match when={part.type === "quote" && part}>
+                {(p) => (
+                  <div class="mb-2 last:mb-0">
+                    <QuoteCard from={p().from} text={p().text} />
+                  </div>
+                )}
+              </Match>
               <Match when={part.type === "text" && part}>
                 {(p) => (
                   <Show

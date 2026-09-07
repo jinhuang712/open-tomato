@@ -1,8 +1,9 @@
-import { MATERIAL_REJECT_WORDS, PROSE_REJECT_WORDS, type ApprovalRequest } from "@opentomato/core/protocol";
+import { MATERIAL_REJECT_WORDS, PROSE_REJECT_WORDS, quoteBlock, type ApprovalRequest } from "@opentomato/core/protocol";
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { actions, setState, state } from "../state";
 import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
+import { QuoteCard } from "./QuoteCard";
 import { QuotePill } from "./QuotePill";
 import { TrackChanges } from "./TrackChanges";
 
@@ -15,6 +16,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const [rejecting, setRejecting] = createSignal(false);
   /** 作者在稿上圈的那段：批注即拒绝理由，引文排在理由前面回给 agent */
   const [quoted, setQuoted] = createSignal<string | null>(null);
+  const quotedFrom = () => `审阅 ${props.request.path}`;
   const agent = () => state.agents[props.request.agentId];
   const close = () => setState("reviewOpen", null);
   /** 批/拒只发动作，切到下一条由 approval.resolved 事件推进：
@@ -26,7 +28,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const reject = () => {
     if (!canReject()) return;
     const q = quoted();
-    const block = q ? q.split("\n").map((l) => `> ${l}`).join("\n") : "";
+    const block = q ? quoteBlock(quotedFrom(), q) : "";
     void actions.reject(props.request.approvalId, [block, reason().trim()].filter(Boolean).join("\n\n"));
   };
   const cancelReject = () => {
@@ -126,17 +128,7 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
             }
           >
             <div class="flex flex-col gap-1.5 w-[520px]">
-              <Show when={quoted()}>
-                {(q) => (
-                  <div class="flex items-start gap-2 px-3 py-1.5 rounded-lg bg-paper-3 text-sm">
-                    <span class="font-serif text-ink-3 leading-none translate-y-px">❝</span>
-                    <span class="flex-1 text-ink-2 line-clamp-3 whitespace-pre-wrap">{q()}</span>
-                    <button class="shrink-0 text-ink-3 hover:text-ink text-xs" onClick={() => setQuoted(null)} title="不引这段了">
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </Show>
+              <Show when={quoted()}>{(q) => <QuoteCard from={quotedFrom()} text={q()} clamp onRemove={() => setQuoted(null)} />}</Show>
               <div class="flex gap-1">
                 <For each={QUICK_REASONS}>
                   {(r) => (
