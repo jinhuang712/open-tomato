@@ -1,4 +1,4 @@
-import type { CapabilityId, CapabilityInfo } from "../protocol.js";
+import type { CapabilityId, CapabilityInfo, CapabilityKind } from "../protocol.js";
 import { loadPrompt } from "./prompt-text.js";
 
 /**
@@ -6,8 +6,6 @@ import { loadPrompt } from "./prompt-text.js";
  * 作者与主编共用同一份说明，如何开展由对话、材料与授权决定。
  */
 export interface CapabilityDef extends CapabilityInfo {
-  /** 工作流是按阶段推进的一段活；技法是主编在对话里直接用的写作手法，有进有出，不挂界面按钮 */
-  kind: "workflow" | "technique";
   /** 什么时候该想到它：给主编的清单看，也给按钮的说明 */
   when: string;
   /** 加载正文：进主编的上下文 */
@@ -141,9 +139,14 @@ export const CAPABILITY_IDS = Object.keys(CAPABILITIES) as CapabilityId[];
 
 export function capabilityInfos(): CapabilityInfo[] {
   return CAPABILITY_IDS.map((id) => {
-    const { label, description } = CAPABILITIES[id];
-    return { id, label, description };
+    const { label, kind, description } = CAPABILITIES[id];
+    return { id, label, kind, description };
   });
+}
+
+/** 某一类能力的 id，按登记顺序。按钮清单和主编清单的分组都从这里来，不另外手写名单 */
+export function capabilityIdsOf(kind: CapabilityKind): CapabilityId[] {
+  return CAPABILITY_IDS.filter((id) => CAPABILITIES[id].kind === kind);
 }
 
 export function isCapabilityId(v: unknown): v is CapabilityId {
@@ -156,7 +159,7 @@ export function capabilityRoster(): string {
     const c = CAPABILITIES[id];
     return `- ${id}（${c.label}）：${c.description} 时机：${c.when}`;
   };
-  const group = (kind: CapabilityDef["kind"]) => CAPABILITY_IDS.filter((id) => CAPABILITIES[id].kind === kind).map(line).join("\n");
+  const group = (kind: CapabilityKind) => capabilityIdsOf(kind).map(line).join("\n");
   return `工作流：\n${group("workflow")}\n技法：\n${group("technique")}`;
 }
 

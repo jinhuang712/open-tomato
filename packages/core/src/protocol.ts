@@ -209,10 +209,18 @@ export type CapabilityId =
   | "hook"
   | "cool";
 
+/**
+ * 能力分两类。工作流是按阶段推进的一段活，界面按阶段挂按钮；
+ * 技法是主编在对话里直接用的写作手法，有进有出，不挂按钮。
+ * 类别是元数据的一部分：按钮该露哪些、清单怎么分组，都从这个字段派生，不另外手写一份名单。
+ */
+export type CapabilityKind = "workflow" | "technique";
+
 /** 能力是主编的一份打包工作流。前端只拿元数据挂按钮，正文只进主编的上下文 */
 export interface CapabilityInfo {
   id: CapabilityId;
   label: string;
+  kind: CapabilityKind;
   description: string;
 }
 
