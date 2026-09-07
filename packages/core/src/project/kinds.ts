@@ -110,6 +110,7 @@ function defineKind(def: KindDef): DocKind {
 }
 
 const CHARACTER_TIERS = ["主角", "关键对手", "重要配角", "一般配角"] as const;
+const RULE_LEVELS = ["必须", "尽量"] as const;
 const speaksMuch = (fm: Frontmatter) => fm.tier === "主角" || fm.tier === "关键对手";
 
 export const DOC_KINDS: Record<DocKindId, DocKind> = {
@@ -119,7 +120,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     dir: "世界",
     description: "世界观、规则体系、势力、地点。一张卡讲一个设定对象。",
     normalizeId: slug,
-    fields: [{ name: "category", required: true, comment: "规则 / 势力 / 地点 / 物品 / 其他" }],
+    group: { field: "category" },
+    fields: [{ name: "category", required: true, comment: "按这本书的世界分，同类用同一个词。玄幻常见 宗门 / 功法 / 秘境 / 地点，都市常见 公司 / 圈子 / 地点，规则体系一律写 规则" }],
     sections: [
       { name: "定义", required: true },
       { name: "规则与边界", required: true },
@@ -133,6 +135,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     dir: "人物",
     description: "人物卡。语音签名是对白一致性的依据，写对白只取这一段。",
     normalizeId: slug,
+    group: { field: "tier", order: CHARACTER_TIERS },
     fields: [
       { name: "tier", required: true, comment: CHARACTER_TIERS.join(" / ") },
       { name: "faction", comment: "所属势力" },
@@ -152,6 +155,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     dir: "线索",
     description: "主线 / 支线 / 主题 / 小故事。记起点、终点、推进阶段和挂在上面的钩子。",
     normalizeId: slug,
+    group: { field: "type", order: THREAD_TYPES },
     fields: [
       { name: "type", required: true, options: THREAD_TYPES },
       { name: "stage", comment: "当前推进到哪一阶段" },
@@ -253,8 +257,9 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 是规则完整的一句话，展开 段写边界与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
     normalizeId: padded(3),
     autoId: true,
+    group: { field: "level", order: RULE_LEVELS },
     fields: [
-      { name: "level", required: true, comment: "必须 / 尽量" },
+      { name: "level", required: true, comment: RULE_LEVELS.join(" / ") },
       { name: "scope", required: true, comment: "文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局" },
       { name: "source", required: true, comment: "作者原话或来源" },
     ],
@@ -351,7 +356,7 @@ export const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style
 
 export function kindInfos(): DocKindInfo[] {
   return DOC_KIND_IDS.map((k) => {
-    const { id, label, dir, description, singleton } = DOC_KINDS[k];
-    return { id, label, dir, description, ...(singleton ? { singleton } : {}) };
+    const { id, label, dir, description, singleton, group } = DOC_KINDS[k];
+    return { id, label, dir, description, ...(singleton ? { singleton } : {}), ...(group ? { group } : {}) };
   });
 }

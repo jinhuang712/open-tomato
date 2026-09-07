@@ -31,6 +31,12 @@ export interface DocKindInfo {
   description: string;
   /** 全书只有一份、路径即名字（如 简介.md），侧栏不展开 */
   singleton?: boolean;
+  /**
+   * 侧栏按哪个 frontmatter 字段分组。给了 order 就按这个固定顺序出组（人物层级、线索类型）；
+   * 没给 order 的是动态组：这本书里实际写了哪些值就出哪些组，卡多的在前（世界设定的 category，玄幻是宗门 / 功法，都市是公司 / 圈子）。
+   * 字段没填的归「未分类」垫底。
+   */
+  group?: { field: string; order?: readonly string[] };
 }
 
 export interface DocHeader {
