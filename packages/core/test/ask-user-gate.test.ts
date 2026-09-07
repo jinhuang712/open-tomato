@@ -27,6 +27,14 @@ test("ask_user 只有问题与候选：解释在正文里，参数表不再有 s
   expect(got).toEqual({ agentId: "director", text: "选哪个？", kind: "single", options: ["A", "B"], allowFreeText: true });
 });
 
+test("工具描述先摆候选形态、再给 open，并点名「候选写进问句」这种错法", () => {
+  const d = makeAskUserTool(ctxWith(() => {})).description as string;
+  // kind 表按「该用哪个」排序：single 打头，open 垫底
+  expect(d.indexOf("| single |")).toBeLessThan(d.indexOf("| open |"));
+  expect(d).toContain("A、B 还是 C");
+  expect(d).toContain("挪进 options 走 single");
+});
+
 test("旧会话里带 say 的实参照样能问，多出来的键被忽略", async () => {
   let asked = false;
   const tool = makeAskUserTool(ctxWith(() => (asked = true)));
