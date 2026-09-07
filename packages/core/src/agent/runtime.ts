@@ -317,6 +317,7 @@ export class Kernel {
       ctx.spawn = (tasks, onProgress) => this.spawn(agentId, tasks, onProgress);
       ctx.continueAgent = (ref, message, mode, onProgress) => this.continueChild(this.resolveChild(ref), message, mode, onProgress);
       ctx.archiveAgent = (ref) => this.archiveChild(this.resolveChild(ref).info.agentId);
+      ctx.listAgents = () => [...this.agents.values()].filter((a) => a.info.parentId === agentId).map((a) => a.info);
     }
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);

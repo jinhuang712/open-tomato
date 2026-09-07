@@ -3,6 +3,7 @@ import { makeAskUserTool } from "./ask-user.js";
 import { makeContinueAgentTool } from "./continue-agent.js";
 import { makeDocTemplateTool } from "./doc-template.js";
 import { makeEditDocTool } from "./edit-doc.js";
+import { makeListAgentsTool } from "./list-agents.js";
 import { makeListDocsTool } from "./list-docs.js";
 import { makeListOpenTool } from "./list-open.js";
 import { makeLoadCapabilityTool } from "./load-capability.js";
@@ -65,6 +66,10 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
 
   if (perms.canSpawn && ctx.archiveAgent) {
     tools.push(makeArchiveAgentTool(ctx));
+  }
+
+  if (perms.canSpawn && ctx.listAgents) {
+    tools.push(makeListAgentsTool(ctx));
   }
 
   return tools;

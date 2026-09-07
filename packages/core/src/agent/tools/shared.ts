@@ -1,6 +1,6 @@
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
-import type { AgentMode, CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
+import type { AgentInfo, AgentMode, CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
 import { frontmatterDiffKeys, parseFrontmatter } from "../../project/frontmatter.js";
 import { bookkeepingFields, DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../../project/kinds.js";
 import { contentHash } from "../../project/records.js";
@@ -44,6 +44,8 @@ export interface ToolContext {
   continueAgent?: (agent: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress) => Promise<DispatchResult>;
   /** 封存一个跑完的子 agent：会话留着，之后不能再 continue。删由作者在界面上做 */
   archiveAgent?: (agent: string) => Promise<void>;
+  /** 自己派出去的人现在什么状态。只有能派单的角色才有 */
+  listAgents?: () => AgentInfo[];
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
 }
