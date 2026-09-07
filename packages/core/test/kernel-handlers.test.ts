@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Kernel } from "../src/agent/runtime.js";
-import type { KernelEvent } from "../src/protocol.js";
+import { stubPrompt, type KernelEvent } from "../src/protocol.js";
 import { fakeSessionFactory } from "./fake-session.js";
 import { ProjectStore } from "../src/project/store.js";
 
@@ -229,6 +229,15 @@ describe("chat.*", () => {
   test("clearQueue 空队列返回空 texts；发给未知 agent 抛错", async () => {
     expect(await kernel.handle("chat.clearQueue", {})).toEqual({ texts: [] });
     await expect(kernel.handle("chat.send", { text: "hi", agentId: "ghost" })).rejects.toThrow();
+  });
+
+  test("clearQueue 撤回：暂停桩不倒回输入框，作者的话和批注照旧", async () => {
+    const { fake } = fakeLead(true);
+    fake.session.clearQueue = () => ({ steering: [stubPrompt("暂停", "请立刻收尾"), "作者插的话"], followUp: [] });
+    fake.inbox = [{ id: "a", label: "批注1", text: stubPrompt("批注1", "这段改一下") }];
+    const q = (await kernel.handle("chat.clearQueue", {})) as { texts: string[] };
+    expect(q.texts).toEqual(["作者插的话", stubPrompt("批注1", "这段改一下")]);
+    expect(fake.inbox).toEqual([]);
   });
 
   test("abort 运行中的主编：hold 住", async () => {

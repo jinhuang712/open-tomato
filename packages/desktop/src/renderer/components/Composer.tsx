@@ -1,4 +1,4 @@
-import { PROSE_REJECT_WORDS, quoteBlock, splitQuotes, stubPrompt } from "@opentomato/core/protocol";
+import { PROSE_REJECT_WORDS, quoteBlock, splitQuotes, STUB_PATTERN, stubPrompt, systemStubLabel } from "@opentomato/core/protocol";
 import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
@@ -28,7 +28,7 @@ async function readFiles(files: Iterable<File>): Promise<{ name: string; content
 
 /** 排队条里的一行预览：去掉桩标记，引用只留一个 ❝ 加正文 */
 function queuePreview(text: string): string {
-  const { quotes, rest } = splitQuotes(text.replace(/^⟦stub:[^⟧]*⟧\n?/, ""));
+  const { quotes, rest } = splitQuotes(text.replace(STUB_PATTERN, ""));
   return quotes.length ? `❝ ${rest || quotes[0]!.text}` : rest;
 }
 
@@ -152,7 +152,19 @@ export function Composer(props: { agentId?: string }) {
               {(m) => (
                 <div class="flex items-baseline gap-2 min-w-0">
                   <span class={`shrink-0 ${m.inserted ? "text-accent" : "text-ink-3"}`}>{m.label}</span>
-                  <span class="flex-1 truncate text-ink-2">{queuePreview(m.text)}</span>
+                  <Show
+                    when={systemStubLabel(m.text)}
+                    fallback={<span class="flex-1 truncate text-ink-2">{queuePreview(m.text)}</span>}
+                  >
+                    {(label) => (
+                      <span class="flex-1 min-w-0 truncate">
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-paper-3 text-ink-2">
+                          <span class="text-ink-3">▶</span>
+                          {label()}
+                        </span>
+                      </span>
+                    )}
+                  </Show>
                   <Show when={!m.inserted}>
                     <button
                       class="shrink-0 text-ink-3 hover:text-ink"

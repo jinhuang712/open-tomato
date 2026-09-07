@@ -215,6 +215,16 @@ export function stubPrompt(label: string, text: string): string {
   return `${STUB_PREFIX}${label}${STUB_SUFFIX}\n${text}`;
 }
 
+/**
+ * 内核 / 按钮自己合成的桩（暂停、继续……）的标签；作者写的批注也挂桩但正文是作者的话，不算。
+ * 这类文本只给模型看：排队条上只画标签，撤回时也不倒回输入框。
+ */
+export function systemStubLabel(text: string): string | null {
+  const label = STUB_PATTERN.exec(text)?.[1]?.trim();
+  if (!label || /^批注\d+$/.test(label)) return null;
+  return label;
+}
+
 /** 排队里的一条：作者在 agent 跑着的时候发的话或批注。label 是界面上的短标签（排队 / 批注 N / 已插入） */
 export interface QueueItem {
   id: string;

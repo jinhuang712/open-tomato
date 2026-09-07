@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { STUB_PATTERN, stubPrompt } from "../../../protocol.js";
+import { STUB_PATTERN, stubPrompt, systemStubLabel } from "../../../protocol.js";
 import { loadPrompt } from "../../prompt-text.js";
 import { LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
@@ -66,7 +66,8 @@ export function chatHandlers(
       const live = api.agents.get(agentId ?? LEAD_ID);
       if (!live) return { texts: [] };
       const q = live.session.clearQueue();
-      const texts = [...q.steering, ...q.followUp, ...live.inbox.map((e) => e.text)];
+      // 内核合成的桩（暂停 / 继续）只给模型看，不是作者的话，不倒回输入框
+      const texts = [...q.steering, ...q.followUp, ...live.inbox.map((e) => e.text)].filter((t) => systemStubLabel(t) === null);
       live.inbox = [];
       live.steering = [];
       live.flushRest = false;
