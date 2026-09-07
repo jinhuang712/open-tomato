@@ -703,6 +703,7 @@ export class Kernel {
       case "agent_start":
         this.setStatus(live, "running");
         live.asked = false;
+        live.spoke = false;
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
@@ -783,8 +784,15 @@ export class Kernel {
         return;
       case "tool_execution_start":
         if (ev.toolName === "ask_user") live.asked = true;
-        // 讲过一次就算讲了：讲得够不够是提示词的事，内核只管「一个字没讲就问」
-        if (ev.toolName === "say") live.unrelayed = [];
+        // 两个对话通道等价；空白文本不能清除未转述标记。
+        if (ev.toolName === "say" || ev.toolName === "ask_user") {
+          const args = ev.args as { text?: unknown; say?: unknown } | undefined;
+          const speech = ev.toolName === "say" ? args?.text : args?.say;
+          if (typeof speech === "string" && speech.trim()) {
+            live.spoke = true;
+            live.unrelayed = [];
+          }
+        }
         this.send(live, {
           type: "tool_start",
           messageId: live.streamingMessageId ?? "",

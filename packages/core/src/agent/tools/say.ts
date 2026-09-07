@@ -12,9 +12,9 @@ export function makeSayTool(_ctx: ToolContext): ToolDefinition {
     name: "say",
     label: "对作者说",
     description:
-      "对作者说一段话，作者会立刻看到。这是你对作者说话的唯一方式：做完一件事、想明白一件事、子 agent 的结论回来了，都用它说一句。要问作者问题时不用它，用 ask_user，那里自带说话的位置。",
+      "向作者说一段话，用于回答、讨论、解释、分享判断与灵感，以及交代有意义的进展和结果。自然承接当前对话，根据内容决定篇幅与结构。后台结果先理解再转述，保留影响作者判断的信息，无需逐项汇报工具动作，也不重复已经讲清的内容。这次只需表达时使用本工具；表达后需要作者回答时，可以直接使用 ask_user，在其中的 say 字段完成解释。说清楚后可以结束，不必附带问题或下一步安排。",
     parameters: Type.Object({
-      text: Type.String({ description: "对作者说的话，支持 Markdown。像编辑跟作者说话：有想法就说，看到问题就指出来；作者看侧栏就能知道的事不用说" }),
+      text: Type.String({ description: "对作者说的话，支持 Markdown。遵循主编的共同沟通原则，自然回应作者当前关切" }),
     }),
     prepareArguments: (args: unknown) => {
       const raw = (args ?? {}) as Record<string, unknown>;

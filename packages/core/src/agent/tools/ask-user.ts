@@ -9,16 +9,16 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
     name: "ask_user",
     label: "问作者",
     description:
-      "向作者提一个问题，等作者在界面上回答。先在 say 里对作者讲清来龙去脉（刚做了什么、几个候选各是什么路子、差在哪、各自的代价），question 只装问题本身。**按问题形态选 kind**，作者面对一个问题要做的动作只有五种：\n" +
+      "向作者提出一个需要回答的问题，并等待回答。用于澄清重要信息、支持创作取舍或帮助探索继续。say 是提问前自然承接对话的话，与普通回复采用相同的表达方式。补充作答所需的背景、关键区别和重要代价；有推荐可以说明理由。可以直接在这里讲清内容，无需先调用 say；前文已经解释充分时不重复铺垫。question 只放问题本身，范围明确、容易回答。不重复询问已有答案，也不为结束当前回合而制造问题。按问题形态选 kind：\n" +
       "| kind | 作者的动作 | options |\n|---|---|---|\n" +
       "| open | 自由回答（书名、感受这类你给不出候选的） | 空 |\n" +
       "| single | 挑一个，点即发 | 短字串 2–6 个 |\n" +
       "| multi | 挑若干个（派哪几个角色、留哪几个人物） | 短字串 2–8 个；没选的就是不要 |\n" +
       "| checklist | 一组意见逐条表态改 / 不改（评审回来问返修哪几条） | 条目 2–8 个，每条一句话；没表态的会单独报给你，由你拿主意并在 say 里说一句 |\n" +
       "| compare | 并排读长稿，选一版（同一段的两种写法、两版小传） | {label, text} 2–4 个，label 短名字，text 完整正文 |\n" +
-      "开放问题也尽量给 2–4 个你替作者想好的具体候选（书名就直接给 3 个备选），作者点一下就能选，也能自由输入。选项卡不替代解释：子 agent 刚交回报告，要先用 say 逐条转达，没转达就问会被打回。界面会按 kind 自动补逃生口（换一批 / 混搭 / 你替我定 / 全改 / 先放一放……），你不用重复给。",
+      "选项应有实质差异，帮助作者表达，同时保留其他方向；不为凑数量制造候选。解释放 say，选项使用可辨认的短名称；compare 用于需要并排阅读完整内容的比较。界面按 kind 自动补充逃生口，无需重复提供。",
     parameters: Type.Object({
-      say: Type.String({ description: "问之前对作者说的话：刚做了什么、为什么现在要问、候选之间差在哪。作者先看到这段，再看到问题" }),
+      say: Type.Optional(Type.String({ description: "提问前对作者说的话。按需提供理解问题和作出选择所需的信息，可以包含判断、建议或解释。自然承接前文，不重复已讲清的内容；无需补充时可省略。" })),
       question: Type.String({ description: "问作者的问题本身，一两句，一次只问一件事；铺垫和解释放 say" }),
       kind: Type.Optional(
         Type.Union(
@@ -35,7 +35,7 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
               text: Type.String({ description: "候选完整正文，支持 Markdown" }),
             }),
           ]),
-          { description: "候选。single / multi / checklist 给短字串，compare 给 {label, text}；开放问题也尽量给具体候选，例如书名就直接给 3 个备选书名" },
+          { description: "候选。single / multi / checklist 给短字串，compare 给 {label, text}，按需要提供候选，不强制给开放问题设置选项" },
         ),
       ),
       allowFreeText: Type.Optional(Type.Boolean({ description: "默认 true" })),
@@ -43,9 +43,9 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
     prepareArguments: repairAskArgs,
     execute: async (_id, params, signal) => {
       const pending = ctx.unrelayedReports?.() ?? [];
-      if (pending.length > 0) {
+      if (pending.length > 0 && !params.say?.trim()) {
         throw new Error(
-          `${pending.join("、")}的报告作者一个字都看不到。先讲清，再问：用 say 把报告读懂后用作者的词重新讲一遍——结论是什么、几个候选各是哪本书、差在哪、各要付什么代价、查到什么硬约束——讲全了再 ask_user。解释放 say 里，不塞进选项。`,
+          `${pending.join("、")}的报告尚未向作者解释。请在本次 ask_user.say 或独立 say 中讲清当前决定所需的信息，再提问；无需逐项复述报告。`,
         );
       }
       const answer = await ctx.gate.requestQuestion(

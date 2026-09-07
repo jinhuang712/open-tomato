@@ -286,7 +286,7 @@ describe("forward 事件映射", () => {
     (kernel as any).forward(fake, { type: "agent_end" });
     expect(fake.nudged).toBe(true);
     expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("ask_user");
+    expect(calls[0]![0]).toContain("可见回应");
   });
 
   test("queue_update 同步已插入列表", async () => {
@@ -411,4 +411,27 @@ describe("cloud.download replace", () => {
       await fs.rm(root2, { recursive: true, force: true });
     }
   });
+});
+
+describe("自然对话收尾", () => {
+  for (const toolName of ["say", "ask_user"]) {
+    test(`${toolName} 非空表达清除报告，收尾不追问`, () => {
+      const { fake, calls } = fakeLead(false);
+      (fake as any).unrelayed = ["策划"];
+      (kernel as any).forward(fake, { type: "tool_execution_start", toolName, toolCallId: "speech", args: { text: "判断", say: "解释" } });
+      expect((fake as any).spoke).toBe(true);
+      expect((fake as any).unrelayed).toEqual([]);
+      (kernel as any).forward(fake, { type: "agent_end" });
+      expect(calls).toHaveLength(0);
+      (kernel as any).forward(fake, { type: "agent_start" });
+      expect((fake as any).spoke).toBe(false);
+    });
+    test(`${toolName} 空白表达不清除报告`, () => {
+      const { fake } = fakeLead(false);
+      (fake as any).unrelayed = ["策划"];
+      (kernel as any).forward(fake, { type: "tool_execution_start", toolName, toolCallId: "blank", args: { text: "  ", say: "  " } });
+      expect((fake as any).spoke).not.toBe(true);
+      expect((fake as any).unrelayed).toEqual(["策划"]);
+    });
+  }
 });

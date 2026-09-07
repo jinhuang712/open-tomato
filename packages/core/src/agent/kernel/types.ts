@@ -47,11 +47,13 @@ export interface LiveAgent {
   hold: boolean;
   /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
   flushRest: boolean;
-  /** 这一轮里调过 ask_user：主编只有问作者才算合法收尾 */
+  /** 这一轮里调过 ask_user，等待作者也是合法收尾 */
   asked: boolean;
-  /** 已送到模型面前、还没用 say 转达给作者的子 agent 报告（角色标签）。非空时 ask_user 打回：作者一个字没看到，先转达再问 */
+  /** 本轮已向作者发送非空对话，可自然收尾 */
+  spoke?: boolean;
+  /** 已送到模型面前、尚未通过 say 或 ask_user.say 转达的报告（角色标签） */
   unrelayed: string[];
-  /** 这轮是补过的：主编没问就停时内核补一句让它接着干，一次作者发言只补一次，别循环 */
+  /** 这轮已补过可见回应提示；一次作者发言只补一次 */
   nudged: boolean;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
   pendingError: string | null;

@@ -12,7 +12,7 @@ const lead = (over: Partial<Live> = {}): Live => ({
 });
 
 describe("shouldNudge", () => {
-  test("主编没问就停，补一句", () => expect(shouldNudge(lead())).toBe(true));
+  test("主编没有可见回应就停，补一句", () => expect(shouldNudge(lead())).toBe(true));
   test("问过作者就是合法收尾", () => expect(shouldNudge(lead({ asked: true }))).toBe(false));
   test("一次作者发言只补一次", () => expect(shouldNudge(lead({ nudged: true }))).toBe(false));
   test("暂停中不补", () => expect(shouldNudge(lead({ hold: true }))).toBe(false));
@@ -21,3 +21,5 @@ describe("shouldNudge", () => {
   test("有子 agent 在跑：停下等报告是合法的，不补", () => expect(shouldNudge(lead(), true)).toBe(false));
   test("子 agent 不补", () => expect(shouldNudge(lead({ info: { agentId: "a1", status: "done" } as Live["info"] }))).toBe(false));
 });
+
+test("已回应作者可以自然结束", () => expect(shouldNudge(lead({ spoke: true }))).toBe(false));
