@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { STUB_PATTERN, stubPrompt } from "../../../protocol.js";
 import { loadPrompt } from "../../prompt-text.js";
-import { NUDGE_PROMPT } from "../lead-rules.js";
 import { LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 
 const PAUSE_PROMPT_LEAD = loadPrompt("kernel/pause-lead");
 const PAUSE_PROMPT_CHILD = loadPrompt("kernel/pause-child");
+/** 作者按「继续」：主编多半已经说过话、停在等作者点头；这句让它别再等、别重述，直接做下一步 */
+export const CONTINUE_PROMPT = loadPrompt("kernel/continue");
 
 export function chatHandlers(
   api: KernelApi,
@@ -33,7 +34,7 @@ export function chatHandlers(
       api.authorActed(live);
       // 历史都在会话里，模型知道停在哪；只补一句，不塞现状不塞步骤。这一句已算补过，轮末不再自动补第二句
       live.nudged = true;
-      api.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
+      api.sendTo(LEAD_ID, stubPrompt("继续", CONTINUE_PROMPT), "followUp");
       return null;
     },
     "chat.insert": async ({ agentId, id }) => {
