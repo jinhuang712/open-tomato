@@ -1,8 +1,8 @@
 import type { AgentInfo } from "@opentomato/core/protocol";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { actions, state } from "../state";
+import { STATUS } from "./agent-status";
 
-const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
 /**
  * 在场的角色：钉在对话区顶部的一行，不随消息滚动，内容和消息同一列宽。

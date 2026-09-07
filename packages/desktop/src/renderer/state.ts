@@ -22,7 +22,7 @@ import type {
 import { quoteBlock } from "@opentomato/core/protocol";
 import { bridge } from "./bridge";
 
-export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string };
+export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string } | { type: "agents" };
 
 /** 一段引文是从哪儿圈出来的：已落盘的材料。没有 source 的是对话里的话。审阅弹窗里圈的段不进这儿，直接成拒绝理由 */
 export type QuoteSource = { type: "doc"; kind: DocKindId; id: string; path: string };
@@ -615,14 +615,22 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  /** 作者让某位子 agent 退场。删了就回不来，先确认一句 */
+  /** 作者封存某位子 agent：会话留着，只是主编不能再续派。不删东西，不用确认 */
+  async archiveAgent(agentId: string) {
+    try {
+      await bridge.request("agent.archive", { agentId });
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /** 作者删掉某位子 agent。删了就回不来，先确认一句 */
   async retireAgent(agentId: string) {
     const a = state.agents[agentId];
     if (!a) return;
     const ok = await bridge.confirm({
-      message: `让${a.label}退场？`,
-      detail: "它的会话和上下文会一起删掉，主编之后不能再续派它。",
-      okLabel: "退场",
+      message: `删掉${a.label}？`,
+      detail: "它的会话和上下文会一起删掉，回不来。只是不想让它占名单的话，封存就够了。",
+      okLabel: "删除",
     });
     if (!ok) return;
     try {
@@ -732,6 +740,9 @@ export const actions = {
   },
   openChat(agentId: string) {
     setState("view", { type: "chat", agentId });
+  },
+  openAgents() {
+    setState("view", { type: "agents" });
   },
 
   // ───────────── 云端 ─────────────

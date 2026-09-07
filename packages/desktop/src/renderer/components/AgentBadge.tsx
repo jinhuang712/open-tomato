@@ -1,8 +1,8 @@
 import type { AgentInfo } from "@opentomato/core/protocol";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { actions, state } from "../state";
+import { STATUS } from "./agent-status";
 
-const STATUS: Record<string, string> = { running: "运行中", idle: "待命", done: "完成", error: "出错" };
 
 export const subAgentCount = () => state.agentOrder.filter((id) => state.agents[id] !== undefined && state.agents[id]!.parentId !== null).length;
 

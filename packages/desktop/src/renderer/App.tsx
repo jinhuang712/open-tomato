@@ -4,6 +4,7 @@ import { installDocLinkHandler } from "./doclink";
 import { installEscapeHandler } from "./escape";
 import { ClosePrompt } from "./components/ClosePrompt";
 import { CloudSettings } from "./components/CloudSettings";
+import { AgentHistory } from "./components/AgentHistory";
 import { Chat } from "./components/Chat";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
@@ -102,6 +103,9 @@ export function App() {
             <Switch>
               <Match when={state.view.type === "chat" && state.view}>{(v) => <Chat agentId={v().agentId} />}</Match>
               <Match when={state.view.type === "doc" && state.view}>{(v) => <DocViewer kind={v().kind} id={v().id} />}</Match>
+              <Match when={state.view.type === "agents"}>
+                <AgentHistory />
+              </Match>
             </Switch>
           </main>
         </div>
