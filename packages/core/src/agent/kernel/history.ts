@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { UiMessage, UiPart } from "../../protocol.js";
 import { STUB_PATTERN, takeMode, userTextParts } from "../../protocol.js";
+import { stripLeakedTokens } from "../leaked-tokens.js";
 import { STATUS_LINE_PATTERN } from "../roles.js";
 
 export interface RawMessage {
@@ -77,13 +78,15 @@ export function normalizeMessage(raw: unknown, id?: string): UiMessage | null {
           }
           // assistant 第一段正文开头的状态行不进消息体，它走 status_text。
           // 开着思考时 thinking 排在 text 前面，所以按「第一个 text」判断，不能按 parts 是否为空
+          // 模型漏出来的控制记号（DSML / seed 外壳 / <|…|>）先剥掉，作者看不到乱码
+          const clean = stripLeakedTokens(c.text);
           const firstText = !parts.some((p) => p.type === "text");
-          const text = m.role === "assistant" && firstText ? (takeStatusLine(c.text)?.rest ?? c.text) : c.text;
+          const text = firstText ? (takeStatusLine(clean)?.rest ?? clean) : clean;
           if (text.trim()) parts.push({ type: "text", text });
           break;
         }
         case "thinking":
-          parts.push({ type: "thinking", text: String(c.thinking ?? c.text ?? "") });
+          parts.push({ type: "thinking", text: stripLeakedTokens(String(c.thinking ?? c.text ?? "")) });
           break;
         case "toolCall":
           parts.push({

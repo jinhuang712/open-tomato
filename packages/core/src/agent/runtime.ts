@@ -22,6 +22,7 @@ import type {
 } from "../protocol.js";
 import { formatAnswer, modePrompt, stubPrompt } from "../protocol.js";
 import { crossModelThinkingExtension } from "./cross-model-thinking.js";
+import { leakedTokensExtension } from "./leaked-tokens.js";
 import { stubStripExtension } from "./stub-strip.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
@@ -267,7 +268,7 @@ export class Kernel {
   private loaderFor(systemPrompt: string): ResourceLoader {
     return {
       getExtensions: () => ({
-        extensions: [stubStripExtension(), crossModelThinkingExtension()],
+        extensions: [stubStripExtension(), crossModelThinkingExtension(), leakedTokensExtension()],
         errors: [],
         runtime: createExtensionRuntime(),
       }),
