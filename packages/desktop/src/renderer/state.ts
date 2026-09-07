@@ -442,25 +442,37 @@ async function refreshAfterReady() {
 }
 
 /** 去掉 Electron IPC 包的那层「Error invoking remote method 'xxx': Error: 」，只留内核说的那句 */
-/** 把模型调用的原始报错归成一句人话；认不出来返回 null，让调用方决定要不要露原文 */
-export function modelErrorCause(msg: string): string | null {
-  if (/429|rate.?limit|限流/i.test(msg)) return "模型限流";
-  if (/\b5\d\d\b|overloaded|unavailable/i.test(msg)) return "模型服务繁忙";
-  if (/timeout|timed out|ECONN|fetch failed|network/i.test(msg)) return "网络不稳";
+/**
+ * 把模型调用的原始报错归成一句人话；认不出来返回 null，让调用方决定要不要露原文。
+ * transient 表示等一等再发就好；false 表示是配置问题，得换模型或改凭据，重试没用。
+ */
+export function modelErrorCause(msg: string): { cause: string; transient: boolean } | null {
+  // 404 常常带回整页 HTML（网关的站点 404 页）：说明这个 id 在这家服务商下不存在，不是网络问题
+  if (/\b404\b|<!doctype\s+html|<html[\s>]/i.test(msg)) return { cause: "这个模型在当前服务商下不存在（404）", transient: false };
+  if (/\b40[13]\b|unauthorized|forbidden|invalid.?api.?key|incorrect api key/i.test(msg)) return { cause: "模型鉴权失败（API key 不对或没权限）", transient: false };
+  if (/429|rate.?limit|限流/i.test(msg)) return { cause: "模型限流", transient: true };
+  if (/\b5\d\d\b|overloaded|unavailable/i.test(msg)) return { cause: "模型服务繁忙", transient: true };
+  if (/timeout|timed out|ECONN|fetch failed|network/i.test(msg)) return { cause: "网络不稳", transient: true };
   return null;
 }
 
 /** 重试提示：原始报错翻成一句人话，原文不上屏 */
 export function retryText(ev: { attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }): string {
-  const cause = modelErrorCause(ev.errorMessage) ?? "模型调用出错";
+  const cause = modelErrorCause(ev.errorMessage)?.cause ?? "模型调用出错";
   const secs = Math.max(1, Math.round(ev.delayMs / 1000));
   return `${cause}，${secs} 秒后重试（第 ${ev.attempt}/${ev.maxAttempts} 次）`;
 }
 
+/** title 里露原文供排查，但整页 HTML 没必要全塞进去 */
+const ERROR_TITLE_MAX = 400;
+
 /** 红框文案：认得出的模型错给人话，原文留给 title；认不出的照原样露 */
 export function agentErrorText(raw: string): { text: string; title: string | undefined } {
-  const cause = modelErrorCause(raw);
-  return cause ? { text: `${cause}，已重试仍失败。稍等一下再发一次就行。`, title: raw } : { text: raw, title: undefined };
+  const hit = modelErrorCause(raw);
+  if (!hit) return { text: raw, title: undefined };
+  const title = raw.length > ERROR_TITLE_MAX ? `${raw.slice(0, ERROR_TITLE_MAX)}…` : raw;
+  const text = hit.transient ? `${hit.cause}，已重试仍失败。稍等一下再发一次就行。` : `${hit.cause}。换一个模型再试。`;
+  return { text, title };
 }
 
 export function errText(e: unknown): string {
