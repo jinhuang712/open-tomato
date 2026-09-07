@@ -20,7 +20,7 @@ import type {
   RequestMethod,
   RoleId,
 } from "../protocol.js";
-import { stubPrompt } from "../protocol.js";
+import { formatAnswer, stubPrompt } from "../protocol.js";
 import { stubStripExtension } from "./stub-strip.js";
 import { runCheck } from "../project/check.js";
 import { kindInfos } from "../project/kinds.js";
@@ -40,7 +40,8 @@ import {
   WRITE_TOOL_NAMES,
 } from "./tools/index.js";
 import { CloudManager } from "./kernel/cloud-manager.js";
-import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
+import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orphanedQuestion, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
+import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
 import { NUDGE_PROMPT, shouldNudge } from "./kernel/lead-rules.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
@@ -374,7 +375,35 @@ export class Kernel {
     );
     this.replayHistory(LEAD_ID, session);
     this.setStatus(live, "idle");
-    if (mode === "continue") await this.restoreChildren();
+    if (mode === "continue") {
+      await this.restoreChildren();
+      this.reviveQuestion(live);
+    }
+  }
+
+  /**
+   * 上次退出 / 重启时主编正在等作者答题：问题重新挂回门上，作者答了就当一条新话送进会话。
+   * 不经过模型：问题实参就在会话里，让模型再问一遍既费一轮又可能换措辞。
+   * 必须在 setStatus(idle) 之后：渲染层收到非 running 的状态会把这个 agent 的待答撤掉。
+   */
+  private reviveQuestion(live: LiveAgent) {
+    const raw = orphanedQuestion(live.session.messages as unknown[]);
+    if (!raw) return;
+    let args: AskArgs;
+    try {
+      args = repairAskArgs(raw);
+    } catch {
+      return;
+    }
+    if (!args.question) return;
+    this.gate
+      .requestQuestion({ agentId: LEAD_ID, text: args.question, kind: args.kind, options: args.options ?? [], allowFreeText: args.allowFreeText ?? true })
+      .then((answer) => {
+        if (this.agents.get(LEAD_ID) !== live) return;
+        this.authorActed(live);
+        this.sendTo(LEAD_ID, formatAnswer(answer));
+      })
+      .catch(() => {});
   }
 
   /** 会话里已有的消息回放给渲染层 */

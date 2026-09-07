@@ -137,6 +137,34 @@ export function wasInterrupted(raws: unknown[]): boolean {
   return Array.isArray(last.content) && (last.content as Array<{ type?: string }>).some((c) => c.type === "toolCall");
 }
 
+/** 工具结果里这几种话说明问题没人答成：关项目 / 退出应用拒掉的、被中止的 */
+const ORPHAN_RESULT = /会话已重建|提问被中止|aborted/i;
+
+/**
+ * 上次被打断时悬着的 ask_user：最后一次 ask_user 调用没有回音，或回音是「会话已重建」这类中止。
+ * 返回它的实参，没有就 null。作者已经开口（后面有 user 消息）就不算，那时该由作者的话接着走。
+ */
+export function orphanedQuestion(raws: unknown[]): unknown | null {
+  const results = new Map<string, RawMessage>();
+  for (let i = raws.length - 1; i >= 0; i--) {
+    const m = raws[i] as RawMessage;
+    if (m.role === "user") return null;
+    if (m.role === "toolResult") {
+      if (m.toolCallId) results.set(m.toolCallId, m);
+      continue;
+    }
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    const calls = (m.content as Array<{ type?: string; id?: unknown; name?: unknown; arguments?: unknown }>).filter((c) => c.type === "toolCall");
+    if (calls.length === 0) continue;
+    const ask = calls.find((c) => c.name === "ask_user");
+    if (!ask) return null;
+    const result = results.get(String(ask.id ?? ""));
+    if (result && !(result.isError && ORPHAN_RESULT.test(contentText(result)))) return null;
+    return parseArgs(ask.arguments);
+  }
+  return null;
+}
+
 export function lastAssistantText(raws: unknown[]): string {
   for (let i = raws.length - 1; i >= 0; i--) {
     const m = raws[i] as RawMessage;
