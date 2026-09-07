@@ -1,4 +1,4 @@
-import { PROSE_REJECT_WORDS, quoteBlock, splitQuotes, STUB_PATTERN, stubPrompt, systemStubLabel } from "@opentomato/core/protocol";
+import { PROSE_REJECT_WORDS, quoteBlock, splitQuotes, STUB_PATTERN, stubPrompt } from "@opentomato/core/protocol";
 import { inlineAttachments } from "../attachments";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
@@ -34,7 +34,10 @@ function queuePreview(text: string): string {
 
 /**
  * 输入框。agent 空闲时是「发送」；跑着的时候是「排队」：进它的收件箱，这轮做完一并看，没人打断它手上那一件。
- * 排队里的每一条列在输入框上方，等不了的点「插入」，当前这步工具结束后就送到；也能全部撤回到输入框里改。
+ * 还没送到的话列在输入框上方，分两组，标题一律以时机开头：「这步做完就送」和「这轮做完再送」。
+ * 一条话只有两种命运 —— 等它，或者「打断它」（交给 pi，这步工具结束就送，交出去撤不回，所以那一组没有操作）。
+ * 不想发了点「取消」：这条不发了，不落回输入框，也没有撤销。内核合成的桩（暂停 / 继续）不进这个列表。
+ * hold 住时（暂停 / 停止之后）标题变「等你再开口才送」，因为轮末真的不去取件。
  * 暂停 / 停止在会话区顶上，不在这儿。
  * 作者圈出来的引用段落挂在框内顶部，随下一条消息一起发出。
  * 附件（md / txt）三条路进来：按钮选文件、拖进输入框、Finder 里 ⌘C 后在框里 ⌘V；发送时全文内联到消息末尾。
@@ -114,6 +117,11 @@ export function Composer(props: { agentId?: string }) {
   const noModel = () => !state.models?.current;
   const disabled = () => noModel() || gone() || sealed() || proposing();
   const pending = () => state.queues[agentId()] ?? [];
+  /** 已经交给 pi 的：等这步工具做完就送，撤不回，所以这一组没有操作 */
+  const handed = () => pending().filter((m) => m.inserted);
+  /** 还在我们自己收件箱里的：能单条打断、能单条取消 */
+  const mine = () => pending().filter((m) => !m.inserted);
+  const held = () => Boolean(state.queueHold[agentId()]);
 
   const placeholder = () => {
     if (noModel()) return "先在右上角选一个模型并填 API key";
@@ -121,7 +129,7 @@ export function Composer(props: { agentId?: string }) {
     if (sealed()) return `${agent()?.label ?? "子 agent"} 已封存，这段对话只能看`;
     if (proposing()) return `${agent()?.label ?? "子 agent"}在出候选，方向还没定；想说的和主编说，拍板后再直接和它聊`;
     if (resting()) return `接着和${agent()?.label ?? "子 agent"}聊，比如挑一个候选让它往下孵化`;
-    if (busy()) return `${isLead() ? "主编" : (agent()?.label ?? "子 agent")}在忙。发出去先排队，它这轮做完一并看；等不了就在上面点「插入」`;
+    if (busy()) return `${isLead() ? "主编" : (agent()?.label ?? "子 agent")}在忙。发出去等这轮做完再送，等不了就「打断它」`;
     if (quotes().length) return "对这段说点什么";
     if (attachments().length) return "这些材料想让主编怎么用";
     return "和主编说话";
@@ -148,41 +156,55 @@ export function Composer(props: { agentId?: string }) {
   return (
     <div class="px-5 pb-4 pt-1">
       <Show when={pending().length > 0}>
-        <div class="mb-2 px-1 flex items-start gap-3 text-xs">
-          <div class="flex-1 min-w-0 space-y-1">
-            <For each={pending()}>
-              {(m) => (
-                <div class="flex items-baseline gap-2 min-w-0">
-                  <span class={`shrink-0 ${m.inserted ? "text-accent" : "text-ink-3"}`}>{m.label}</span>
-                  <Show
-                    when={systemStubLabel(m.text)}
-                    fallback={<span class="flex-1 truncate text-ink-2">{queuePreview(m.text)}</span>}
-                  >
-                    {(label) => (
-                      <span class="flex-1 min-w-0 truncate">
-                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-paper-3 text-ink-2">
-                          <span class="text-ink-3">▶</span>
-                          {label()}
-                        </span>
-                      </span>
-                    )}
-                  </Show>
-                  <Show when={!m.inserted}>
+        <div class="mb-2 px-1 flex flex-col gap-2 text-xs">
+          <Show when={handed().length > 0}>
+            <div class="flex flex-col gap-1">
+              <div class="text-accent tracking-wide">这步做完就送 · 打断过的，撤不回了</div>
+              <For each={handed()}>
+                {(m) => (
+                  <div class="flex items-baseline gap-2.5 min-w-0">
+                    <Show when={m.label}>
+                      <span class="shrink-0 text-ink-3">{m.label}</span>
+                    </Show>
+                    <span class="flex-1 min-w-0 truncate text-ink-2">{queuePreview(m.text)}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={mine().length > 0}>
+            <div class="flex flex-col gap-1" classList={{ "pt-2 border-t border-line": handed().length > 0 }}>
+              <div class="text-ink-3 tracking-wide">{held() ? "等你再开口才送" : "这轮做完再送"}</div>
+              {/* 暂停把 hold 置上，轮末就不取件了。这句得说，否则作者以为排队的话会自己送出去 */}
+              <Show when={held()}>
+                <div class="text-warn">暂停期间这几条不会自动送出。你一开口 —— 说话或点「打断它」—— 就解除暂停，它接着跑。</div>
+              </Show>
+              <For each={mine()}>
+                {(m) => (
+                  <div class="flex items-baseline gap-2.5 min-w-0">
+                    <Show when={m.label}>
+                      <span class="shrink-0 text-ink-3">{m.label}</span>
+                    </Show>
+                    <span class="flex-1 min-w-0 truncate text-ink">{queuePreview(m.text)}</span>
                     <button
                       class="shrink-0 text-ink-3 hover:text-ink"
-                      title="等不了它这轮做完：当前这步工具结束后就送到"
+                      title="别等这轮了：当前这步工具结束后就送到，送出去就撤不回"
                       onClick={() => void actions.insertQueued(m.id, agentId())}
                     >
-                      插入
+                      打断它
                     </button>
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
-          <button class="shrink-0 text-ink-3 hover:text-ink" onClick={() => void actions.recallQueue(agentId())} title="还没送到的都收回输入框">
-            撤回
-          </button>
+                    <button
+                      class="shrink-0 text-ink-3 hover:text-ink"
+                      title="这条不发了，也不落回输入框"
+                      onClick={() => void actions.cancelQueued(m.id, agentId())}
+                    >
+                      取消
+                    </button>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
       </Show>
       <div
@@ -266,13 +288,24 @@ export function Composer(props: { agentId?: string }) {
             ＋ 附件
           </button>
           <span class="flex-1" />
+          {/* 打断这条路以前只有快捷键，等于只有知道的人能用；忙的时候露成按钮 */}
+          <Show when={busy()}>
+            <ActionButton
+              label="打断它"
+              keys={keyHint("composer.insert")}
+              tone="quiet"
+              disabled={!canSend() || disabled()}
+              onClick={() => submit("steer")}
+              title="不排队：当前这步工具结束后就送到，送出去就撤不回"
+            />
+          </Show>
           <ActionButton
             label={busy() ? "排队" : "发送"}
             keys={keyHint("composer.send")}
             tone="primary"
             disabled={!canSend() || disabled()}
             onClick={() => submit(busy() ? "followUp" : "steer")}
-            title={busy() ? `进它的收件箱，这轮做完一并看；${keyHint("composer.insert")} 直接插话` : undefined}
+            title={busy() ? "进它的收件箱，这轮做完一并看" : undefined}
           />
         </div>
       </div>

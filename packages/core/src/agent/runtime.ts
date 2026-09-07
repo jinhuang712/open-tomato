@@ -20,7 +20,7 @@ import type {
   RequestMethod,
   RoleId,
 } from "../protocol.js";
-import { formatAnswer, modePrompt, stubPrompt } from "../protocol.js";
+import { formatAnswer, modePrompt, queueLabel, stubPrompt, systemStubLabel } from "../protocol.js";
 import { crossModelThinkingExtension } from "./cross-model-thinking.js";
 import { leakedTokensExtension } from "./leaked-tokens.js";
 import { stubStripExtension } from "./stub-strip.js";
@@ -509,14 +509,21 @@ export class Kernel {
     live.idleRounds = 0;
   }
 
-  /** 收件箱与已插入的一起给界面：作者要看到自己的话在哪儿等着 */
+  /**
+   * 收件箱与已交出去的一起给界面：作者要看到自己的话在哪儿等着。
+   * 内核合成的桩（暂停 / 继续）滤掉 —— 不是作者的话，不该占他队列的一行，他也管不着。
+   * hold 一并送：暂停 / 停止之后轮末不取件，排队的话不会自动送出，界面得说出来。
+   */
   private emitQueue(live: LiveAgent) {
     this.send(live, {
       type: "queue_update",
       items: [
-        ...live.steering.map((t, i) => ({ id: `steer-${i}`, label: "已插入", text: t, inserted: true })),
+        ...live.steering
+          .filter((t) => systemStubLabel(t) === null)
+          .map((t, i) => ({ id: `steer-${i}`, label: queueLabel(t), text: t, inserted: true })),
         ...live.inbox.map((e) => ({ ...e, inserted: false })),
       ],
+      hold: live.hold,
     });
   }
 

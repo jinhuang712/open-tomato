@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Kernel } from "../src/agent/runtime.js";
 import type { KernelEvent } from "../src/protocol.js";
+import { stubPrompt } from "../src/protocol.js";
 import { fakeSessionFactory } from "./fake-session.js";
 
 let home: string;
@@ -281,20 +282,49 @@ describe("收件箱：跑着的时候排队，轮末一并送", () => {
     (kernel as any).agents.set("director", fake);
     return { fake, calls };
   }
-  const queueEvents = () =>
-    events.filter((e) => e.type === "agent.event" && e.event.type === "queue_update").map((e) => (e as any).event.items as Array<{ label: string; inserted: boolean }>);
+  const queueUpdates = () => events.filter((e) => e.type === "agent.event" && (e as any).event.type === "queue_update");
+  const queueEvents = () => queueUpdates().map((e) => (e as any).event.items as Array<{ label: string; text: string; inserted: boolean }>);
+  const queueHold = () => queueUpdates().map((e) => (e as any).event.hold as boolean);
 
-  test("排队进收件箱不打断；批注带自己的标签；插入立刻 steer", async () => {
+  test("排队进收件箱不打断；批注带自己的标签，普通一句话没有标签；打断立刻 steer", async () => {
     const { fake, calls } = fakeLead(true);
     await kernel.handle("chat.send", { text: "先把配角补一张", deliverAs: "followUp" });
     await kernel.handle("chat.send", { text: "⟦stub:批注1⟧\n[批注 正文/0001]\n> 他推门进来\n太急", deliverAs: "followUp" });
     expect(calls).toEqual([]);
-    expect(fake.inbox.map((e) => e.label)).toEqual(["排队", "批注1"]);
-    expect(queueEvents().at(-1)?.map((i) => `${i.label}:${i.inserted}`)).toEqual(["排队:false", "批注1:false"]);
+    // 什么时候送由分组标题说，所以普通一句话不再挂「排队」这个标签
+    expect(fake.inbox.map((e) => e.label)).toEqual(["", "批注1"]);
+    expect(queueEvents().at(-1)?.map((i) => `${i.label}:${i.inserted}`)).toEqual([":false", "批注1:false"]);
 
     await kernel.handle("chat.insert", { id: fake.inbox[0]!.id });
     expect(calls).toEqual([["先把配角补一张", { streamingBehavior: "steer" }]]);
     expect(fake.inbox.map((e) => e.label)).toEqual(["批注1"]);
+  });
+
+  test("单条取消：只从收件箱摘掉那一条，别人不动", async () => {
+    const { fake, calls } = fakeLead(true);
+    await kernel.handle("chat.send", { text: "先把配角补一张", deliverAs: "followUp" });
+    await kernel.handle("chat.send", { text: "苏晚的角色卡呢", deliverAs: "followUp" });
+    await kernel.handle("chat.cancelQueued", { id: fake.inbox[0]!.id });
+    expect(fake.inbox.map((e) => e.text)).toEqual(["苏晚的角色卡呢"]);
+    // 取消不发出去任何东西，也不落回输入框
+    expect(calls).toEqual([]);
+    expect(queueEvents().at(-1)?.length).toBe(1);
+  });
+
+  test("queue_update 带 hold；暂停桩不占作者队列的一行", async () => {
+    const { fake } = fakeLead(true);
+    await kernel.handle("chat.send", { text: "苏晚的角色卡呢", deliverAs: "followUp" });
+    expect(queueHold().at(-1)).toBe(false);
+
+    // pi 的 steering 队列里既有作者插过的话，也有内核合成的暂停桩
+    fake.steering = [stubPrompt("暂停", "请立刻收尾"), "第二章那段对白太长了"];
+    fake.hold = true;
+    (kernel as any).emitQueue(fake);
+    expect(queueHold().at(-1)).toBe(true);
+    expect(queueEvents().at(-1)?.map((i) => `${i.text}:${i.inserted}`)).toEqual([
+      "第二章那段对白太长了:true",
+      "苏晚的角色卡呢:false",
+    ]);
   });
 
   test("轮末送第一条，其余等这轮跑起来再插进去", async () => {

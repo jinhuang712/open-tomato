@@ -263,18 +263,32 @@ describe("chat.*", () => {
     expect(await kernel.handle("chat.sessionFile", { agentId: "ghost" })).toBeNull();
   });
 
-  test("clearQueue 空队列返回空 texts；发给未知 agent 抛错", async () => {
-    expect(await kernel.handle("chat.clearQueue", {})).toEqual({ texts: [] });
+  test("cancelQueued 找不到 agent / 找不到那一条都不报错；发给未知 agent 抛错", async () => {
+    expect(await kernel.handle("chat.cancelQueued", { agentId: "ghost", id: "x" })).toBeNull();
+    const { fake } = fakeLead(true);
+    fake.inbox = [{ id: "a", label: "", text: "留着" }];
+    expect(await kernel.handle("chat.cancelQueued", { id: "不存在" })).toBeNull();
+    expect(fake.inbox.map((e: { id: string }) => e.id)).toEqual(["a"]);
     await expect(kernel.handle("chat.send", { text: "hi", agentId: "ghost" })).rejects.toThrow();
   });
 
-  test("clearQueue 撤回：暂停桩不倒回输入框，作者的话和批注照旧", async () => {
+  test("cancelQueued 只摘收件箱里那一条，pi 的队列一根手指都不碰", async () => {
     const { fake } = fakeLead(true);
-    fake.session.clearQueue = () => ({ steering: [stubPrompt("暂停", "请立刻收尾"), "作者插的话"], followUp: [] });
-    fake.inbox = [{ id: "a", label: "批注1", text: stubPrompt("批注1", "这段改一下") }];
-    const q = (await kernel.handle("chat.clearQueue", {})) as { texts: string[] };
-    expect(q.texts).toEqual(["作者插的话", stubPrompt("批注1", "这段改一下")]);
-    expect(fake.inbox).toEqual([]);
+    let touched = 0;
+    fake.session.clearQueue = () => {
+      touched++;
+      return { steering: [stubPrompt("暂停", "请立刻收尾"), "作者插的话"], followUp: [] };
+    };
+    fake.inbox = [
+      { id: "a", label: "批注1", text: stubPrompt("批注1", "这段改一下") },
+      { id: "b", label: "", text: "苏晚的角色卡呢" },
+    ];
+    fake.steering = ["作者插的话"];
+    await kernel.handle("chat.cancelQueued", { id: "a" });
+    // 已交出去的撤不回，暂停请求也不该被顺手取消 —— 所以 pi 的队列不能倒
+    expect(touched).toBe(0);
+    expect(fake.steering).toEqual(["作者插的话"]);
+    expect(fake.inbox.map((e: { id: string }) => e.id)).toEqual(["b"]);
   });
 
   test("abort 运行中的主编：hold 住", async () => {

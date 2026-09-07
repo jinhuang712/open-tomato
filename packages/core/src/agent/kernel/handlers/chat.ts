@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { STUB_PATTERN, stubPrompt, systemStubLabel } from "../../../protocol.js";
+import { queueLabel, stubPrompt, systemStubLabel } from "../../../protocol.js";
 import { loadPrompt } from "../../prompt-text.js";
 import { LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
@@ -23,17 +23,16 @@ export async function resumeLead(api: KernelApi) {
 
 export function chatHandlers(
   api: KernelApi,
-): Pick<HandlerMap, "chat.send" | "chat.continue" | "chat.resume" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.archive" | "agent.retire"> {
+): Pick<HandlerMap, "chat.send" | "chat.continue" | "chat.resume" | "chat.insert" | "chat.cancelQueued" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.archive" | "agent.retire"> {
   return {
     "chat.send": async ({ text, agentId, deliverAs }) => {
       if (!agentId) await api.ensureLead();
       const live = api.requireLive(agentId ?? LEAD_ID);
       api.authorActed(live);
       const how = deliverAs ?? "steer";
-      // 排队的不进 pi 的队列，进我们自己的收件箱：能单条插入、能撤回，轮末一并送
+      // 排队的不进 pi 的队列，进我们自己的收件箱：能单条打断、能单条取消，轮末一并送
       if (how === "followUp" && live.session.isStreaming) {
-        const stub = STUB_PATTERN.exec(text);
-        live.inbox.push({ id: randomUUID(), label: stub ? stub[1]!.trim() : "排队", text });
+        live.inbox.push({ id: randomUUID(), label: queueLabel(text), text });
         api.emitQueue(live);
         return null;
       }
@@ -62,17 +61,14 @@ export function chatHandlers(
       api.emitQueue(live);
       return null;
     },
-    "chat.clearQueue": async ({ agentId }) => {
+    "chat.cancelQueued": async ({ agentId, id }) => {
       const live = api.agents.get(agentId ?? LEAD_ID);
-      if (!live) return { texts: [] };
-      const q = live.session.clearQueue();
-      // 内核合成的桩（暂停 / 继续）只给模型看，不是作者的话，不倒回输入框
-      const texts = [...q.steering, ...q.followUp, ...live.inbox.map((e) => e.text)].filter((t) => systemStubLabel(t) === null);
-      live.inbox = [];
-      live.steering = [];
-      live.flushRest = false;
+      if (!live) return null;
+      // 只认收件箱里的：已经交给 pi 的撤不回，也没有稳定的 id 可寻址
+      live.inbox = live.inbox.filter((e) => e.id !== id);
+      if (live.inbox.length === 0) live.flushRest = false;
       api.emitQueue(live);
-      return { texts };
+      return null;
     },
     "chat.sessionFile": async ({ agentId }) => {
       const live = api.agents.get(agentId ?? LEAD_ID);
@@ -101,10 +97,7 @@ export function chatHandlers(
         const q = a.session.clearQueue();
         const kept = [...q.steering, ...q.followUp]
           .filter((text) => systemStubLabel(text) === null)
-          .map((text) => {
-            const stub = STUB_PATTERN.exec(text);
-            return { id: randomUUID(), label: stub ? stub[1]!.trim() : "排队", text };
-          });
+          .map((text) => ({ id: randomUUID(), label: queueLabel(text), text }));
         a.inbox.unshift(...kept);
         a.steering = [];
         a.flushRest = false;

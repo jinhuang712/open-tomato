@@ -298,13 +298,23 @@ export function takeMode(text: string): { mode: AgentMode; rest: string } | null
   return m ? { mode: m[1] as AgentMode, rest: text.slice(m[0].length) } : null;
 }
 
-/** 排队里的一条：作者在 agent 跑着的时候发的话或批注。label 是界面上的短标签（排队 / 批注 N / 已插入） */
+/**
+ * 排队里的一条：作者在 agent 跑着的时候发的话或批注。
+ * label 只在这条有名字时才有（批注 N）；普通一句话是空串，什么时候送由分组标题说。
+ * 内核自己合成的桩（暂停 / 继续）不进这个列表 —— 它们不是作者的话，作者也管不着。
+ */
 export interface QueueItem {
   id: string;
   label: string;
   text: string;
-  /** 已经插进当前这轮，等下一个工具边界送到；插入了就不能再撤回 */
+  /** 已经交给 pi，等下一个工具边界送到。交出去就撤不回，所以这一组没有操作 */
   inserted: boolean;
+}
+
+/** 队列条上的短标签：作者的批注有名字，普通一句话没有 */
+export function queueLabel(text: string): string {
+  const label = STUB_PATTERN.exec(text)?.[1]?.trim();
+  return label && /^批注\d+$/.test(label) ? label : "";
 }
 
 /**
@@ -413,8 +423,11 @@ export type AgentStreamEvent =
   | { type: "status_text"; text: string }
   /** 模型调用出错、pi 正在自动重试：不算失败，UI 轻提示一下即可 */
   | { type: "retry"; attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }
-  /** 还没送到的消息：排队的等这轮跑完一并送；已插入的在当前这步工具结束后送 */
-  | { type: "queue_update"; items: QueueItem[] }
+  /**
+   * 还没送到的消息。inserted 的等当前这步工具结束就送；其余等这轮跑完一并送。
+   * hold：暂停 / 停止之后轮末不去取收件箱，队列不会自动送出，要等作者再开口 —— 界面得说出来。
+   */
+  | { type: "queue_update"; items: QueueItem[]; hold: boolean }
   /** interrupted：上次会话没有正常收尾（发了话没回 / 工具跑一半 / 被中止），UI 在末尾画一条分隔线 */
   | { type: "history"; messages: UiMessage[]; interrupted: boolean };
 
@@ -627,10 +640,14 @@ export interface RequestMap {
   "chat.continue": { params: Record<string, never>; result: null };
   /** 作者点「接着上次」：上次会话被打断（重启 / 模型报错 / 被掐），让主编看最后几条说清断在哪，从那一步接着做 */
   "chat.resume": { params: Record<string, never>; result: null };
-  /** 把排队里的某一条立刻插进当前这轮：作者等不了它这轮跑完 */
+  /** 把排队里的某一条立刻交给 pi：作者等不了它这轮跑完，当前这步工具结束后就送到 */
   "chat.insert": { params: { agentId?: string; id: string }; result: null };
-  /** 把还没送到的消息全部撤回，原文交还给输入框 */
-  "chat.clearQueue": { params: { agentId?: string }; result: { texts: string[] } };
+  /**
+   * 取消排队里的某一条：这条不发了，也不落回输入框，也没有撤销。
+   * 只认收件箱里的 —— 已经交给 pi 的撤不回（下一个工具边界随时可能到），
+   * 内核合成的暂停桩也排在 pi 那边，取消一条话不该把作者的暂停请求顺手取消了。
+   */
+  "chat.cancelQueued": { params: { agentId?: string; id: string }; result: null };
   /** 这个 agent 的会话记录 jsonl 落盘路径；子 agent 只在内存、或主编还没写过第一条时返回 null */
   "chat.sessionFile": { params: { agentId?: string }; result: string | null };
   /** 立刻中止：掐断正在跑的模型调用和工具，agent 回到空闲。输入框的「停」按钮和内核关项目 / 新会话 / reset 都走这条 */
