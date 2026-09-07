@@ -23,6 +23,24 @@ export type ThreadType = (typeof THREAD_TYPES)[number];
 export const SETTLED_STATUS = new Set(["done", "retired", "完结", "已收束"]);
 export const isSettled = (status: string) => SETTLED_STATUS.has(status);
 
+/**
+ * 一个 frontmatter 字段的填法，给界面画输入控件用。取值范围、是不是一串、必填与否都从 schema 来，
+ * 界面不再自己攒一份字段表。
+ */
+export interface DocFieldInfo {
+  name: string;
+  /** 值是一串（写回 YAML 是列表），如 keywords、章纲的 characters */
+  list?: boolean;
+  /** 取值只能是其中之一 */
+  options?: readonly string[];
+  /** 给填的人看的取值说明 */
+  comment?: string;
+  /** 无条件必填。跟着别的字段变的条件必填这里是 false，判准仍在机检 */
+  required?: boolean;
+  /** 记账字段：改它不改故事 */
+  bookkeeping?: boolean;
+}
+
 export interface DocKindInfo {
   id: DocKindId;
   label: string;
@@ -37,6 +55,8 @@ export interface DocKindInfo {
    * 字段没填的归「未分类」垫底。
    */
   group?: { field: string; order?: readonly string[] };
+  /** frontmatter 字段清单，按模板里的顺序；通用四项（title / summary / keywords / status）也在内 */
+  fields: DocFieldInfo[];
 }
 
 export interface DocHeader {

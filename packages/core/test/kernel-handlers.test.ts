@@ -151,6 +151,26 @@ describe("doc.* / search", () => {
     await expect(kernel.handle("doc.read", { kind: "不存在", id: "1" })).rejects.toThrow("未知的 kind");
   });
 
+  test("作者手改落盘后交主编复核：带中文路径和 diff，桩标签是「作者手改」", async () => {
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw });
+    // 主编正跑着：这条排在这一轮之后送，不打断它正在做的事
+    const { calls } = fakeLead(true);
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw: raw.replace("铁匠。", "铁匠，左手缺一指。") });
+    expect(calls).toHaveLength(1);
+    const [text, opts] = calls[0]!;
+    expect(text).toContain("⟦stub:作者手改⟧");
+    expect(text).toContain("人物/林尧");
+    expect(text).toContain("左手缺一指");
+    expect(opts).toEqual({ streamingBehavior: "followUp" });
+  });
+
+  test("内容没变的落盘不惊动主编", async () => {
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw });
+    const { calls } = fakeLead(false);
+    await kernel.handle("doc.write", { kind: "characters", id: "林尧", raw });
+    expect(calls).toHaveLength(0);
+  });
+
   test("doc.template 返回带 frontmatter 的空模板", async () => {
     const tpl = await kernel.handle("doc.template", { kind: "characters" });
     expect(tpl.startsWith("---\n")).toBe(true);

@@ -1,5 +1,5 @@
 import { THREAD_TYPES } from "../protocol.js";
-import type { DocKindId, DocKindInfo } from "../protocol.js";
+import type { DocFieldInfo, DocKindId, DocKindInfo } from "../protocol.js";
 
 type Frontmatter = Record<string, unknown>;
 
@@ -31,7 +31,8 @@ export interface SectionSpec {
   hint?: string;
 }
 
-export interface DocKind extends DocKindInfo {
+/** fields 在这里是完整的 FieldSpec（含条件必填的函数），对界面只给 DocKindInfo 里那份简化版 */
+export interface DocKind extends Omit<DocKindInfo, "fields"> {
   /** 把用户 / 模型给的 id 规范成文件名（不含扩展名） */
   normalizeId: (id: string) => string;
   fields: FieldSpec[];
@@ -356,7 +357,19 @@ export const LEGACY_GUIDE_IDS: Record<string, string> = { brief: "立项", style
 
 export function kindInfos(): DocKindInfo[] {
   return DOC_KIND_IDS.map((k) => {
-    const { id, label, dir, description, singleton, group } = DOC_KINDS[k];
-    return { id, label, dir, description, ...(singleton ? { singleton } : {}), ...(group ? { group } : {}) };
+    const { id, label, dir, description, singleton, group, fields } = DOC_KINDS[k];
+    return { id, label, dir, description, ...(singleton ? { singleton } : {}), ...(group ? { group } : {}), fields: fields.map(fieldInfo) };
   });
+}
+
+/** 模板里预置成 `[]` 的就是列表字段；条件必填按「什么都没填时」算，界面只用它标个必填 */
+function fieldInfo(f: FieldSpec): DocFieldInfo {
+  return {
+    name: f.name,
+    ...(f.value === "[]" ? { list: true } : {}),
+    ...(f.options ? { options: f.options } : {}),
+    ...(f.comment ? { comment: f.comment } : {}),
+    ...(isRequired(f.required, {}) ? { required: true } : {}),
+    ...(f.bookkeeping ? { bookkeeping: true } : {}),
+  };
 }

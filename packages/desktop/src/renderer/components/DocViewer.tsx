@@ -1,10 +1,11 @@
-import { replaceBody } from "@opentomato/core/frontmatter";
+import { parseFrontmatter, patchFrontmatter, replaceBody } from "@opentomato/core/frontmatter";
 import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
-import type { DocContent, DocHeader, DocKindId } from "@opentomato/core/protocol";
+import type { DocContent, DocFieldInfo, DocHeader, DocKindId } from "@opentomato/core/protocol";
 import type { Editor } from "@tiptap/core";
 import { createEffect, createResource, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { clearFocus, focusText, hasText } from "../annotate";
+import { autoGrow } from "../autogrow";
 import { bridge } from "../bridge";
 import { overlayOpen, registerEscape } from "../escape";
 import { refId } from "../refid";
@@ -24,12 +25,16 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [draftBody, setDraftBody] = createSignal("");
   /** 编辑器里动过没有：没动过的退出不问，动过了才拦一下 */
   const [dirty, setDirty] = createSignal(false);
+  /** 编辑模式下头部各字段的文字；headBase 是进编辑那一刻的原值，保存时只把改过的字段写回 */
+  const [headText, setHeadText] = createSignal<Record<string, string>>({});
+  const [headBase, setHeadBase] = createSignal<Record<string, unknown>>({});
   let editor: Editor | undefined;
   /** 点"编辑"那一刻磁盘上的版本；保存时带回去，期间被 agent 改过就报 stale，不静默盖 */
   const [base, setBase] = createSignal<string | null>(null);
   const kindLabel = () => state.kinds.find((k) => k.id === props.kind)?.label ?? props.kind;
   /** 预览和编辑用同一套正文排版：进编辑模式时字号行距不该跳 */
   const proseClass = () => `prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`;
+  const kindFields = (): DocFieldInfo[] => state.kinds.find((k) => k.id === props.kind)?.fields ?? [];
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
   /** 机检给的修补请求：切到对话、预填进输入框，发不发由作者定 */
   const fixInChat = (text: string) => {
@@ -95,11 +100,37 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   );
   onCleanup(clearFocus);
 
+  /**
+   * 表单要出现的字段：schema 里声明的 + 文件里实际有的（agent 加的键也能改），按 schema 顺序。
+   * 值是嵌套结构的键不进表单——单行文字表达不了，进来只会被拍平写坏。
+   */
+  const headKeysOf = (fm: Record<string, unknown>) => {
+    const flat = (v: unknown) => v === null || v === undefined || typeof v !== "object" || Array.isArray(v);
+    const declared = kindFields().map((f) => f.name);
+    return [...declared, ...Object.keys(fm).filter((k) => !declared.includes(k))].filter((k) => flat(fm[k]));
+  };
   const startEdit = (d: DocContent) => {
+    const fm = parseFrontmatter(d.raw).frontmatter;
+    setHeadBase(fm);
+    setHeadText(Object.fromEntries(headKeysOf(fm).map((k) => [k, headFieldText(fm[k])])));
     setDraftBody(d.body);
     setBase(d.raw);
     setDirty(false);
     setEditing(true);
+  };
+  const editHead = (name: string, text: string) => {
+    setHeadText({ ...headText(), [name]: text });
+    setDirty(true);
+  };
+  /** 只把真的改了的字段交出去：没碰的字段连原有写法一起留在文件里 */
+  const headPatch = (): Record<string, unknown> => {
+    const base = headBase();
+    const patch: Record<string, unknown> = {};
+    for (const [name, text] of Object.entries(headText())) {
+      const next = headFieldValue(text, kindFields().find((f) => f.name === name), base[name]);
+      if (JSON.stringify(next ?? null) !== JSON.stringify(base[name] ?? null)) patch[name] = next;
+    }
+    return patch;
   };
   /** 退出编辑：动过了先问一声，别一个 Esc 把改的都吞了 */
   const stopEdit = async () => {
@@ -111,13 +142,18 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     if (!editor) return;
     const b = base();
     if (b === null) return;
-    // 只换正文：frontmatter 的原文逐字带回去，头没碰就不该出现在 diff 里
-    const raw = replaceBody(b, cardMarkdown(editor));
+    // 标题是这张卡在侧栏里的身份，空着存下去等于把卡弄丢
+    if ("title" in headText() && headText().title?.trim() === "") {
+      toast("标题不能为空", "error");
+      return;
+    }
+    // 改过的头字段 + 整段正文；没碰的部分（含 frontmatter 的写法）逐字留着，diff 里只出现真改动
+    const raw = replaceBody(patchFrontmatter(b, headPatch()), cardMarkdown(editor));
     try {
       await bridge.request("doc.write", { kind: props.kind, id: props.id, raw, expectBefore: b });
       setEditing(false);
       setBase(null);
-      toast("已保存");
+      toast("已保存，主编在复核这次改动");
     } catch (e) {
       const msg = errText(e);
       if (msg.includes("审批期间被改过") || msg.includes("StaleWriteError")) {
@@ -265,12 +301,106 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
               }
             >
               <div class="max-w-3xl mx-auto px-8 py-6">
-                <DocHead doc={d()} />
+                <DocHeadEditor kind={props.kind} fields={kindFields()} keys={headKeysOf(headBase())} text={headText()} onChange={editHead} />
                 <CardBody markdown={draftBody()} proseClass={proseClass()} onChange={() => setDirty(true)} onEditor={(e) => (editor = e)} />
               </div>
             </Show>
           )}
         </Show>
+      </div>
+    </div>
+  );
+}
+
+/** 列表字段的分隔符：界面上用「、」拼，回填时中英文逗号和顿号都认 */
+const LIST_SEP = /[,，、]/;
+
+const headFieldText = (v: unknown): string => (Array.isArray(v) ? v.map(String).join("、") : v === null || v === undefined ? "" : String(v));
+
+/**
+ * 表单里那行文字变回 frontmatter 的值：列表按分隔符切开，数字保持数字（不然 `words: 3000` 会变成带引号的字符串），
+ * 清空表示删掉这个键。
+ */
+function headFieldValue(text: string, spec: DocFieldInfo | undefined, before: unknown): unknown {
+  const t = text.trim();
+  if (spec?.list || Array.isArray(before)) return t === "" ? [] : t.split(LIST_SEP).map((s) => s.trim()).filter(Boolean);
+  if (t === "") return undefined;
+  if ((typeof before === "number" || before === undefined) && /^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  return t;
+}
+
+/**
+ * 编辑模式下的卡片头部：标题、摘要就地改，其余 frontmatter 字段一行一个。
+ * 有取值范围的出下拉，列表用「、」拼一行，字段说明按 schema 里的 comment 走。
+ */
+function DocHeadEditor(props: { kind: DocKindId; fields: DocFieldInfo[]; keys: string[]; text: Record<string, string>; onChange: (name: string, text: string) => void }) {
+  const spec = (name: string) => props.fields.find((f) => f.name === name);
+  const rows = () => props.keys.filter((k) => k !== "title" && k !== "summary");
+  const hint = (name: string) => {
+    const s = spec(name);
+    return s?.comment ?? (s?.list ? "多个用、分开" : "");
+  };
+  const line = "w-full bg-transparent outline-none border-b border-transparent focus:border-line-2 hover:border-line";
+  return (
+    <div class="mb-6">
+      <input
+        class={`font-serif text-2xl mb-3 ${line}`}
+        placeholder="标题"
+        value={props.text.title ?? ""}
+        onInput={(e) => props.onChange("title", e.currentTarget.value)}
+      />
+      <textarea
+        class={`text-lg leading-8 mb-4 text-ink resize-none ${line}`}
+        placeholder="一句话摘要"
+        rows={1}
+        value={props.text.summary ?? ""}
+        ref={(el) => onMount(() => autoGrow(el))}
+        onInput={(e) => {
+          autoGrow(e.currentTarget);
+          props.onChange("summary", e.currentTarget.value);
+        }}
+      />
+      <div class="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-1.5 text-xs items-baseline">
+        <For each={rows()}>
+          {(name) => (
+            <>
+              <label class="text-ink-3 justify-self-end pt-0.5" title={name}>
+                {FIELD_LABEL[name] ?? name}
+                <Show when={spec(name)?.required}>
+                  <span class="text-warn ml-0.5">*</span>
+                </Show>
+              </label>
+              <Show
+                when={spec(name)?.options}
+                fallback={
+                  <Show
+                    when={(FIELD_VIEWS[props.kind] ?? {})[name]?.quote}
+                    fallback={<input class={line} placeholder={hint(name)} value={props.text[name] ?? ""} onInput={(e) => props.onChange(name, e.currentTarget.value)} />}
+                  >
+                    <textarea
+                      class={`leading-6 resize-none ${line}`}
+                      placeholder={hint(name)}
+                      rows={1}
+                      value={props.text[name] ?? ""}
+                      ref={(el) => onMount(() => autoGrow(el))}
+                      onInput={(e) => {
+                        autoGrow(e.currentTarget);
+                        props.onChange(name, e.currentTarget.value);
+                      }}
+                    />
+                  </Show>
+                }
+              >
+                {(opts) => (
+                  <select class={`${line} cursor-pointer`} value={props.text[name] ?? ""} onChange={(e) => props.onChange(name, e.currentTarget.value)}>
+                    <option value="">（未填）</option>
+                    <For each={opts()}>{(o) => <option value={o}>{o}</option>}</For>
+                  </select>
+                )}
+              </Show>
+            </>
+          )}
+        </For>
       </div>
     </div>
   );
@@ -290,6 +420,31 @@ function CardBody(props: { markdown: string; proseClass: string; onChange: () =>
   });
   return <div class="card-editor" ref={host} />;
 }
+
+/** frontmatter 字段在界面上的中文名。键名是给模型和文件用的，编辑表单里要显示人话 */
+const FIELD_LABEL: Record<string, string> = {
+  title: "标题",
+  summary: "摘要",
+  keywords: "关键词",
+  status: "状态",
+  open: "先放一放",
+  category: "分类",
+  tier: "层级",
+  faction: "势力",
+  level: "等级",
+  scope: "管哪块",
+  source: "作者原话",
+  type: "类型",
+  stage: "推进到",
+  order: "序号",
+  threads: "关联线索",
+  milestones: "里程碑",
+  chapters: "章数",
+  volume: "所属卷",
+  characters: "出场人物",
+  words: "字数",
+  revision: "修订次数",
+};
 
 /** 一个 extra 字段在头部怎么读：等级 / 类型这类定性的做强调胶囊，引用别的卡的做可点的胶囊，数字加上量词；source 单独当引文 */
 type FieldView = { accent?: boolean; label?: string; ref?: DocKindId; fmt?: (v: string) => string; quote?: boolean; hide?: boolean };
