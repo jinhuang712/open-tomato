@@ -21,8 +21,8 @@ export function Titlebar() {
       </div>
       <div class="flex items-center min-w-0">
         <Show when={state.project}>
-          {/* 占位 = 边栏 232 − 顶栏左右内边距差 (84 − 12)，这样搜索框中心正好落在 50% + 116px */}
-          <span class="w-[160px] shrink-[999]" />
+          {/* 占位 = 边栏 272 − 顶栏左右内边距差 (84 − 12)，这样搜索框中心正好落在 50% + 136px */}
+          <span class="w-[200px] shrink-[999]" />
           <button
             class="no-drag w-[320px] min-w-0 shrink h-7 px-2.5 rounded-md bg-paper-3 hover:bg-paper-4 text-ink-3 text-xs flex items-center gap-2"
             onClick={() => setState("searchOpen", true)}
