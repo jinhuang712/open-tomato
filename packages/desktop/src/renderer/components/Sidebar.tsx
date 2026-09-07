@@ -1,4 +1,4 @@
-import { THREAD_TYPES } from "@opentomato/core/protocol";
+import { isSettled, THREAD_TYPES } from "@opentomato/core/protocol";
 import type { DocHeader, DocKindId } from "@opentomato/core/protocol";
 import { createSignal, For, Show } from "solid-js";
 import { actions, state } from "../state";
@@ -45,9 +45,11 @@ export function Sidebar() {
   const item = (d: DocHeader) => {
     const issue = () => issueOf(d.kind, d.id);
     const on = () => activeDoc() === `${d.kind}/${d.id}`;
+    // 已收束（done / retired）的卡淡成组名那档灰：还在库里能点开，但不跟在跑的线抢眼
+    const settled = () => isSettled(d.status);
     return (
       <button
-        class={`w-full h-7 flex items-center gap-2 pl-6 pr-2 rounded-md text-left ${on() ? "bg-paper-3 text-ink" : "text-ink-2 hover:bg-paper-3 hover:text-ink"}`}
+        class={`w-full h-7 flex items-center gap-2 pl-6 pr-2 rounded-md text-left ${on() ? "bg-paper-3 text-ink" : settled() ? "text-ink-3 hover:bg-paper-3 hover:text-ink-2" : "text-ink-2 hover:bg-paper-3 hover:text-ink"}`}
         onClick={() => actions.openDoc(d.kind, d.id)}
         title={issue()?.message ?? d.summary}
       >
