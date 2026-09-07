@@ -44,7 +44,7 @@ export function systemHandlers(
       await api.models.forgetProject(root);
       return null;
     },
-    // 手边是作者的工作台状态：存项目 settings.json，不进卡、不过审批门
+    // 置顶是作者的工作台状态：存项目 settings.json，不进卡、不过审批门
     "project.pins.get": async () => (await readProjectSettings(api.requireStore().settingsPath)).pins ?? [],
     "project.pins.set": async ({ pins }) => (await writeProjectSettings(api.requireStore().settingsPath, { pins })).pins ?? [],
     "project.exportSeed": async () => {

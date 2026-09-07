@@ -44,8 +44,8 @@ describe("project settings", () => {
   });
 });
 
-describe("项目设置里的手边", () => {
-  test("钉的顺序原样保留，重复的只留第一个，类型不对的丢掉", async () => {
+describe("项目设置里的置顶", () => {
+  test("顶的顺序原样保留，重复的只留第一个，类型不对的丢掉", async () => {
     await writeProjectSettings(file, {
       pins: [
         { kind: "threads", id: "上海一统" },

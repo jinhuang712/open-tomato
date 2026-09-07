@@ -13,7 +13,7 @@ export interface ProjectSettings {
   model: { provider: string; id: string } | null;
   /** 默认思考档；undefined 表示沿用全局 */
   thinkingLevel?: ThinkingLevel;
-  /** 手边：作者钉住的卡，按钉的顺序。不存在的类型丢掉，重复的只留第一个 */
+  /** 置顶：作者顶上来的卡，按顶的顺序。不存在的类型丢掉，重复的只留第一个 */
   pins?: PinRef[];
 }
 

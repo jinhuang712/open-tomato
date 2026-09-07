@@ -5,15 +5,16 @@ import { bridge } from "../bridge";
 import { actions, state } from "../state";
 
 /**
- * 侧栏分五个工作分区，按作者的工作分，不按文件类型分：综述（简介 + 守则）、大纲（卷 → 里程碑 + 章纲）、线索、设定（人物 + 世界设定）、正文。
- * 左侧 40px 竖条放单字，从全书到一章、从大到小；右侧 232px 面板只装当前分区。
+ * 侧栏分五个工作分区，按作者的工作分，不按文件类型分：综述（简介 + 守则）、设定（人物 + 世界设定）、大纲（卷 → 里程碑 + 章纲）、线索、正文。
+ * 左侧 40px 竖条放单字，顺序是综 设 纲 线 文：先是全书的底子（这本书是什么、里面有谁有什么），再是结构（怎么排、哪些线在跑），最后是落到纸上的字。
+ * 右侧 232px 面板只装当前分区。
  * 打开一张卡时竖条自动切到它所在的分区；作者手点竖条则以他为准，直到下一次打开卡。
  * 机检结果只在有问题的卡旁点一个点；竖条上聚合成一个点，收在别的分区里的问题不会被藏掉。
  * 已收束（done / retired）的卡从组里挪走，收进「已收束 · n」一行，默认折叠，不计入数量；打开的正是一张已收束的卡时自动展开。
- * 竖条最上面是「手边」：作者钉住的几张卡，跨分区。它是作者的工作台状态，不是故事内容：存项目的 settings.json，不进卡、不过审批门、模型不看。
+ * 竖条最上面是「置顶」：作者顶上来的几张卡，跨分区。它是作者的工作台状态，不是故事内容：存项目的 settings.json，不进卡、不过审批门、模型不看。
  */
 
-type SectionId = "pinned" | "overview" | "outline" | "threads" | "setting" | "manuscript";
+type SectionId = "pinned" | "overview" | "setting" | "outline" | "threads" | "manuscript";
 interface Section {
   id: SectionId;
   glyph: string;
@@ -22,9 +23,9 @@ interface Section {
 }
 const SECTIONS: Section[] = [
   { id: "overview", glyph: "综", label: "综述", kinds: ["brief", "rules"] },
+  { id: "setting", glyph: "设", label: "设定", kinds: ["characters", "world"] },
   { id: "outline", glyph: "纲", label: "大纲", kinds: ["volumes", "milestones", "chapters"] },
   { id: "threads", glyph: "线", label: "线索", kinds: ["threads"] },
-  { id: "setting", glyph: "设", label: "设定", kinds: ["characters", "world"] },
   { id: "manuscript", glyph: "文", label: "正文", kinds: ["manuscript"] },
 ];
 const sectionOf = (kind: DocKindId) => SECTIONS.find((s) => s.kinds.includes(kind))!;
@@ -70,7 +71,7 @@ export function Sidebar() {
     setPins(next);
     void bridge.request("project.pins.set", { pins: next }).catch(() => {});
   };
-  // 钉住的卡按钉的顺序排；已经删掉的卡自动消失
+  // 顶上来的卡按顶的顺序排；已经删掉的卡自动消失
   const pinnedDocs = () => pins().flatMap((p) => state.docs.filter((d) => d.kind === p.kind && d.id === p.id));
   // 跟随正在看的卡；作者手点竖条后以他为准，直到下一次打开卡
   createEffect(() => {
@@ -104,7 +105,7 @@ export function Sidebar() {
         <button
           class={`w-5 h-5 shrink-0 flex items-center justify-center rounded hover:bg-paper-4 ${isPinned(d) ? "text-ink-2" : "text-ink-3 opacity-0 group-hover:opacity-100"}`}
           onClick={() => togglePin(d)}
-          title={isPinned(d) ? "从手边取下" : "钉到手边"}
+          title={isPinned(d) ? "取消置顶这张卡" : "置顶这张卡"}
         >
           <PinIcon />
         </button>
@@ -189,11 +190,11 @@ export function Sidebar() {
     );
   };
 
-  /** 手边：钉住的卡按钉的顺序排，行尾标类别，跨分区混排光看名字分不清 */
+  /** 置顶：顶上来的卡按顶的顺序排，行尾标类别，跨分区混排光看名字分不清 */
   const Pinned = () => (
     <>
-      {heading("手边", pinnedDocs().length === 0 ? "—" : pinnedDocs().length, true)}
-      <Show when={pinnedDocs().length > 0} fallback={<div class="px-2 pt-1 text-xs text-ink-3 leading-relaxed">正在写的几张卡钉在这里。把鼠标放到任意一张卡上，点右边的钉子。</div>}>
+      {heading("置顶", pinnedDocs().length === 0 ? "—" : pinnedDocs().length, true)}
+      <Show when={pinnedDocs().length > 0} fallback={<div class="px-2 pt-1 text-xs text-ink-3 leading-relaxed">正在写的几张卡顶在这里。把鼠标放到任意一张卡上，点右边的图钉。</div>}>
         <For each={pinnedDocs()}>{(d) => item(d, 8, kindLabel(d.kind))}</For>
       </Show>
     </>
@@ -357,9 +358,9 @@ export function Sidebar() {
         <button
           class={`w-8 h-8 rounded-md flex items-center justify-center ${active() === "pinned" ? "bg-paper-3 text-ink" : "text-ink-3 hover:bg-paper-3 hover:text-ink-2"}`}
           onClick={() => setPicked("pinned")}
-          title="手边"
+          title="置顶"
         >
-          <PinIcon />
+          <PinIcon size={14} />
         </button>
         <div class="w-5 h-px bg-line my-0.5" />
         <For each={SECTIONS}>
@@ -384,15 +385,15 @@ export function Sidebar() {
         <Show when={active() === "overview"}>
           <Overview />
         </Show>
+        <Show when={active() === "setting"}>
+          <GroupedList kind="characters" top />
+          <GroupedList kind="world" />
+        </Show>
         <Show when={active() === "outline"}>
           <Outline />
         </Show>
         <Show when={active() === "threads"}>
           <GroupedList kind="threads" top />
-        </Show>
-        <Show when={active() === "setting"}>
-          <GroupedList kind="characters" top />
-          <GroupedList kind="world" />
         </Show>
         <Show when={active() === "manuscript"}>
           <Manuscript />
@@ -402,11 +403,22 @@ export function Sidebar() {
   );
 }
 
-function PinIcon() {
+/** 正着画的图钉：帽子、往下张开的身子、一根针。斜着的那版在小尺寸下认不出是什么 */
+function PinIcon(props: { size?: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M7.5 1.5l3 3-2 1-1.5 3.5L4.5 6.5 1 7.5l2-2z" />
-      <path d="M4.5 7.5l-3 3" />
+    <svg
+      width={props.size ?? 13}
+      height={props.size ?? 13}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.3"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M5.5 2h5" />
+      <path d="M6.75 2v4L4.5 8h7L9.25 6V2" />
+      <path d="M8 8v5" />
     </svg>
   );
 }

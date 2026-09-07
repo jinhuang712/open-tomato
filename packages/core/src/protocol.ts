@@ -52,7 +52,7 @@ export interface DocHeader {
   extra: Record<string, unknown>;
 }
 
-/** 作者钉在手边的一张卡：工作台状态，不是故事内容，存项目 settings.json */
+/** 作者置顶的一张卡：工作台状态，不是故事内容，存项目 settings.json */
 export interface PinRef {
   kind: DocKindId;
   id: string;
@@ -579,7 +579,7 @@ export interface RequestMap {
   "project.forget": { params: { root: string }; result: null };
   /** 把项目全部文档拼成一份「故事种子」markdown（剥 frontmatter、不含设置），供日后「导入项目」由主编拆回最新结构 */
   "project.exportSeed": { params: Record<string, never>; result: { filename: string; content: string } };
-  /** 手边：钉住的卡，按钉的顺序 */
+  /** 置顶：顶上来的卡，按顶的顺序 */
   "project.pins.get": { params: Record<string, never>; result: PinRef[] };
   "project.pins.set": { params: { pins: PinRef[] }; result: PinRef[] };
   "doc.read": { params: { kind: DocKindId; id: string }; result: DocContent | null };
