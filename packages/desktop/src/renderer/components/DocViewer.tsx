@@ -181,28 +181,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
               when={editing()}
               fallback={
                 <div class="max-w-3xl mx-auto px-8 py-6">
-                  <Show
-                    when={props.kind === "rules"}
-                    fallback={
-                      <>
-                        <h1 class="font-serif text-xl mb-1">{d().title}</h1>
-                        <div class="text-ink-2 mb-1">{d().summary}</div>
-                        <div class="flex flex-wrap gap-1.5 mb-5 text-xs">
-                          <span class="px-1.5 rounded bg-paper-3 text-ink-2">{d().status}</span>
-                          <For each={d().keywords}>{(k) => <span class="px-1.5 rounded bg-paper-3 text-ink-2">{k}</span>}</For>
-                          <For each={Object.entries(d().extra)}>
-                            {([k, v]) => (
-                              <span class="px-1.5 rounded bg-paper-2 text-ink-3">
-                                {k}={typeof v === "string" ? v : JSON.stringify(v)}
-                              </span>
-                            )}
-                          </For>
-                        </div>
-                      </>
-                    }
-                  >
-                    <RuleHeader doc={d()} />
-                  </Show>
+                  <DocHead doc={d()} />
                   <Show when={notes().length > 0}>
                     <div class="mb-4 flex flex-col gap-1 text-sm">
                       <For each={notes()}>
@@ -267,38 +246,78 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   );
 }
 
-/** 守则头部：短标题、规则原句、级别 / 范围、作者原话。extra 字段各有位置，不再按 k=v 平铺 */
-function RuleHeader(props: { doc: DocContent }) {
-  const str = (k: string) => {
-    const v = props.doc.extra[k];
+/** 一个 extra 字段在头部怎么读：等级 / 类型这类定性的做强调胶囊，引用别的卡的做可点的胶囊，数字加上量词；source 单独当引文 */
+type FieldView = { accent?: boolean; label?: string; ref?: DocKindId; fmt?: (v: string) => string; quote?: boolean; hide?: boolean };
+
+const FIELD_VIEWS: Partial<Record<DocKindId, Record<string, FieldView>>> = {
+  rules: { level: { accent: true }, scope: { label: "管" }, source: { quote: true } },
+  world: { category: { accent: true } },
+  characters: { tier: { accent: true }, faction: { label: "势力" } },
+  threads: { type: { accent: true }, stage: { label: "推进到" } },
+  milestones: { order: { fmt: (v) => `第 ${v} 帧` }, threads: { ref: "threads" } },
+  volumes: { chapters: { fmt: (v) => `第 ${v} 章` }, milestones: { ref: "milestones" } },
+  chapters: { volume: { ref: "volumes", fmt: (v) => `卷 ${v}` }, characters: { ref: "characters" }, threads: { ref: "threads" }, words: { fmt: (v) => `${v} 字` } },
+  manuscript: { words: { fmt: (v) => `${v} 字` }, revision: { hide: true } },
+};
+
+const asList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : typeof v === "string" && v.trim() ? [v] : typeof v === "number" ? [String(v)] : []);
+
+/**
+ * 卡片头部：大标题、摘要当导语、一排有含义的胶囊、（守则的）作者原话。
+ * 所有类型共用一套版式，只是 extra 字段各按自己的含义读，不再 k=v 平铺。
+ */
+function DocHead(props: { doc: DocContent }) {
+  const views = () => FIELD_VIEWS[props.doc.kind] ?? {};
+  const view = (k: string): FieldView => views()[k] ?? {};
+  const fields = () => Object.entries(props.doc.extra).filter(([k, v]) => !view(k).hide && !view(k).quote && asList(v).length > 0);
+  // 强调胶囊排最前，引用胶囊排最后，中间是普通字段
+  const rank = ([k]: [string, unknown]) => (view(k).accent ? 0 : view(k).ref ? 2 : 1);
+  const sorted = () => [...fields()].sort((a, b) => rank(a) - rank(b));
+  const quote = () => {
+    const k = Object.keys(views()).find((k) => view(k).quote);
+    const v = k ? props.doc.extra[k] : undefined;
     return typeof v === "string" && v.trim() ? v : "";
   };
-  const must = () => str("level") === "必须";
-  const others = () =>
-    Object.entries(props.doc.extra).filter(([k, v]) => !["level", "scope", "source"].includes(k) && typeof v === "string" && v);
   return (
     <div class="mb-6">
       <h1 class="font-serif text-2xl mb-3">{props.doc.title}</h1>
       <Show when={props.doc.summary && props.doc.summary !== props.doc.title}>
-        <p class="text-lg leading-8 mb-3">{props.doc.summary}</p>
+        <p class="text-lg leading-8 mb-3 text-ink">{props.doc.summary}</p>
       </Show>
       <div class="flex flex-wrap items-center gap-1.5 text-xs">
-        <Show when={str("level")}>
-          <span class={`px-1.5 py-0.5 rounded ${must() ? "bg-accent-soft text-accent font-medium" : "bg-paper-3 text-ink-2"}`}>{str("level")}</span>
-        </Show>
-        <Show when={str("scope")}>
-          <span class="px-1.5 py-0.5 rounded bg-paper-3 text-ink-2">管 {str("scope")}</span>
-        </Show>
+        <For each={sorted()}>
+          {([k, v]) => {
+            const fv = view(k);
+            return (
+              <For each={asList(v)}>
+                {(item) => {
+                  const text = `${fv.label ? `${fv.label} ` : ""}${fv.fmt ? fv.fmt(item) : item}`;
+                  return (
+                    <Show
+                      when={fv.ref}
+                      fallback={<span class={`px-1.5 py-0.5 rounded ${fv.accent ? "bg-accent-soft text-accent font-medium" : "bg-paper-3 text-ink-2"}`}>{text}</span>}
+                    >
+                      {(ref) => (
+                        <button class="px-1.5 py-0.5 rounded bg-paper-3 text-ink-2 hover:text-ink hover:bg-paper-3/80" title={`打开${item}`} onClick={() => actions.openDoc(ref(), refId(item))}>
+                          {text}
+                        </button>
+                      )}
+                    </Show>
+                  );
+                }}
+              </For>
+            );
+          }}
+        </For>
         <Show when={props.doc.status !== "draft"}>
           <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{props.doc.status}</span>
         </Show>
         <For each={props.doc.keywords}>{(k) => <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{k}</span>}</For>
-        <For each={others()}>{([k, v]) => <span class="px-1.5 py-0.5 rounded bg-paper-2 text-ink-3">{k}={String(v)}</span>}</For>
       </div>
-      <Show when={str("source")}>
+      <Show when={quote()}>
         <blockquote class="mt-4 pl-3 border-l-2 border-line-2 text-sm text-ink-2 leading-6">
           <span class="text-ink-3 mr-1">作者原话</span>
-          {str("source")}
+          {quote()}
         </blockquote>
       </Show>
     </div>
