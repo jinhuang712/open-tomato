@@ -20,6 +20,13 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     when: "简介还缺故事或读者段；作者刚开一本新书",
     load: () => loadPrompt("capabilities/interview"),
   },
+  seed: {
+    id: "seed",
+    label: "种子重建",
+    description: "作者带着故事种子或现成材料开新书，逐块思考后交作者判断，重写再落盘，不照搬。",
+    when: "作者贴来一份导出过的故事种子，或别处写好的设定 / 大纲",
+    load: () => loadPrompt("capabilities/seed"),
+  },
   talk: {
     id: "talk",
     label: "聊一张卡",

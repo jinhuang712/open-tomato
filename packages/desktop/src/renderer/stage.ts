@@ -65,6 +65,7 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       line: "这本书还是一张白纸。先聊清楚故事讲什么、给谁看，书名最后再定。",
       steps: [
         { title: "立项访谈", desc: "从「这本书讲什么」开始聊，主编边聊边记，最后才定书名", kind: "capability", cap: "interview", primary: true },
+        { title: "从种子重建", desc: "把导出过的故事种子或现成材料贴给主编，逐块重新判断再落盘", kind: "capability", cap: "seed" },
         TALK,
         ADOPT,
         { title: "直接设卡", desc: "跳过访谈，先建人物和世界设定", kind: "capability", cap: "design" },
