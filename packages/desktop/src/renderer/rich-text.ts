@@ -67,26 +67,15 @@ export function cardExtensions(): Extensions {
   ];
 }
 
-/** 挂一个卡片正文编辑器。markdown 进，markdown 出（cardMarkdown） */
-export function createCardEditor(options: { element: HTMLElement; markdown: string; class: string; onSave: () => void }): Editor {
-  const editor = new Editor({
+/** 挂一个卡片正文编辑器。markdown 进，markdown 出（cardMarkdown）；⌘E / ⌘S 由 DocViewer 在 document 上判 */
+export function createCardEditor(options: { element: HTMLElement; markdown: string; class: string; onChange: () => void }): Editor {
+  return new Editor({
     element: options.element,
     extensions: cardExtensions(),
     content: options.markdown,
-    editorProps: {
-      attributes: { class: options.class },
-      handleKeyDown: (_view, event) => {
-        // ⌘S 在编辑器里也要能存：ProseMirror 先吃到按键，不在这儿转出去就到不了外面
-        if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "s") {
-          event.preventDefault();
-          options.onSave();
-          return true;
-        }
-        return false;
-      },
-    },
+    editorProps: { attributes: { class: options.class } },
+    onUpdate: options.onChange,
   });
-  return editor;
 }
 
 export function cardMarkdown(editor: Editor): string {

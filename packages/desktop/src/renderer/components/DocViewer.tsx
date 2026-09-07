@@ -1,10 +1,15 @@
+import { replaceBody } from "@opentomato/core/frontmatter";
 import { ISSUE_LEVEL_LABEL } from "@opentomato/core/protocol";
 import type { DocContent, DocHeader, DocKindId } from "@opentomato/core/protocol";
-import { createEffect, createResource, createSignal, For, on, onCleanup, Show } from "solid-js";
+import type { Editor } from "@tiptap/core";
+import { createEffect, createResource, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
+import { keyHint } from "../../shared/keymap";
 import { clearFocus, focusText, hasText } from "../annotate";
 import { bridge } from "../bridge";
+import { overlayOpen, registerEscape } from "../escape";
 import { refId } from "../refid";
 import { renderMarkdown } from "../markdown";
+import { cardMarkdown, createCardEditor } from "../rich-text";
 import { LiveBadges } from "./LiveBadges";
 import { actions, errText, setState, state, toast, type QuoteSource } from "../state";
 import { QuotePill } from "./QuotePill";
@@ -15,10 +20,16 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     async ({ kind, id }) => bridge.request("doc.read", { kind, id }),
   );
   const [editing, setEditing] = createSignal(false);
-  const [draft, setDraft] = createSignal("");
+  /** 进编辑模式那一刻的正文，交给编辑器当初值；之后编辑器自己是状态源，不再跟着 doc() 走 */
+  const [draftBody, setDraftBody] = createSignal("");
+  /** 编辑器里动过没有：没动过的退出不问，动过了才拦一下 */
+  const [dirty, setDirty] = createSignal(false);
+  let editor: Editor | undefined;
   /** 点"编辑"那一刻磁盘上的版本；保存时带回去，期间被 agent 改过就报 stale，不静默盖 */
   const [base, setBase] = createSignal<string | null>(null);
   const kindLabel = () => state.kinds.find((k) => k.id === props.kind)?.label ?? props.kind;
+  /** 预览和编辑用同一套正文排版：进编辑模式时字号行距不该跳 */
+  const proseClass = () => `prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`;
   const issues = () => state.issues?.filter((i) => i.kind === props.kind && i.id === props.id) ?? [];
   /** 机检给的修补请求：切到对话、预填进输入框，发不发由作者定 */
   const fixInChat = (text: string) => {
@@ -85,14 +96,25 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
   onCleanup(clearFocus);
 
   const startEdit = (d: DocContent) => {
-    setDraft(d.raw);
+    setDraftBody(d.body);
     setBase(d.raw);
+    setDirty(false);
     setEditing(true);
   };
+  /** 退出编辑：动过了先问一声，别一个 Esc 把改的都吞了 */
+  const stopEdit = async () => {
+    if (dirty() && !(await bridge.confirm({ message: "放弃这次编辑？", detail: "刚改的内容不会存进这张卡。", okLabel: "放弃" }))) return;
+    setEditing(false);
+    setBase(null);
+  };
   const save = async () => {
+    if (!editor) return;
+    const b = base();
+    if (b === null) return;
+    // 只换正文：frontmatter 的原文逐字带回去，头没碰就不该出现在 diff 里
+    const raw = replaceBody(b, cardMarkdown(editor));
     try {
-      const b = base();
-      await bridge.request("doc.write", b === null ? { kind: props.kind, id: props.id, raw: draft() } : { kind: props.kind, id: props.id, raw: draft(), expectBefore: b });
+      await bridge.request("doc.write", { kind: props.kind, id: props.id, raw, expectBefore: b });
       setEditing(false);
       setBase(null);
       toast("已保存");
@@ -103,12 +125,33 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         await refetch();
         const latest = doc();
         if (latest) setBase(latest.raw);
-        toast("这篇在你编辑期间被改过（可能是 agent 刚写入）。再点保存将覆盖对方版本；要合并先复制你的改动，取消后对照最新版重改", "error");
+        toast("这篇在你编辑期间被改过（可能是 agent 刚写入）。再存一次会用你这版正文盖掉对方的；要合并就先复制自己的改动，退出编辑对照最新版重改", "error");
       } else {
         toast(msg, "error");
       }
     }
   };
+
+  // ⌘E 进编辑、⌘S 存回预览。挂在 document 上：光标在编辑器里也照样收得到
+  onMount(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.isComposing || overlayOpen()) return;
+      const key = e.key.toLowerCase();
+      if (key === "e" && !editing()) {
+        const d = doc();
+        if (!d) return;
+        e.preventDefault();
+        startEdit(d);
+      } else if (key === "s" && editing()) {
+        e.preventDefault();
+        void save();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
+  });
+  // Escape 先退编辑模式，再由全局那套退回对话
+  registerEscape(() => editing() && (void stopEdit(), true));
 
   return (
     <div class="flex flex-col h-full min-w-0">
@@ -125,26 +168,22 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         <span class="flex-1" />
         <Show when={doc()}>
           {(d) => (
-            <>
-              <button class="text-ink-2 hover:text-ink" onClick={() => void bridge.openPath(`${state.project?.root}/${d().path}`)}>
-                用外部编辑器打开
+            <Show
+              when={editing()}
+              fallback={
+                <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" title={`编辑这张卡（${keyHint("doc.edit")}）`} onClick={() => startEdit(d())}>
+                  编辑
+                </button>
+              }
+            >
+              <span class="text-ink-3">编辑中</span>
+              <button class="px-2.5 py-1 rounded-md bg-ink text-paper" title={`保存并回到预览（${keyHint("doc.save")}）`} onClick={() => void save()}>
+                保存
               </button>
-              <Show
-                when={editing()}
-                fallback={
-                  <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" onClick={() => startEdit(d())}>
-                    编辑
-                  </button>
-                }
-              >
-                <button class="px-2.5 py-1 rounded-md bg-ink text-paper" onClick={() => void save()}>
-                  保存
-                </button>
-                <button class="px-2.5 py-1 rounded-md border border-line" onClick={() => setEditing(false)}>
-                  取消
-                </button>
-              </Show>
-            </>
+              <button class="px-2.5 py-1 rounded-md border border-line" onClick={() => void stopEdit()}>
+                取消
+              </button>
+            </Show>
           )}
         </Show>
       </div>
@@ -197,7 +236,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                   <div
                     ref={prose}
                     data-quote-src={JSON.stringify(quoteSource())}
-                    class={`prose-zh ${props.kind === "manuscript" ? "font-serif text-lg leading-8" : ""}`}
+                    class={proseClass()}
                     innerHTML={renderMarkdown(d().body, { kind: props.kind, id: props.id })}
                   />
                   <Show when={props.kind === "rules" && !d().body.trim()}>
@@ -225,25 +264,31 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
                 </div>
               }
             >
-              <textarea
-                class="w-full h-full p-6 bg-paper font-mono text-xs leading-relaxed outline-none resize-none"
-                value={draft()}
-                onInput={(e) => setDraft(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  // 编辑态里 Escape 只退出编辑，不连文档一起关；全局 Escape 看到 defaultPrevented 就让路
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    setEditing(false);
-                  }
-                }}
-                spellcheck={false}
-              />
+              <div class="max-w-3xl mx-auto px-8 py-6">
+                <DocHead doc={d()} />
+                <CardBody markdown={draftBody()} proseClass={proseClass()} onChange={() => setDirty(true)} onEditor={(e) => (editor = e)} />
+              </div>
             </Show>
           )}
         </Show>
       </div>
     </div>
   );
+}
+
+/** 卡片正文的编辑区：TipTap 挂在这个 div 上，随编辑模式挂载 / 销毁 */
+function CardBody(props: { markdown: string; proseClass: string; onChange: () => void; onEditor: (editor: Editor | undefined) => void }) {
+  let host!: HTMLDivElement;
+  onMount(() => {
+    const editor = createCardEditor({ element: host, markdown: props.markdown, class: props.proseClass, onChange: props.onChange });
+    props.onEditor(editor);
+    editor.commands.focus("start", { scrollIntoView: false });
+    onCleanup(() => {
+      props.onEditor(undefined);
+      editor.destroy();
+    });
+  });
+  return <div class="card-editor" ref={host} />;
 }
 
 /** 一个 extra 字段在头部怎么读：等级 / 类型这类定性的做强调胶囊，引用别的卡的做可点的胶囊，数字加上量词；source 单独当引文 */

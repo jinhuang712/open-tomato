@@ -26,17 +26,27 @@ export function registerEscape(close: Closer): void {
  *
  * 返回 true 表示这次按键被消费了。
  */
+/** 全局浮层，越靠前的越可能叠在最上面（关闭确认 > 审阅 > 表单类弹窗 > 设置 / 搜索） */
+const OVERLAYS: { open: () => boolean; close: () => void }[] = [
+  { open: () => state.closePromptOpen, close: () => setState("closePromptOpen", false) },
+  { open: () => state.reviewOpen !== null, close: () => setState("reviewOpen", null) },
+  { open: () => state.cloudSettingsOpen, close: () => setState("cloudSettingsOpen", false) },
+  { open: () => state.modelPickerOpen, close: () => setState("modelPickerOpen", false) },
+  { open: () => state.settingsOpen, close: () => setState("settingsOpen", false) },
+  { open: () => state.searchOpen, close: () => setState("searchOpen", false) },
+];
+
+/** 有浮层压在上面：底下视图的快捷键（如卡片的 ⌘E / ⌘S）这时候不该响 */
+export function overlayOpen(): boolean {
+  return OVERLAYS.some((o) => o.open());
+}
+
 export function escapeOneLevel(): boolean {
   // 0. 本地登记的轻量层（顶栏下拉这类组件内 signal，全局 store 看不见），后登记的先问
   for (const close of [...closers].reverse()) if (close()) return true;
 
-  // 1. 浮层：越靠前的越可能叠在最上面（关闭确认 > 审阅 > 表单类弹窗 > 设置 / 搜索）
-  if (state.closePromptOpen) return (setState("closePromptOpen", false), true);
-  if (state.reviewOpen) return (setState("reviewOpen", null), true);
-  if (state.cloudSettingsOpen) return (setState("cloudSettingsOpen", false), true);
-  if (state.modelPickerOpen) return (setState("modelPickerOpen", false), true);
-  if (state.settingsOpen) return (setState("settingsOpen", false), true);
-  if (state.searchOpen) return (setState("searchOpen", false), true);
+  // 1. 浮层
+  for (const o of OVERLAYS) if (o.open()) return (o.close(), true);
 
   // 2. 二级视图：文档、子 agent 名册、子 agent 会话，都回主编的主会话
   if (!state.project) return false;

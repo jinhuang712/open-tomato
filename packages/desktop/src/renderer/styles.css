@@ -448,3 +448,24 @@ input {
 .draft-pick:hover {
   background: var(--color-accent-soft);
 }
+
+/* 卡片正文的编辑区：排版沿用 .prose-zh，这里只补编辑态自己的东西 */
+.card-editor .ProseMirror {
+  outline: none;
+  /* 正文很短时也有一块能点进去的地方 */
+  min-height: 8em;
+}
+/* 预览里的表格是无框排版表，编辑时得看见格子才好点 */
+.card-editor .ProseMirror th,
+.card-editor .ProseMirror td {
+  position: relative;
+  border: 1px solid var(--color-line);
+  padding: 0.42em 0.9em;
+}
+.card-editor .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-accent-soft);
+  pointer-events: none;
+}

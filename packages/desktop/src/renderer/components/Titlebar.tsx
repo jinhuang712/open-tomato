@@ -81,11 +81,11 @@ function BookMenu(props: { name: string }) {
       </span>
       <Show when={open()}>
         <div class="no-drag absolute left-0 top-8 z-30 w-52 py-1 rounded-lg border border-line bg-paper-2 shadow-xl text-sm">
-          <MenuItem label="导出故事种子" hint={keyHint("project.exportSeed")} onClick={() => run(actions.exportSeed)} />
+          <MenuItem label="导出故事种子" onClick={() => run(actions.exportSeed)} />
           <MenuItem label="复制会话路径" tag="dev" hint={keyHint("chat.copyPath")} onClick={() => run(actions.copyTranscriptPath)} />
           <div class="my-1 border-t border-line" />
           <Show when={state.cloud?.configured}>
-            <MenuItem label="同步到云端" hint="⌘S" onClick={() => run(() => actions.uploadCloud())} />
+            <MenuItem label="同步到云端" onClick={() => run(() => actions.uploadCloud())} />
           </Show>
           <MenuItem label="云端存储…" onClick={() => run(() => setState("cloudSettingsOpen", true))} />
           <div class="my-1 border-t border-line" />
