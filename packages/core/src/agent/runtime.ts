@@ -292,6 +292,7 @@ export class Kernel {
       ctx.continueAgent = (childId, message, mode, onProgress) => this.continueChild(childId, message, mode, onProgress);
       ctx.retireAgent = (childId) => this.retireChild(childId);
     }
+    ctx.unrelayedReports = () => this.agents.get(agentId)?.unrelayed ?? [];
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
       if (!live || live.mode === "commit") return null;
@@ -337,7 +338,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, pendingError: null };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, unrelayed: [], nudged: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -448,6 +449,7 @@ export class Kernel {
       const first = live.inbox.shift();
       if (!first) return;
       live.flushRest = live.inbox.length > 0;
+      this.markUnrelayed(live, first.report);
       this.sendTo(live.info.agentId, first.text, "followUp");
       this.emitQueue(live);
     }, 0);
@@ -516,11 +518,17 @@ export class Kernel {
     const label = `${ROLES[role].label}交回`;
     const text = stubPrompt(label, report);
     if (live.session.isStreaming || live.hold) {
-      live.inbox.push({ id: randomUUID(), label, text });
+      live.inbox.push({ id: randomUUID(), label, text, report: ROLES[role].label });
       this.emitQueue(live);
       return;
     }
+    this.markUnrelayed(live, ROLES[role].label);
     this.sendTo(parentId, text);
+  }
+
+  /** 一份报告到了模型面前：记下还没讲给作者听。主编 say 一次就清空，其间 ask_user 打回 */
+  private markUnrelayed(live: LiveAgent, roleLabel: string | undefined) {
+    if (roleLabel && !live.unrelayed.includes(roleLabel)) live.unrelayed.push(roleLabel);
   }
 
   /**
@@ -698,7 +706,10 @@ export class Kernel {
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
-          for (const e of live.inbox.splice(0)) live.session.prompt(e.text, { streamingBehavior: "steer" }).catch(() => {});
+          for (const e of live.inbox.splice(0)) {
+            this.markUnrelayed(live, e.report);
+            live.session.prompt(e.text, { streamingBehavior: "steer" }).catch(() => {});
+          }
           this.emitQueue(live);
         }
         return;
@@ -772,6 +783,8 @@ export class Kernel {
         return;
       case "tool_execution_start":
         if (ev.toolName === "ask_user") live.asked = true;
+        // 讲过一次就算讲了：讲得够不够是提示词的事，内核只管「一个字没讲就问」
+        if (ev.toolName === "say") live.unrelayed = [];
         this.send(live, {
           type: "tool_start",
           messageId: live.streamingMessageId ?? "",

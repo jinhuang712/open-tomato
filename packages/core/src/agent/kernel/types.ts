@@ -49,6 +49,8 @@ export interface LiveAgent {
   flushRest: boolean;
   /** 这一轮里调过 ask_user：主编只有问作者才算合法收尾 */
   asked: boolean;
+  /** 已送到模型面前、还没用 say 转达给作者的子 agent 报告（角色标签）。非空时 ask_user 打回：作者一个字没看到，先转达再问 */
+  unrelayed: string[];
   /** 这轮是补过的：主编没问就停时内核补一句让它接着干，一次作者发言只补一次，别循环 */
   nudged: boolean;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
@@ -59,4 +61,6 @@ export interface InboxEntry {
   id: string;
   label: string;
   text: string;
+  /** 这条是子 agent 的报告（值是角色标签）：送到模型面前时记进 unrelayed */
+  report?: string;
 }

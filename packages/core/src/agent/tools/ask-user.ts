@@ -16,7 +16,7 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
       "| multi | 挑若干个（派哪几个角色、留哪几个人物） | 短字串 2–8 个；没选的就是不要 |\n" +
       "| checklist | 一组意见逐条表态改 / 不改（评审回来问返修哪几条） | 条目 2–8 个，每条一句话；没表态的会单独报给你，由你拿主意并在 say 里说一句 |\n" +
       "| compare | 并排读长稿，选一版（同一段的两种写法、两版小传） | {label, text} 2–4 个，label 短名字，text 完整正文 |\n" +
-      "开放问题也尽量给 2–4 个你替作者想好的具体候选（书名就直接给 3 个备选），作者点一下就能选，也能自由输入。选项卡不替代解释：子 agent 刚交回的东西作者看不到原话，尤其要在 say 里讲清再问。界面会按 kind 自动补逃生口（换一批 / 混搭 / 你替我定 / 全改 / 先放一放……），你不用重复给。",
+      "开放问题也尽量给 2–4 个你替作者想好的具体候选（书名就直接给 3 个备选），作者点一下就能选，也能自由输入。选项卡不替代解释：子 agent 刚交回报告，要先用 say 逐条转达，没转达就问会被打回。界面会按 kind 自动补逃生口（换一批 / 混搭 / 你替我定 / 全改 / 先放一放……），你不用重复给。",
     parameters: Type.Object({
       say: Type.String({ description: "问之前对作者说的话：刚做了什么、为什么现在要问、候选之间差在哪。作者先看到这段，再看到问题" }),
       question: Type.String({ description: "问作者的问题本身，一两句，一次只问一件事；铺垫和解释放 say" }),
@@ -42,6 +42,12 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
     }),
     prepareArguments: repairAskArgs,
     execute: async (_id, params, signal) => {
+      const pending = ctx.unrelayedReports?.() ?? [];
+      if (pending.length > 0) {
+        throw new Error(
+          `${pending.join("、")}的报告作者一个字都看不到。先讲清，再问：用 say 把报告读懂后用作者的词重新讲一遍——结论是什么、几个候选各是哪本书、差在哪、各要付什么代价、查到什么硬约束——讲全了再 ask_user。解释放 say 里，不塞进选项。`,
+        );
+      }
       const answer = await ctx.gate.requestQuestion(
         {
           agentId: ctx.agentId,

@@ -45,6 +45,8 @@ export interface ToolContext {
   retireAgent?: (agentId: string) => Promise<void>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
+  /** 已送到面前、还没 say 过的子 agent 报告的角色标签；非空时 ask_user 打回，先讲清再问 */
+  unrelayedReports?: () => string[];
 }
 
 export interface ToolPermissions {
