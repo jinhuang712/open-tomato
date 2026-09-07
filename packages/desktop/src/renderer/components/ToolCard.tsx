@@ -110,6 +110,7 @@ function Output(props: { part: ToolPart }) {
 }
 
 /** 对作者说：主编的话就是正文，不当工具行渲染 */
+/** 旧会话里的 say 工具：已删掉，历史里还有，照常铺开 */
 function SayCard(props: { part: ToolPart }) {
   const body = () => talk(args(props.part).text);
   return (
@@ -119,7 +120,7 @@ function SayCard(props: { part: ToolPart }) {
   );
 }
 
-/** 问作者：先是主编的铺垫（say），再是问题 + 答案，直接铺开不折叠 */
+/** 问作者：问题 + 答案，直接铺开不折叠。旧会话的实参可能还带 say 铺垫，有就铺在上面 */
 function AskCard(props: { part: ToolPart }) {
   const a = () => args(props.part);
   // 候选可能是 string 或 {label, text}。历史里只铺短候选；长句候选不重复铺开，「答」那行已经写了选的是哪个

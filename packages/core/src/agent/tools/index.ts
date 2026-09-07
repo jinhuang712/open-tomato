@@ -13,7 +13,6 @@ import { makeReadReviewTool } from "./read-review.js";
 import { makeArchiveAgentTool } from "./archive-agent.js";
 import { makeRunCheckTool } from "./run-check.js";
 import { makeSaveReviewTool } from "./save-review.js";
-import { makeSayTool } from "./say.js";
 import { makeSearchDocsTool } from "./search-docs.js";
 import { makeSettleTool } from "./settle.js";
 import { makeSpawnAgentsTool } from "./spawn-agents.js";
@@ -48,7 +47,6 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
   }
 
   if (perms.canAsk) {
-    tools.push(makeSayTool(ctx));
     tools.push(makeAskUserTool(ctx));
   }
 

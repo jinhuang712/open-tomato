@@ -72,7 +72,6 @@ describe("派单不阻塞主编", () => {
       steering: [] as string[],
       hold,
       flushRest: false,
-      unrelayed: [] as string[],
     };
     (kernel as any).agents.set("director", fake);
     return { fake, calls };
@@ -98,15 +97,13 @@ describe("派单不阻塞主编", () => {
     expect(fake.inbox[0]!.text).toContain("三个候选");
   });
 
-  test("主编空着：报告直接送进去开新一轮，并记为未讲", () => {
+  test("主编空着：报告直接送进去开新一轮，带报告编号", () => {
     const { fake, calls } = fakeLead(false);
     (kernel as any).deliverReport("director", "designer", "报告正文");
     expect(fake.inbox).toEqual([]);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("报告正文");
-    expect(calls[0]).toContain(`报告编号：${fake.unrelayed[0]}`);
-    expect(fake.unrelayed).toHaveLength(1);
-    expect(fake.unrelayed[0]).toMatch(/^策划:/);
+    expect(calls[0]).toMatch(/报告编号：策划:/);
   });
 
   test("主编暂停中：报告进收件箱等作者开口，收件箱那条带角色标签", () => {
@@ -115,17 +112,14 @@ describe("派单不阻塞主编", () => {
     expect(calls).toEqual([]);
     expect(fake.inbox.map((e) => e.label)).toEqual(["策划交回"]);
     expect(fake.inbox[0]!.report).toMatch(/^策划:/);
-    // 还没送到模型面前，不算未讲
-    expect(fake.unrelayed).toEqual([]);
   });
 
-  test("收件箱里的报告轮末送出去时才记为未讲", async () => {
+  test("收件箱里的报告轮末送出去", async () => {
     const { fake, calls } = fakeLead(false);
     fake.inbox.push({ id: "r1", label: "策划交回", text: "报告", report: "策划" });
     (kernel as any).flushInbox(fake);
     await new Promise((r) => setTimeout(r, 0));
     expect(calls).toHaveLength(1);
-    expect(fake.unrelayed).toEqual(["策划"]);
   });
 
   test("同角色多份报告拥有不同编号，报告正文完整传递", () => {
@@ -133,7 +127,8 @@ describe("派单不阻塞主编", () => {
     const report = "方案依据与取舍\n".repeat(3000);
     (kernel as any).deliverReport("director", "designer", report);
     (kernel as any).deliverReport("director", "designer", "第二份报告");
-    expect(new Set(fake.unrelayed).size).toBe(2);
+    const ids = calls.map((c) => /报告编号：(策划:[^\n]+)/.exec(c as string)?.[1]);
+    expect(new Set(ids).size).toBe(2);
     expect(calls[0]).toContain(report);
   });
 

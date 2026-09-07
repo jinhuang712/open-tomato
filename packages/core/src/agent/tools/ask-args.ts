@@ -1,6 +1,6 @@
 import { hasLongOptions, QUESTION_KINDS, type QuestionKind, type QuestionOption } from "../../protocol.js";
 
-/** ask_user 的实参键名，漏进 options 数组时要摘掉 */
+/** ask_user 的实参键名（含旧版的 say / explainedReports），漏进 options 数组时要摘掉 */
 const ASK_ARG_KEYS: ReadonlySet<string> = new Set(["say", "question", "kind", "options", "allowFreeText", "explainedReports"]);
 
 /** question 丢了但候选还在时，用这句话把提问撑起来，作者照样能挑 */
@@ -9,12 +9,10 @@ const ASK_FALLBACK_QUESTION = "这些候选里，你更想要哪个方向？";
 export type AskOption = QuestionOption;
 
 export interface AskArgs {
-  say: string;
   question: string;
   kind: QuestionKind;
   options?: AskOption[];
   allowFreeText?: boolean;
-  explainedReports?: string[];
 }
 
 const isKind = (v: unknown): v is QuestionKind => typeof v === "string" && (QUESTION_KINDS as readonly string[]).includes(v);
@@ -44,7 +42,6 @@ export const unescapeNewlines = (s: string) => s.replace(/(?:\\r)?\\n/g, "\n");
  */
 export function repairAskArgs(args: unknown): AskArgs {
   const raw = (args ?? {}) as Record<string, unknown>;
-  const say = typeof raw.say === "string" ? unescapeNewlines(raw.say) : "";
   const question = typeof raw.question === "string" && raw.question.trim() ? unescapeNewlines(raw.question) : "";
   const damaged = !question;
 
@@ -65,11 +62,9 @@ export function repairAskArgs(args: unknown): AskArgs {
   }
 
   return {
-    say,
     question: question || ASK_FALLBACK_QUESTION,
     kind: resolveQuestionKind(raw.kind, options),
     ...(options.length ? { options } : {}),
     ...(typeof raw.allowFreeText === "boolean" ? { allowFreeText: raw.allowFreeText } : {}),
-    ...(raw.explainedReports !== undefined ? { explainedReports: raw.explainedReports as string[] } : {}),
   };
 }

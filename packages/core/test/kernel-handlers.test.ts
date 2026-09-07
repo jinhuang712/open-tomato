@@ -351,23 +351,18 @@ describe("forward 事件映射", () => {
     (kernel as any).forward(fake, { type: "agent_end" });
     expect(fake.nudged).toBe(true);
     expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("可见回应");
+    expect(calls[0]![0]).toContain("一个字也没对作者说");
   });
 
-  test("nudge 点名可见通道与待解释编号：裸文本不算回应，编号直接附上不用回翻", async () => {
+  test("nudge 只说正文与 ask_user 两个通道，不再提 say", () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
-    (fake as any).unrelayed = ["编剧:aaa", "编剧:bbb"];
     (kernel as any).forward(fake, { type: "agent_end" });
     expect(calls).toHaveLength(1);
     const text = calls[0]![0] as string;
-    // 裸文本只显示为小字过程：必须点名 say / ask_user.say，模型才不会再写裸文本补发
-    expect(text).toContain("say");
-    expect(text).toContain("裸文本");
-    // 待解释编号直接附在提示里，模型逐字复制即可
-    expect(text).toContain("编剧:aaa");
-    expect(text).toContain("编剧:bbb");
-    expect(text).toContain("explainedReports");
+    expect(text).toContain("正文");
+    expect(text).toContain("ask_user");
+    expect(text).not.toMatch(/say/);
   });
 
   test("queue_update 同步已插入列表", async () => {
@@ -433,15 +428,13 @@ describe("models.*", () => {
   });
 
   for (const action of ["chat.continue", "chat.resume"] as const) {
-    test(`${action} 恢复普通循环，保留未解释报告与可见回应兜底`, async () => {
+    test(`${action} 恢复普通循环，保留可见回应兜底`, async () => {
       const { fake, calls } = fakeLead(false);
       fake.hold = true;
       fake.nudged = true;
-      (fake as any).unrelayed = ["策划:pending"];
       await kernel.handle(action, {});
       expect(fake.hold).toBe(false);
       expect(fake.nudged).toBe(false);
-      expect((fake as any).unrelayed).toEqual(["策划:pending"]);
       expect(calls).toHaveLength(1);
       expect(calls[0]![0]).toContain("不包含新的选择、答案或执行授权");
       (kernel as any).forward(fake, { type: "agent_end" });
@@ -560,24 +553,18 @@ describe("cloud.download replace", () => {
 });
 
 describe("自然对话收尾", () => {
-  for (const toolName of ["say", "ask_user"]) {
-    test(`${toolName} 非空表达保留报告，收尾不追问`, () => {
-      const { fake, calls } = fakeLead(false);
-      (fake as any).unrelayed = ["策划"];
-      (kernel as any).forward(fake, { type: "tool_execution_start", toolName, toolCallId: "speech", args: { text: "判断", say: "解释" } });
-      expect((fake as any).spoke).toBe(true);
-      expect((fake as any).unrelayed).toEqual(["策划"]);
-      (kernel as any).forward(fake, { type: "agent_end" });
-      expect(calls).toHaveLength(0);
-      (kernel as any).forward(fake, { type: "agent_start" });
-      expect((fake as any).spoke).toBe(false);
-    });
-    test(`${toolName} 空白表达不清除报告`, () => {
-      const { fake } = fakeLead(false);
-      (fake as any).unrelayed = ["策划"];
-      (kernel as any).forward(fake, { type: "tool_execution_start", toolName, toolCallId: "blank", args: { text: "  ", say: "  " } });
-      expect((fake as any).spoke).not.toBe(true);
-      expect((fake as any).unrelayed).toEqual(["策划"]);
-    });
-  }
+  test("正文出去了就是说过话，收尾不追问；下一轮开始清零", () => {
+    const { fake, calls } = fakeLead(false);
+    (kernel as any).sendText(fake, "m1", "我的判断是……");
+    expect((fake as any).spoke).toBe(true);
+    (kernel as any).forward(fake, { type: "agent_end" });
+    expect(calls).toHaveLength(0);
+    (kernel as any).forward(fake, { type: "agent_start" });
+    expect((fake as any).spoke).toBe(false);
+  });
+  test("只有空白正文不算说过话", () => {
+    const { fake } = fakeLead(false);
+    (kernel as any).sendText(fake, "m1", "  \n");
+    expect((fake as any).spoke).not.toBe(true);
+  });
 });

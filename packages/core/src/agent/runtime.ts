@@ -312,11 +312,6 @@ export class Kernel {
       ctx.continueAgent = (childId, message, mode, onProgress) => this.continueChild(childId, message, mode, onProgress);
       ctx.archiveAgent = (childId) => this.archiveChild(childId);
     }
-    ctx.unrelayedReports = () => this.agents.get(agentId)?.unrelayed ?? [];
-    ctx.acknowledgeReports = (ids) => {
-      const live = this.agents.get(agentId);
-      if (live) live.unrelayed = live.unrelayed.filter((id) => !ids.includes(id));
-    };
     ctx.writeBlocked = () => {
       const live = this.agents.get(agentId);
       if (!live || live.mode === "commit") return null;
@@ -363,7 +358,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, unrelayed: [], nudged: false, pendingError: null };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, nudged: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -496,7 +491,6 @@ export class Kernel {
       const first = live.inbox.shift();
       if (!first) return;
       live.flushRest = live.inbox.length > 0;
-      this.markUnrelayed(live, first.report);
       this.sendTo(live.info.agentId, first.text, "followUp");
       this.emitQueue(live);
     }, 0);
@@ -572,13 +566,7 @@ export class Kernel {
       this.emitQueue(live);
       return;
     }
-    this.markUnrelayed(live, reportId);
     this.sendTo(parentId, text);
-  }
-
-  /** 报告送到模型面前时登记唯一编号，由对话工具显式确认解释完成 */
-  private markUnrelayed(live: LiveAgent, roleLabel: string | undefined) {
-    if (roleLabel && !live.unrelayed.includes(roleLabel)) live.unrelayed.push(roleLabel);
   }
 
   /**
@@ -737,14 +725,13 @@ export class Kernel {
     this.emit({ type: "agent.event", agentId: live.info.agentId, event });
   }
 
-  /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
-  /** 给作者看的正文出去了：子 agent 结论就算解释过了 */
+  /** 状态行之外的正文出去了：这就是对作者说的话，轮末据此判断可以自然收尾 */
   private sendText(live: LiveAgent, messageId: string, delta: string) {
-    // 状态行之外的裸正文出去了：轮末据此判断是「静等报告」还是「话写在了工具外」
-    if (delta.trim()) live.leaked = true;
+    if (delta.trim()) live.spoke = true;
     this.send(live, { type: "text_delta", messageId, delta });
   }
 
+  /** 文本流开头先攒一行：是状态行就摘出来单发，不是就原样放行 */
   private forwardText(live: LiveAgent, messageId: string, delta: string) {
     if (live.headBuffer === null) {
       if (live.skipBlank) {
@@ -773,12 +760,10 @@ export class Kernel {
         this.setStatus(live, "running");
         live.asked = false;
         live.spoke = false;
-        live.leaked = false;
         // 轮末只直发了收件箱的第一条，这轮跑起来了，其余的插进去
         if (live.flushRest) {
           live.flushRest = false;
           for (const e of live.inbox.splice(0)) {
-            this.markUnrelayed(live, e.report);
             live.session.prompt(e.text, { streamingBehavior: "steer" }).catch(() => {});
           }
           this.emitQueue(live);
@@ -795,11 +780,7 @@ export class Kernel {
         this.markCloudDirty();
         if (shouldNudge(live, this.hasRunningChildren(live.info.agentId))) {
           live.nudged = true;
-          // 待解释报告的编号只出现在历史里的报告头中，轮次多了容易被模型写错或遗漏：
-          // 补提示时把当前待解释编号直接附上，模型逐字复制即可，不用回翻历史找。
-          const pending = live.unrelayed ?? [];
-          const nudge = pending.length > 0 ? `${NUDGE_PROMPT}\n待解释报告编号：${pending.join("、")}` : NUDGE_PROMPT;
-          this.sendTo(LEAD_ID, stubPrompt("继续", nudge), "followUp");
+          this.sendTo(LEAD_ID, stubPrompt("继续", NUDGE_PROMPT), "followUp");
           return;
         }
         this.flushInbox(live);
@@ -858,14 +839,6 @@ export class Kernel {
         return;
       case "tool_execution_start":
         if (ev.toolName === "ask_user") live.asked = true;
-        // 可见表达允许自然收尾，但不代表任何报告已经解释。
-        if (ev.toolName === "say" || ev.toolName === "ask_user") {
-          const args = ev.args as { text?: unknown; say?: unknown } | undefined;
-          const speech = ev.toolName === "say" ? args?.text : args?.say;
-          if (typeof speech === "string" && speech.trim()) {
-            live.spoke = true;
-          }
-        }
         this.send(live, {
           type: "tool_start",
           messageId: live.streamingMessageId ?? "",

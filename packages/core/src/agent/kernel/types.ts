@@ -49,12 +49,8 @@ export interface LiveAgent {
   flushRest: boolean;
   /** 这一轮里调过 ask_user，等待作者也是合法收尾 */
   asked: boolean;
-  /** 本轮已向作者发送非空对话，可自然收尾 */
+  /** 本轮有状态行之外的正文出去了：那就是对作者说的话，可自然收尾 */
   spoke?: boolean;
-  /** 本轮有状态行之外的裸正文出去了：那是该经 say / ask_user 说给作者、却只以灰色小字露出的话 */
-  leaked?: boolean;
-  /** 已送到模型面前、尚未由对话工具明确确认已解释的报告编号 */
-  unrelayed: string[];
   /** 这轮已补过可见回应提示；一次作者发言只补一次 */
   nudged: boolean;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
@@ -65,6 +61,6 @@ export interface InboxEntry {
   id: string;
   label: string;
   text: string;
-  /** 这条是子 agent 的报告（值是唯一报告编号）：送到模型面前时记进 unrelayed */
+  /** 这条是子 agent 的报告（值是唯一报告编号） */
   report?: string;
 }
