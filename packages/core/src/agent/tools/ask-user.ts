@@ -18,7 +18,7 @@ export function makeAskUserTool(ctx: ToolContext): ToolDefinition {
       "| compare | 并排读长稿，选一版 | {label, text}，label 短名字，text 完整正文 |\n" +
       "默认摆候选：作者点一下比他组织一段话省力得多，能想出两三个有实质差异的方向就摆出来让他选，其中可以有一个他没要求但你有理由的，附上代价。open 只留给你确实给不出候选的问题——「不知道作者想要什么」不是用 open 的理由，那正是该摆候选的时候。候选之间要有实质差异，不为凑数量硬造；用可辨认的短名称，说明写在正文里，不塞进 label。compare 用于需要并排阅读完整内容的比较。界面按 kind 自动补充逃生口，无需重复提供。",
     parameters: Type.Object({
-      question: Type.String({ description: "清楚、容易回答的问题；解释写在正文里，不塞进问题" }),
+      question: Type.String({ description: "一个清楚、容易回答的问题；一次只问一件事，两个问题分两次问，解释写在正文里，不塞进问题" }),
       kind: Type.Optional(
         Type.Union(
           [Type.Literal("open"), Type.Literal("single"), Type.Literal("multi"), Type.Literal("checklist"), Type.Literal("compare")],
