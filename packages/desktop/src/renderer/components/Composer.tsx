@@ -143,12 +143,12 @@ export function Composer(props: { agentId?: string }) {
           <div class="flex-1 min-w-0 space-y-1">
             <For each={pending()}>
               {(m) => (
-                <div class="group flex items-baseline gap-2 min-w-0">
+                <div class="flex items-baseline gap-2 min-w-0">
                   <span class={`shrink-0 ${m.inserted ? "text-accent" : "text-ink-3"}`}>{m.label}</span>
                   <span class="flex-1 truncate text-ink-2">{m.text.replace(/^⟦stub:[^⟧]*⟧\n?/, "")}</span>
                   <Show when={!m.inserted}>
                     <button
-                      class="shrink-0 text-ink-3 hover:text-ink opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                      class="shrink-0 text-ink-3 hover:text-ink"
                       title="等不了它这轮做完：当前这步工具结束后就送到"
                       onClick={() => void actions.insertQueued(m.id, agentId())}
                     >
