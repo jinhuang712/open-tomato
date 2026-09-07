@@ -22,7 +22,7 @@ export async function resumeLead(api: KernelApi) {
 
 export function chatHandlers(
   api: KernelApi,
-): Pick<HandlerMap, "chat.send" | "chat.continue" | "chat.resume" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.retire"> {
+): Pick<HandlerMap, "chat.send" | "chat.continue" | "chat.resume" | "chat.insert" | "chat.clearQueue" | "chat.sessionFile" | "chat.pause" | "chat.abort" | "chat.new" | "agent.archive" | "agent.retire"> {
   return {
     "chat.send": async ({ text, agentId, deliverAs }) => {
       if (!agentId) await api.ensureLead();
@@ -117,6 +117,10 @@ export function chatHandlers(
       api.requireStore();
       await api.disposeAgents(true);
       await api.createLead("new");
+      return null;
+    },
+    "agent.archive": async ({ agentId }) => {
+      await api.archiveChild(agentId);
       return null;
     },
     "agent.retire": async ({ agentId }) => {

@@ -139,6 +139,7 @@ export class Kernel {
       closeProject: () => this.closeProject(),
       afterOpen: (mode) => this.afterOpen(mode),
       disposeAgents: (retire) => this.disposeAgents(retire),
+      archiveChild: (agentId) => this.archiveChild(agentId),
       retireChild: (agentId) => this.retireChild(agentId),
       createLead: (mode) => this.createLead(mode),
       ensureLead: () => this.ensureLead(),
@@ -223,7 +224,7 @@ export class Kernel {
     }
     // 先发终态（渲染层据此撤掉这个 agent 的问答/待审 dock），再摘表：
     // abort 会让旧 run 报错，滞后回调因认不出旧 live 全被吞，不会污染新会话
-    for (const a of lives) this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : "done");
+    for (const a of lives) this.setStatus(a, a.info.agentId === LEAD_ID ? "idle" : a.info.status === "archived" ? "archived" : "done");
     for (const a of lives) a.unsubscribe();
     this.agents.clear();
     for (const a of lives) {
@@ -291,7 +292,7 @@ export class Kernel {
     if (withSpawn) {
       ctx.spawn = (tasks, onProgress) => this.spawn(agentId, tasks, onProgress);
       ctx.continueAgent = (childId, message, mode, onProgress) => this.continueChild(childId, message, mode, onProgress);
-      ctx.retireAgent = (childId) => this.retireChild(childId);
+      ctx.archiveAgent = (childId) => this.archiveChild(childId);
     }
     ctx.unrelayedReports = () => this.agents.get(agentId)?.unrelayed ?? [];
     ctx.writeBlocked = () => {
@@ -418,7 +419,7 @@ export class Kernel {
 
   /**
    * 按索引把上次留下的子 agent 接回来：同一个 agentId、同一份会话文件、同一个派单方式。
-   * 接回来的都是 done：重启后没有人在跑，主编要续就 continue。接不回的（目录没了）从索引里删。
+   * 接回来的是 done（封存过的是 archived）：重启后没有人在跑，主编要续就 continue。接不回的（目录没了）从索引里删。
    */
   private async restoreChildren() {
     const store = this.requireStore();
@@ -430,7 +431,7 @@ export class Kernel {
       try {
         const { session, tools } = await this.buildSession(rec.role, rec.agentId, SessionManager.continueRecent(store.info.root, store.agentSessionDir(rec.agentId)));
         const live = this.register(
-          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: "done", error: null, statusText: "", mode: rec.mode },
+          { agentId: rec.agentId, parentId: rec.parentId, role: rec.role, label: rec.label, task: rec.task, status: rec.archived ? "archived" : "done", error: null, statusText: "", mode: rec.mode },
           session,
           tools,
         );
@@ -601,6 +602,7 @@ export class Kernel {
     const live = this.agents.get(childId);
     if (!live || childId === LEAD_ID) throw new Error(`没有这个子 agent：${childId}。它可能已随项目关闭回收，需要重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再续`);
+    if (live.info.status === "archived") throw new Error(`${live.info.label}（${childId}）已封存，不能再续派；这条线要接着做就重新 spawn_agents`);
     if (mode && mode !== live.mode) {
       this.setMode(live, mode);
       const store = this.requireStore();
@@ -620,15 +622,32 @@ export class Kernel {
   }
 
   /**
-   * 子 agent 退场：摘表、释放会话、删索引和会话目录。主编或作者判断不再需要它时调用。
-   * 在跑的不能退：它这轮的结论还没交回，掐了主编那边的 spawn / continue 会悬着。
-   * 删是不可逆的（第五条：上下文是资产），所以只做判断后的执行，不做自动清理。
+   * 子 agent 封存：状态变 archived、索引记一笔，会话原样留着能回看，主编不能再续派。
+   * 主编判断这条线干完了调 archive_agent，作者也能在历史面板里点。在跑的不能封：它这轮的结论还没交回。
+   * 封存不删东西（第五条：上下文是资产），删是作者在界面上另一步做的事。
    */
-  private async retireChild(childId: string): Promise<void> {
-    if (childId === LEAD_ID) throw new Error("主编不能退场");
+  private async archiveChild(childId: string): Promise<void> {
+    if (childId === LEAD_ID) throw new Error("主编不能封存");
     const live = this.agents.get(childId);
     if (!live) throw new Error(`没有这个子 agent：${childId}`);
-    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再退`);
+    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再封`);
+    if (live.info.status === "archived") throw new Error(`${live.info.label}（${childId}）已经封存了`);
+    this.setStatus(live, "archived");
+    const store = this.requireStore();
+    const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
+    if (rec) await store.saveAgentRecord({ ...rec, archived: true });
+  }
+
+  /**
+   * 子 agent 删除：摘表、释放会话、删索引和会话目录。只有作者能做（界面上的「删除」），主编只能封存。
+   * 在跑的不能删：它这轮的结论还没交回，掐了主编那边的 spawn / continue 会悬着。
+   * 删是不可逆的，所以只做判断后的执行，不做自动清理。
+   */
+  private async retireChild(childId: string): Promise<void> {
+    if (childId === LEAD_ID) throw new Error("主编不能删除");
+    const live = this.agents.get(childId);
+    if (!live) throw new Error(`没有这个子 agent：${childId}`);
+    if (live.info.status === "running") throw new Error(`${live.info.label}（${childId}）还在跑，等它这一轮回来再删`);
     this.agents.delete(childId);
     live.unsubscribe();
     live.session.dispose();

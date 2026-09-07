@@ -323,6 +323,16 @@ describe("子 agent 会话落盘", () => {
     expect(events.some((e) => e.type === "agent.event" && e.agentId === "child-9" && e.event.type === "history")).toBe(true);
   });
 
+  test("封存过的子 agent 重开项目接回来仍是 archived", async () => {
+    const store = (kernel as any).requireStore();
+    await store.saveAgentRecord({ ...rec, archived: true });
+    await kernel.handle("project.close", {});
+    events.length = 0;
+    await kernel.handle("project.open", { root });
+    const spawned = events.filter((e) => e.type === "agent.spawned") as Array<{ type: "agent.spawned"; agent: { agentId: string; status: string } }>;
+    expect(spawned.find((e) => e.agent.agentId === "child-9")?.agent.status).toBe("archived");
+  });
+
   test("主编开新会话时子 agent 退役：索引清空，会话目录删掉", async () => {
     const store = (kernel as any).requireStore();
     await store.saveAgentRecord(rec);

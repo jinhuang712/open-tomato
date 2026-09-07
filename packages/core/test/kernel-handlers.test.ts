@@ -431,9 +431,9 @@ describe("capability 全流程", () => {
   });
 });
 
-describe("agent.retire", () => {
+describe("agent.archive / agent.retire", () => {
   /** 往表里塞一个假的子 agent，并写一条索引，模拟它已经派过一轮 */
-  async function fakeChild(status: "done" | "running") {
+  async function fakeChild(status: "done" | "running" | "archived") {
     fakeLead(false);
     let disposed = 0;
     let unsubscribed = 0;
@@ -463,8 +463,30 @@ describe("agent.retire", () => {
     await expect(kernel.handle("agent.retire", { agentId: "c1" })).rejects.toThrow("还在跑");
     expect((kernel as any).agents.has("c1")).toBe(true);
     expect((await store.agentRecords()).some((r) => r.agentId === "c1")).toBe(true);
-    await expect(kernel.handle("agent.retire", { agentId: "director" })).rejects.toThrow("主编不能退场");
+    await expect(kernel.handle("agent.retire", { agentId: "director" })).rejects.toThrow("主编不能删除");
     await expect(kernel.handle("agent.retire", { agentId: "nope" })).rejects.toThrow("没有这个子 agent");
+  });
+
+  test("跑完的能封存：状态变 archived、索引记 archived、会话不动、表里还在", async () => {
+    const { store, counts } = await fakeChild("done");
+    await kernel.handle("agent.archive", { agentId: "c1" });
+    expect((kernel as any).agents.get("c1").info.status).toBe("archived");
+    expect(counts()).toEqual({ disposed: 0, unsubscribed: 0 });
+    expect((await store.agentRecords()).find((r) => r.agentId === "c1")?.archived).toBe(true);
+    expect(events.some((e) => e.type === "agent.status" && e.agentId === "c1" && e.status === "archived")).toBe(true);
+    expect(events.some((e) => e.type === "agent.retired")).toBe(false);
+  });
+
+  test("在跑的不能封，封过的不能再封，主编不能封；封存后不能续派，但能删", async () => {
+    await fakeChild("running");
+    await expect(kernel.handle("agent.archive", { agentId: "c1" })).rejects.toThrow("还在跑");
+    await expect(kernel.handle("agent.archive", { agentId: "director" })).rejects.toThrow("主编不能封存");
+    const { store } = await fakeChild("archived");
+    await expect(kernel.handle("agent.archive", { agentId: "c1" })).rejects.toThrow("已经封存");
+    await expect((kernel as any).continueChild("c1", "再来", undefined, () => {})).rejects.toThrow("已封存");
+    await kernel.handle("agent.retire", { agentId: "c1" });
+    expect((kernel as any).agents.has("c1")).toBe(false);
+    expect((await store.agentRecords()).find((r) => r.agentId === "c1")).toBeUndefined();
   });
 });
 

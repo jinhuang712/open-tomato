@@ -41,8 +41,8 @@ export interface ToolContext {
   spawn?: (tasks: SpawnTask[], onProgress: DispatchProgress) => Promise<DispatchResult>;
   /** 续接一个还活着的子 agent，把新消息发给它；同样不阻塞。mode 给了就切换它的落盘权限 */
   continueAgent?: (agentId: string, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress) => Promise<DispatchResult>;
-  /** 让一个跑完的子 agent 退场：删会话和索引，之后不能再 continue */
-  retireAgent?: (agentId: string) => Promise<void>;
+  /** 封存一个跑完的子 agent：会话留着，之后不能再 continue。删由作者在界面上做 */
+  archiveAgent?: (agentId: string) => Promise<void>;
   /** 返回非空字符串表示当前这轮不允许落盘（候选阶段），字符串是给模型看的原因 */
   writeBlocked?: () => string | null;
   /** 已送到面前、还没 say 过的子 agent 报告的角色标签；非空时 ask_user 打回，先讲清再问 */

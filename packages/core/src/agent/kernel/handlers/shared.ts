@@ -22,6 +22,7 @@ export interface KernelApi {
   closeProject(): Promise<void>;
   afterOpen(mode: "new" | "continue"): Promise<void>;
   disposeAgents(retire: boolean): Promise<void>;
+  archiveChild(agentId: string): Promise<void>;
   retireChild(agentId: string): Promise<void>;
   createLead(mode: "new" | "continue"): Promise<void>;
   /** 主编欠着（开项目时没模型）就现在补建；返回有没有主编 */

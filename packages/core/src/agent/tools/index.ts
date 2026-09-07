@@ -10,7 +10,7 @@ import { makeProjectOverviewTool } from "./project-overview.js";
 import { makeReadDocTool } from "./read-doc.js";
 import { makeReadMarksTool } from "./read-marks.js";
 import { makeReadReviewTool } from "./read-review.js";
-import { makeRetireAgentTool } from "./retire-agent.js";
+import { makeArchiveAgentTool } from "./archive-agent.js";
 import { makeRunCheckTool } from "./run-check.js";
 import { makeSaveReviewTool } from "./save-review.js";
 import { makeSayTool } from "./say.js";
@@ -65,8 +65,8 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
     tools.push(makeContinueAgentTool(ctx));
   }
 
-  if (perms.canSpawn && ctx.retireAgent) {
-    tools.push(makeRetireAgentTool(ctx));
+  if (perms.canSpawn && ctx.archiveAgent) {
+    tools.push(makeArchiveAgentTool(ctx));
   }
 
   return tools;

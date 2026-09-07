@@ -54,6 +54,8 @@ export interface AgentRecord {
   label: string;
   task: string;
   mode: "propose" | "commit";
+  /** 已封存：重开项目接回来时状态是 archived 而不是 done */
+  archived?: boolean;
 }
 /** .opentomato/.gitignore：会话记录大且噪音多，不进 git；project.json 等保留 */
 const MARKER_GITIGNORE = `${SESSIONS_DIR}/\n`;

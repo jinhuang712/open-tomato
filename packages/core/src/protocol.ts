@@ -311,7 +311,8 @@ export interface UiMessage {
   createdAt: number;
 }
 
-export type AgentStatus = "idle" | "running" | "done" | "error";
+/** archived：这条线上的活干完了，封存只读。会话保留能回看，不能再续派；删是另一步 */
+export type AgentStatus = "idle" | "running" | "done" | "error" | "archived";
 /** propose：只出候选、落盘工具被剥掉、作者不直接和它说话；commit：作者已拍板，它孵化落盘，作者可以直接和它对 */
 export type AgentMode = "propose" | "commit";
 
@@ -460,7 +461,7 @@ export type KernelEvent =
   | { type: "agent.spawned"; agent: AgentInfo }
   | { type: "agent.status"; agentId: string; status: AgentStatus; error: string | null }
   | { type: "agent.mode"; agentId: string; mode: AgentMode }
-  /** 子 agent 退场：会话和索引都删了，渲染层把它从名单和会话里摘掉 */
+  /** 子 agent 删除：会话和索引都删了，渲染层把它从名单和会话里摘掉。归档只是 agent.status 变 archived */
   | { type: "agent.retired"; agentId: string }
   | { type: "agent.event"; agentId: string; event: AgentStreamEvent }
   | { type: "approval.requested"; request: ApprovalRequest }
@@ -524,7 +525,9 @@ export interface RequestMap {
   /** 优雅暂停：让 agent 不再开新工具，收尾总结；主编会接着用 ask_user 问作者想怎么调整 */
   "chat.pause": { params: { agentId?: string }; result: null };
   "chat.new": { params: Record<string, never>; result: null };
-  /** 作者让某位子 agent 退场：删会话和索引。在跑的不能退，主编不能退 */
+  /** 作者封存某位子 agent：状态变 archived，会话留着能回看，之后不能续派。在跑的不能封，主编不能封 */
+  "agent.archive": { params: { agentId: string }; result: null };
+  /** 作者删掉某位子 agent：删会话和索引，不可逆。在跑的不能删，主编不能删 */
   "agent.retire": { params: { agentId: string }; result: null };
   "capabilities.list": { params: Record<string, never>; result: CapabilityInfo[] };
   /** 作者点按钮进场一条能力：内核以主编身份送进正文，和主编自己 load_capability 收到的是同一份 */
