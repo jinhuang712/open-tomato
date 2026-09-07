@@ -326,6 +326,29 @@ describe("models.*", () => {
     expect(st?.state.current).toEqual({ provider: target.provider, id: target.id });
   });
 
+  test("主编上一轮被模型跑死：切模型后自动送「接着上次」，空闲时切不打扰", async () => {
+    const s = await kernel.handle("models.list", {});
+    const target = s.models.find((m) => m.available)!;
+    const { fake, calls } = fakeLead(false);
+    fake.session.setModel = async () => {};
+    fake.session.setThinkingLevel = () => {};
+    await kernel.handle("models.select", { provider: target.provider, id: target.id });
+    expect(calls).toHaveLength(0);
+    fake.info.status = "error";
+    fake.info.error = "404 <!DOCTYPE html>";
+    await kernel.handle("models.select", { provider: target.provider, id: target.id });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n上次会话被打断了/);
+    expect(fake.nudged).toBe(true);
+  });
+
+  test("chat.resume 送的是同一句「接着上次」", async () => {
+    const { calls } = fakeLead(false);
+    await kernel.handle("chat.resume", {});
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toMatch(/^⟦stub:接着上次⟧\n/);
+  });
+
   test("setApiKey 空 key 抛错，不碰网络", async () => {
     await expect(kernel.handle("models.setApiKey", { provider: "openai", apiKey: "  " })).rejects.toThrow("API key 为空");
   });

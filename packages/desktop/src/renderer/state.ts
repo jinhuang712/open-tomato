@@ -471,7 +471,7 @@ export function agentErrorText(raw: string): { text: string; title: string | und
   const hit = modelErrorCause(raw);
   if (!hit) return { text: raw, title: undefined };
   const title = raw.length > ERROR_TITLE_MAX ? `${raw.slice(0, ERROR_TITLE_MAX)}…` : raw;
-  const text = hit.transient ? `${hit.cause}，已重试仍失败。稍等一下再发一次就行。` : `${hit.cause}。换一个模型再试。`;
+  const text = hit.transient ? `${hit.cause}，已重试仍失败。稍等一下再发一次就行。` : `${hit.cause}。换一个模型，切过去会自动接着做。`;
   return { text, title };
 }
 
@@ -561,6 +561,15 @@ export const actions = {
     try {
       setState("pausePending", "director", false);
       await bridge.request("chat.continue", {});
+    } catch (e) {
+      toast(errText(e), "error");
+    }
+  },
+  /** 「接着上次」：上次被打断，内核让主编看最后几条说清断在哪，从那一步接着做 */
+  async resumeLead() {
+    try {
+      setState("pausePending", "director", false);
+      await bridge.request("chat.resume", {});
     } catch (e) {
       toast(errText(e), "error");
     }

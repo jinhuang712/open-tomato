@@ -481,6 +481,8 @@ export interface RequestMap {
   "chat.send": { params: { text: string; agentId?: string; deliverAs?: "steer" | "followUp" }; result: null };
   /** 作者点「继续」：不带任务书，只给主编一句「别再等作者点头，按上一条说的下一步直接做」，在上面的对话尾巴上接着推 */
   "chat.continue": { params: Record<string, never>; result: null };
+  /** 作者点「接着上次」：上次会话被打断（重启 / 模型报错 / 被掐），让主编看最后几条说清断在哪，从那一步接着做 */
+  "chat.resume": { params: Record<string, never>; result: null };
   /** 把排队里的某一条立刻插进当前这轮：作者等不了它这轮跑完 */
   "chat.insert": { params: { agentId?: string; id: string }; result: null };
   /** 把还没送到的消息全部撤回，原文交还给输入框 */
