@@ -50,3 +50,30 @@ describe("孤儿线索", () => {
     expect(issues.some((i) => i.id === "三方归一" && i.message.includes("没有任何章纲或里程碑指向"))).toBe(false);
   });
 });
+
+const milestone = (title: string, order: number, status: string) =>
+  `---\ntitle: ${title}\nsummary: ${title}\nkeywords: []\nstatus: ${status}\norder: ${order}\nthreads: []\n---\n\n## 发生什么\n${title}。\n\n## 之后不可逆的变化\n定局。\n`;
+const volume = `---\ntitle: 闵行起步\nsummary: 第一卷\nkeywords: []\nstatus: draft\nmilestones: []\nchapters: 1-30\n---\n\n## 本卷目标\n起步。\n\n## 里程碑分配\n无。\n\n## 人物落点\n无。\n\n## 卷末状态\n跑通。\n`;
+
+describe("退场的里程碑不参与记账", () => {
+  test("两张 draft 卡撞 order → 必须修", async () => {
+    await store.write("milestones", "点评收编", milestone("点评收编", 11, "draft"));
+    await store.write("milestones", "多多一统", milestone("多多一统", 11, "draft"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.level === "error" && i.message.includes("order=11 重复"))).toBe(true);
+  });
+  test("其中一张已退场 → 不算撞号", async () => {
+    await store.write("milestones", "点评收编", milestone("点评收编", 11, "draft"));
+    await store.write("milestones", "多多一统", milestone("多多一统", 11, "retired"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.message.includes("order=11 重复"))).toBe(false);
+  });
+  test("已退场的里程碑不报「没有卷纲覆盖」", async () => {
+    await store.write("volumes", "01", volume);
+    await store.write("milestones", "多多一统", milestone("多多一统", 11, "retired"));
+    await store.write("milestones", "点评收编", milestone("点评收编", 12, "draft"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.id === "多多一统" && i.message.includes("没有任何卷纲覆盖"))).toBe(false);
+    expect(issues.some((i) => i.id === "点评收编" && i.message.includes("没有任何卷纲覆盖"))).toBe(true);
+  });
+});

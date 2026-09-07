@@ -126,6 +126,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   if ((byKind.get("volumes") ?? []).length > 0) {
     const covered = referenced(["volumes"], "milestones", "milestones");
     for (const h of byKind.get("milestones") ?? []) {
+      if (isSettled(h.status)) continue; // 退场的帧不用排进任何一卷
       if (!covered.has(h.id)) push("warning", h, "没有任何卷纲覆盖这个里程碑", "milestones", `${ref("milestones", h)}还没分到任何一卷，帮我排进卷纲`);
     }
   }
@@ -168,8 +169,10 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     "正文",
   );
 
+  // 退场的帧不占号：旧总纲拆成新卡后，旧卡留着供回看，不该逼人去改它的 order
   const orders = new Map<number, DocHeader[]>();
   for (const h of byKind.get("milestones") ?? []) {
+    if (isSettled(h.status)) continue;
     const o = Number(h.extra.order);
     if (!Number.isFinite(o)) continue;
     orders.set(o, [...(orders.get(o) ?? []), h]);
