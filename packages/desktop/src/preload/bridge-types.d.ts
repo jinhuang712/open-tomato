@@ -10,6 +10,9 @@ export type MenuCommand =
   | "cloud.upload"
   | "settings.open";
 
+/** 界面主题：跟系统 / 浅色 / 深色。这台机器的偏好，不随项目走 */
+export type ThemeSource = "system" | "light" | "dark";
+
 /** 设置页「存储 / 关于」要展示的本机信息，全部由 main 进程直接给，不经内核 */
 export interface AppInfo {
   version: string;
@@ -40,6 +43,10 @@ export interface Bridge {
   saveTextFile(options: { defaultName: string; content: string }): Promise<string | null>;
   /** 写系统剪贴板 */
   copyText(text: string): Promise<void>;
+  /** 当前主题设置 */
+  getTheme(): Promise<ThemeSource>;
+  /** 换主题并记住；渲染层不用自己改样式，颜色跟着系统配色方案走 */
+  setTheme(source: ThemeSource): Promise<void>;
   /** 弹确认框后把项目文件夹移到系统废纸篓；withCloud 时文案说明云端快照一并删。用户取消返回 false */
   trashProject(root: string, options?: { withCloud?: boolean }): Promise<{ deleted: boolean; cloudError?: string }>;
   /** 原生确认框；用户取消返回 false */

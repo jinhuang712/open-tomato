@@ -21,6 +21,8 @@ const bridge: Bridge = {
   readClipboardTextFiles: () => ipcRenderer.invoke("clipboard:readTextFiles"),
   saveTextFile: (options) => ipcRenderer.invoke("dialog:saveText", options),
   copyText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
+  getTheme: () => ipcRenderer.invoke("theme:get"),
+  setTheme: (source) => ipcRenderer.invoke("theme:set", source),
   trashProject: (root, options) => ipcRenderer.invoke("shell:trashProject", root, options),
   confirm: (options) => ipcRenderer.invoke("dialog:confirm", options),
   platform: process.platform,

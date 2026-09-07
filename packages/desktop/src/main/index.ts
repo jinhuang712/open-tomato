@@ -3,12 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from "electron";
+import { BrowserWindow, app, clipboard, dialog, ipcMain, nativeTheme, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
 import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
 import { deleteProject } from "./delete-project";
 import { installMenu } from "./menu";
+import { applyTheme, currentTheme, loadTheme, paperColor, saveTheme } from "./theme";
 import { watchZoom } from "./zoom";
 import { inheritShellProxyEnv } from "./shell-env";
 
@@ -57,7 +58,7 @@ function createWindow() {
     title: "OpenTomato",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 16, y: 18 },
-    backgroundColor: "#f6f4ef",
+    backgroundColor: paperColor(),
     show: false,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -68,6 +69,12 @@ function createWindow() {
   });
   state.manage(win);
   watchZoom(win);
+  // 跟系统时系统一变就得跟着换底色；固定浅 / 深时这事件不会来
+  const onTheme = () => {
+    if (!win.isDestroyed()) win.setBackgroundColor(paperColor());
+  };
+  nativeTheme.on("updated", onTheme);
+  win.on("closed", () => nativeTheme.off("updated", onTheme));
   win.once("ready-to-show", () => win.show());
   // ⌘W 只收起窗口，App 留在 Dock，点图标再回来；确认过退出的路径直接放行
   win.on("close", (e) => {
@@ -130,6 +137,13 @@ ipcMain.handle("dialog:pickFolder", async (_e, { title, create }: { title: strin
 });
 
 ipcMain.handle("clipboard:writeText", (_e, text: string) => clipboard.writeText(text));
+
+ipcMain.handle("theme:get", () => currentTheme());
+
+ipcMain.handle("theme:set", (_e, source: "system" | "light" | "dark") => {
+  saveTheme(source);
+  mainWindow?.setBackgroundColor(paperColor());
+});
 
 ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
 
@@ -220,6 +234,8 @@ void app.whenReady().then(() => {
   if (!app.isPackaged && process.platform === "darwin") {
     app.dock?.setIcon(join(__dirname, "../../build/icon.png"));
   }
+  // 建窗口之前先把主题定下来，首帧就是对的底色
+  applyTheme(loadTheme());
   installMenu(() => mainWindow);
   createWindow();
   // 内核 fork 时透传 process.env，代理变量得在这之前补齐

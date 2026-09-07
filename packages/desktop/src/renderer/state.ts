@@ -38,7 +38,7 @@ export interface Annotation {
   text: string;
 }
 
-export type SettingsTab = "keymap" | "models" | "storage" | "about";
+export type SettingsTab = "appearance" | "keymap" | "models" | "storage" | "about";
 
 export interface Toast {
   id: number;

@@ -1,11 +1,12 @@
-import type { AppInfo } from "../../preload/bridge-types";
-import { createResource, For, Match, Show, Switch } from "solid-js";
+import type { AppInfo, ThemeSource } from "../../preload/bridge-types";
+import { createResource, createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { formatKeys, KEYMAP, SCOPE_LABEL, SCOPES } from "../../shared/keymap";
 import { bridge } from "../bridge";
 import { setState, type SettingsTab, state, toast } from "../state";
 import { ModelSettings } from "./ModelSettings";
 
 const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "appearance", label: "外观" },
   { id: "keymap", label: "快捷键" },
   { id: "models", label: "模型" },
   { id: "storage", label: "存储" },
@@ -44,6 +45,9 @@ export function Settings() {
           </div>
           <div class="flex-1 min-w-0 flex flex-col">
             <Switch>
+              <Match when={state.settingsTab === "appearance"}>
+                <AppearancePane />
+              </Match>
               <Match when={state.settingsTab === "keymap"}>
                 <KeymapPane />
               </Match>
@@ -93,6 +97,55 @@ function Row(props: { label: string; note?: string | undefined; children?: unkno
 
 function Kbd(props: { keys: string }) {
   return <kbd class="font-sans text-xs text-ink-2 bg-paper-2 border border-line-2 rounded px-1.5 leading-5 min-w-6 text-center">{props.keys}</kbd>;
+}
+
+const THEMES: { id: ThemeSource; label: string; note: string }[] = [
+  { id: "system", label: "跟随系统", note: "系统切深色时一起切" },
+  { id: "light", label: "浅色", note: "" },
+  { id: "dark", label: "深色", note: "" },
+];
+
+/** 主题存在这台机器上（userData/theme.json），不随项目走：同一本书在台式机上是深色、笔记本上是浅色，都合理 */
+function AppearancePane() {
+  const [theme, setTheme] = createSignal<ThemeSource>("system");
+  onMount(() => {
+    void bridge
+      .getTheme()
+      .then(setTheme)
+      .catch(() => {});
+  });
+  const pick = (t: ThemeSource) => {
+    setTheme(t);
+    void bridge.setTheme(t).catch(() => toast("主题没能存下来", "error"));
+  };
+  return (
+    <div class="flex-1 overflow-y-auto py-4">
+      <Section title="主题" hint="记在这台机器上，不随项目走">
+        <For each={THEMES}>
+          {(t) => (
+            <button class="w-full flex items-center gap-3 px-3 h-9 text-left hover:bg-paper-2" onClick={() => pick(t.id)}>
+              <span class="shrink-0">{t.label}</span>
+              <Show when={t.note}>
+                <span class="text-xs text-ink-3 truncate">{t.note}</span>
+              </Show>
+              <span class="flex-1" />
+              <Show when={theme() === t.id}>
+                <CheckIcon />
+              </Show>
+            </button>
+          )}
+        </For>
+      </Section>
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-ink-2">
+      <path d="M2.5 7.5l3 3 6-6" />
+    </svg>
+  );
 }
 
 function KeymapPane() {
@@ -161,6 +214,7 @@ function StoragePane() {
           <>
             <Section title="应用" hint="跟着这台机器走，换机器不带">
               <PathRow label="全局状态" note="上次选的模型、思考档、最近项目" path={`${i().home}/state.json`} />
+              <PathRow label="外观" note="主题" path={`${i().home}/theme.json`} />
               <PathRow label="日志" path={i().logsDir} />
             </Section>
             <Section title="模型凭据" hint="沿用 pi 的目录，API key 与自定义 provider 都在这里">
