@@ -61,7 +61,7 @@ export function CloudIndicator() {
             <span class="truncate">
               {host()} / {state.cloud?.bucket}
             </span>
-            <span>每 10 分钟自动同步 · 关闭项目时会再问一次</span>
+            <span>每分钟自动同步 · 关闭项目时会再问一次</span>
           </div>
           <div class="border-t border-line px-3 py-2 flex gap-2 justify-end">
             <button

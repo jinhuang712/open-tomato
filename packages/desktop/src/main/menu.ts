@@ -40,10 +40,11 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
         { type: "separator" },
         item("chat.new", "新会话"),
         { type: "separator" },
-        item("project.exportSeed", "导出故事种子…"),
+        // 导出种子 / 云同步都不占快捷键：⌘E ⌘S 留给卡片的编辑与保存（keymap 里 doc.edit / doc.save）
+        { label: "导出故事种子…", click: send("project.exportSeed") },
         item("chat.copyPath", "复制会话路径 [dev]"),
         { type: "separator" },
-        { label: "同步到云端", accelerator: "CmdOrCtrl+S", click: send("cloud.upload") },
+        { label: "同步到云端", click: send("cloud.upload") },
         { type: "separator" },
         { label: "关闭项目", accelerator: "CmdOrCtrl+W", click: send("project.close") },
         { role: "close", label: "关闭窗口", accelerator: "CmdOrCtrl+Shift+W" },

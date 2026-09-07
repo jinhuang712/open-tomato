@@ -2,8 +2,8 @@ import { cloudConfigPath, clearCloudConfig, normalizeCloudConfig, readCloudConfi
 import { CloudSync } from "../../cloud/sync.js";
 import type { CloudStatus, KernelEvent, ProjectInfo } from "../../protocol.js";
 
-/** 定期云端同步间隔：10 分钟 */
-const CLOUD_SYNC_INTERVAL_MS = 10 * 60_000;
+/** 定期云端同步间隔：1 分钟。手改卡片不再靠 ⌘S 送云端，定时器兜住 */
+const CLOUD_SYNC_INTERVAL_MS = 60_000;
 
 /**
  * 云端快照状态机：配置、定时器、忙闲、同步位全收拢在这里。

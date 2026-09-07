@@ -33,7 +33,6 @@ export const KEYMAP: KeyBinding[] = [
   { id: "project.new", label: "新建项目", scope: "global", keys: ["CmdOrCtrl+N"], menuCommand: "project.new" },
   { id: "project.open", label: "打开项目", scope: "global", keys: ["CmdOrCtrl+O"], menuCommand: "project.open" },
   { id: "chat.new", label: "新会话", scope: "global", keys: ["CmdOrCtrl+Shift+N"], menuCommand: "chat.new" },
-  { id: "project.exportSeed", label: "导出故事种子", scope: "global", keys: ["CmdOrCtrl+E"], menuCommand: "project.exportSeed" },
   { id: "chat.copyPath", label: "复制会话路径", scope: "global", keys: ["CmdOrCtrl+Shift+E"], note: "开发用", menuCommand: "chat.copyPath" },
   { id: "settings.open", label: "设置", scope: "global", keys: ["CmdOrCtrl+,"], menuCommand: "settings.open" },
   { id: "search.open", label: "搜索", scope: "global", keys: ["CmdOrCtrl+K", "CmdOrCtrl+P"], note: "已打开项目时" },
@@ -43,11 +42,13 @@ export const KEYMAP: KeyBinding[] = [
   { id: "composer.pause", label: "暂停 / 停止", scope: "editor", keys: ["CmdOrCtrl+."], note: "第一次让它收尾这一步停下来，再按一次立刻掐断" },
   { id: "composer.stop", label: "停止", scope: "editor", keys: ["CmdOrCtrl+Shift+."], note: "agent 跑着时，立刻掐断" },
 
+  { id: "doc.edit", label: "编辑这张卡", scope: "panel", keys: ["CmdOrCtrl+E"], note: "卡片打开着、还在预览时" },
+  { id: "doc.save", label: "保存并回到预览", scope: "panel", keys: ["CmdOrCtrl+S"], note: "卡片编辑模式里" },
   { id: "review.approve", label: "审阅通过", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "审阅弹窗" },
   { id: "question.submit", label: "提交回答", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "问答卡" },
   { id: "search.move", label: "上下选择", scope: "panel", keys: ["Up", "Down"], note: "搜索面板" },
   { id: "search.pick", label: "打开选中项", scope: "panel", keys: ["Enter"], note: "搜索面板" },
-  { id: "panel.close", label: "退一层", scope: "panel", keys: ["Escape"], note: "先关最上面的浮层（搜索、审阅、设置…），没有浮层时从文档 / 子 agent 会话退回主会话" },
+  { id: "panel.close", label: "退一层", scope: "panel", keys: ["Escape"], note: "先关最上面的浮层（搜索、审阅、设置…），卡片在编辑模式时先退出编辑，都没有时从文档 / 子 agent 会话退回主会话" },
 ];
 
 export function binding(id: string): KeyBinding {
