@@ -89,19 +89,36 @@ export function Chat(props: { agentId: string }) {
       <Show when={running() || pausePending() || liveBadgeCount() > 0}>
         <div class="shrink-0 flex items-start justify-between gap-2 px-5 pt-2">
           <LiveBadges />
+          {/* 暂停和停止并列，不再是「点一次变另一个」：按下去之前就知道会拿到哪个 */}
           <Show when={running() || pausePending()} fallback={<span />}>
-          <button
-            class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border"
-            classList={{
-              "border-line text-ink-2 hover:text-ink hover:bg-paper-3": !pausePending(),
-              "border-danger/40 text-danger hover:bg-danger-soft": pausePending(),
-            }}
-            title={pausePending() ? "正在收尾。再按一次立刻掐断，写了一半的东西不落盘" : "收尾当前这步，停下来问你想怎么调整"}
-            onClick={() => void (pausePending() ? actions.stop(props.agentId) : actions.pause(props.agentId))}
-          >
-            <span>{pausePending() ? "■" : "❙❙"}</span>
-            {pausePending() ? "停止" : "暂停"}
-          </button>
+          <div class="flex items-center gap-1.5">
+            <Show
+              when={!pausePending()}
+              fallback={
+                <span class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-warn/40 bg-warn-soft text-warn" title="它在收尾这一步，停下来就问你">
+                  <PauseIcon />
+                  已请求暂停
+                </span>
+              }
+            >
+              <button
+                class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-line text-ink-2 hover:text-ink hover:bg-paper-3"
+                title="收尾当前这步，停下来问你想怎么调整"
+                onClick={() => void actions.pause(props.agentId)}
+              >
+                <PauseIcon />
+                暂停
+              </button>
+            </Show>
+            <button
+              class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-danger/40 text-danger hover:bg-danger-soft"
+              title="立刻掐断，写了一半的东西不落盘"
+              onClick={() => void actions.stop(props.agentId)}
+            >
+              <StopIcon />
+              停止
+            </button>
+          </div>
           </Show>
         </div>
       </Show>
@@ -195,5 +212,23 @@ export function Chat(props: { agentId: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** 暂停 / 停止画成 svg：两个控件并排时，字形（❙❙ ■）的粗细和基线对不齐 */
+function PauseIcon() {
+  return (
+    <svg width="9" height="10" viewBox="0 0 9 10" fill="none" aria-hidden="true">
+      <rect x="0.5" y="0.5" width="2.4" height="9" rx="0.6" fill="currentColor" />
+      <rect x="6.1" y="0.5" width="2.4" height="9" rx="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
+      <rect x="0.5" y="0.5" width="8" height="8" rx="1.2" fill="currentColor" />
+    </svg>
   );
 }
