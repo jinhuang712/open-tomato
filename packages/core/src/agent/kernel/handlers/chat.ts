@@ -55,6 +55,8 @@ export function chatHandlers(
       const live = api.requireLive(agentId ?? LEAD_ID);
       const at = live.inbox.findIndex((e) => e.id === id);
       if (at < 0) return null;
+      // 只动作者自己的话：收件箱里还躺着子 agent 交回的报告，那不归他调度
+      if (systemStubLabel(live.inbox[at]!.text) !== null) return null;
       const [entry] = live.inbox.splice(at, 1);
       api.authorActed(live);
       api.sendTo(live.info.agentId, entry!.text, "steer");
@@ -64,7 +66,10 @@ export function chatHandlers(
     "chat.cancelQueued": async ({ agentId, id }) => {
       const live = api.agents.get(agentId ?? LEAD_ID);
       if (!live) return null;
-      // 只认收件箱里的：已经交给 pi 的撤不回，也没有稳定的 id 可寻址
+      // 只认收件箱里的：已经交给 pi 的撤不回，也没有稳定的 id 可寻址。
+      // 子 agent 交回的报告同在这个收件箱，但作者撤不掉它 —— 那是主编还没读的活儿，撤了就凭空没了
+      const target = live.inbox.find((e) => e.id === id);
+      if (!target || systemStubLabel(target.text) !== null) return null;
       live.inbox = live.inbox.filter((e) => e.id !== id);
       if (live.inbox.length === 0) live.flushRest = false;
       api.emitQueue(live);

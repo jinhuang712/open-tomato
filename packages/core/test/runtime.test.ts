@@ -311,6 +311,23 @@ describe("收件箱：跑着的时候排队，轮末一并送", () => {
     expect(queueEvents().at(-1)?.length).toBe(1);
   });
 
+  test("子 agent 交回的报告不占作者队列的一行，他也撤不掉、插不动", async () => {
+    const { fake, calls } = fakeLead(true);
+    await kernel.handle("chat.send", { text: "苏晚的角色卡呢", deliverAs: "followUp" });
+    (kernel as any).deliverReport("director", "策划4", "## 策划4\n\n全线按博弈细节向加详完了");
+    // 报告和作者的话同在一个收件箱，轮末一并送
+    expect(fake.inbox.map((e) => e.label)).toEqual(["", "策划4交回"]);
+    // 但队列条是作者的话在哪儿等着，报告不是他说的，不该占一行
+    expect(queueEvents().at(-1)?.map((i) => i.text)).toEqual(["苏晚的角色卡呢"]);
+
+    // 就算拿着报告那条的 id 来，也动不了它：撤掉等于主编永远读不到这份活儿
+    const reportId = fake.inbox[1]!.id;
+    await kernel.handle("chat.cancelQueued", { id: reportId });
+    await kernel.handle("chat.insert", { id: reportId });
+    expect(fake.inbox.map((e) => e.label)).toEqual(["", "策划4交回"]);
+    expect(calls).toEqual([]);
+  });
+
   test("queue_update 带 hold；暂停桩不占作者队列的一行", async () => {
     const { fake } = fakeLead(true);
     await kernel.handle("chat.send", { text: "苏晚的角色卡呢", deliverAs: "followUp" });

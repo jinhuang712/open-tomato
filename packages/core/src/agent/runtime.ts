@@ -525,7 +525,9 @@ export class Kernel {
 
   /**
    * 收件箱与已交出去的一起给界面：作者要看到自己的话在哪儿等着。
-   * 内核合成的桩（暂停 / 继续）滤掉 —— 不是作者的话，不该占他队列的一行，他也管不着。
+   * 这条队列只装作者自己的话。内核合成的桩（暂停 / 继续）和子 agent 交回的报告一律滤掉 ——
+   * 都不是作者说的，不该占他队列的一行，更不该给他一个「取消」把主编还没读的报告摘掉。
+   * 报告到没到，派单卡上的「已回传」自己会说。
    * hold 一并送：暂停 / 停止之后轮末不取件，排队的话不会自动送出，界面得说出来。
    */
   private emitQueue(live: LiveAgent) {
@@ -535,7 +537,7 @@ export class Kernel {
         ...live.steering
           .filter((t) => systemStubLabel(t) === null)
           .map((t, i) => ({ id: `steer-${i}`, label: queueLabel(t), text: t, inserted: true })),
-        ...live.inbox.map((e) => ({ ...e, inserted: false })),
+        ...live.inbox.filter((e) => systemStubLabel(e.text) === null).map((e) => ({ ...e, inserted: false })),
       ],
       hold: live.hold,
     });
