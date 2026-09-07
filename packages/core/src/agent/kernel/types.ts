@@ -47,14 +47,16 @@ export interface LiveAgent {
   hold: boolean;
   /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
   flushRest: boolean;
-  /** 手上有一个还没收口的 ask_user：等作者答是合法收尾。作者答完就翻篇，不代表这一轮之后都算问过 */
+  /** 手上有一个还没收口的 ask_user。作者答完就翻篇，不代表这一轮之后都算问过 */
   asked: boolean;
-  /** 本轮有状态行之外的正文出去了：那就是对作者说的话，可自然收尾 */
+  /** 本轮有状态行之外的正文出去了：那就是对作者说的话 */
   spoke?: boolean;
   /** 本轮正文的最后几十个字：轮末看结尾是不是一个没配 ask_user 的问句 */
   tail?: string;
-  /** 这轮已补过可见回应提示；一次作者发言只补一次 */
-  nudged: boolean;
+  /** 本轮调过工具：读盘面、派人、落盘都算动了手，用来和空转区分 */
+  acted?: boolean;
+  /** 连续空转（既没说话也没动手）的轮数。循环的刹车在作者手上，这个数只防模型自己空转 */
+  idleRounds: number;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
   pendingError: string | null;
 }
