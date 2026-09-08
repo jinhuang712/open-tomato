@@ -98,42 +98,11 @@ export function Chat(props: { agentId: string }) {
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
-      {/* 会话区头一行：左边是会动的徽章（等你拍板），右边是暂停；两边都没有就不占高度。
+      {/* 会话区头一行只剩会动的徽章（等你拍板）；没有就不占高度。
         和消息同一列宽——左沿的留白留给在场名单，这一行不能压在它上面 */}
-      <Show when={running() || pausePending() || liveBadgeCount() > 0}>
-        <div class="shrink-0 max-w-[760px] mx-auto w-full flex items-start justify-between gap-2 px-5 pt-2">
+      <Show when={liveBadgeCount() > 0}>
+        <div class="shrink-0 max-w-[760px] mx-auto w-full flex items-start gap-2 px-5 pt-2">
           <LiveBadges />
-          {/* 暂停和停止并列，不再是「点一次变另一个」：按下去之前就知道会拿到哪个 */}
-          <Show when={running() || pausePending()} fallback={<span />}>
-          <div class="flex items-center gap-1.5">
-            <Show
-              when={!pausePending()}
-              fallback={
-                <span class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-warn/40 bg-warn-soft text-warn" title="它在收尾这一步，停下来就问你">
-                  <PauseIcon />
-                  已请求暂停
-                </span>
-              }
-            >
-              <button
-                class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-line text-ink-2 hover:text-ink hover:bg-paper-3"
-                title="收尾当前这步，停下来问你想怎么调整"
-                onClick={() => void actions.pause(props.agentId)}
-              >
-                <PauseIcon />
-                暂停
-              </button>
-            </Show>
-            <button
-              class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-danger/40 text-danger hover:bg-danger-soft"
-              title="立刻掐断，写了一半的东西不落盘"
-              onClick={() => void actions.stop(props.agentId)}
-            >
-              <StopIcon />
-              停止
-            </button>
-          </div>
-          </Show>
         </div>
       </Show>
       <Show when={isLead()}>
@@ -168,10 +137,16 @@ export function Chat(props: { agentId: string }) {
             </>
           )}
         </For>
-        <Show when={agent()?.status === "running"}>
-          <div class="px-5 my-0.5 h-6.5 flex items-center gap-2 text-xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            <span class="shimmer">{agent()?.statusText || `${agent()?.label} 正在理清思路`}</span>
+        {/* 「它在跑」和「让它停」是一件事的两半：报进度的这一行右端就是暂停 / 停止，
+          不在正文顶上另起一行压着第一段字。已请求暂停但还没停下来时这行也留着，作者才看得见「我按过了」 */}
+        <Show when={running() || pausePending()}>
+          <div class="px-5 my-0.5 min-h-6.5 flex items-center gap-2 text-xs">
+            <Show when={running()}>
+              <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" />
+              <span class="shimmer min-w-0 truncate">{agent()?.statusText || `${agent()?.label} 正在理清思路`}</span>
+            </Show>
+            <span class="flex-1" />
+            <RunControls agentId={props.agentId} pausePending={pausePending()} />
           </div>
         </Show>
         <Show when={agent()?.status === "error" && agent()?.error}>
@@ -233,6 +208,40 @@ export function Chat(props: { agentId: string }) {
           <Composer agentId={props.agentId} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** 暂停和停止并列，不再是「点一次变另一个」：按下去之前就知道会拿到哪个 */
+function RunControls(props: { agentId: string; pausePending: boolean }) {
+  return (
+    <div class="flex items-center gap-1.5 shrink-0">
+      <Show
+        when={!props.pausePending}
+        fallback={
+          <span class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-warn/40 bg-warn-soft text-warn" title="它在收尾这一步，停下来就问你">
+            <PauseIcon />
+            已请求暂停
+          </span>
+        }
+      >
+        <button
+          class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-line text-ink-2 hover:text-ink hover:bg-paper-3"
+          title="收尾当前这步，停下来问你想怎么调整"
+          onClick={() => void actions.pause(props.agentId)}
+        >
+          <PauseIcon />
+          暂停
+        </button>
+      </Show>
+      <button
+        class="h-6 px-2.5 rounded-full text-xs flex items-center gap-1.5 border border-danger/40 text-danger hover:bg-danger-soft"
+        title="立刻掐断，写了一半的东西不落盘"
+        onClick={() => void actions.stop(props.agentId)}
+      >
+        <StopIcon />
+        停止
+      </button>
     </div>
   );
 }
