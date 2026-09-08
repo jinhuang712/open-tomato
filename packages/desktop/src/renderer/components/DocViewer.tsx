@@ -10,7 +10,7 @@ import { refId } from "../refid";
 import { renderMarkdown } from "../markdown";
 import { CardEditor, type CardEditorHandle } from "./CardEditor";
 import { LiveBadges } from "./LiveBadges";
-import { actions, errText, setState, state, toast, type QuoteSource } from "../state";
+import { actions, errText, setState, setView, state, toast, type QuoteSource } from "../state";
 import { QuotePill } from "./QuotePill";
 import { QuoteRail, type RailNote } from "./QuoteRail";
 
@@ -94,7 +94,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
           for (const n of notes()) if (!n.quotes.some((q) => hasText(prose!, q))) actions.dropAnnotation(n.label);
           const v = state.view;
           if (v.type === "doc" && v.focus && v.kind === props.kind && v.id === props.id) {
-            setState("view", { type: "doc", kind: v.kind, id: v.id });
+            setView({ type: "doc", kind: v.kind, id: v.id });
             focusQuote(v.focus);
           }
         });

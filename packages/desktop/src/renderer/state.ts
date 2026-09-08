@@ -1,4 +1,4 @@
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce, reconcile, unwrap } from "solid-js/store";
 import type {
   AgentInfo,
   AgentStreamEvent,
@@ -172,6 +172,16 @@ const initial: State = {
 
 export const [state, setState] = createStore<State>(initial);
 
+/**
+ * 换主区视图。必须走这里，不能直接 setState("view", …)：
+ * store 的 setState 对同为对象的新旧值是「合并」不是「替换」，从卡片切到审阅会留下上一支的键
+ * （doc 的 focus、chat 的 agentId 都会赖着不走），下一次读到的就是两支拼起来的东西。
+ * reconcile 才是整块换掉。
+ */
+export function setView(next: View): void {
+  setState("view", reconcile(next));
+}
+
 let toastSeq = 0;
 export function toast(text: string, level: Toast["level"] = "info") {
   const id = ++toastSeq;
@@ -214,10 +224,10 @@ export function applyEvent(ev: KernelEvent) {
         approvals: [],
         questions: [],
         issues: null,
-        view: { type: "chat", agentId: "director" },
         cloudSync: idleCloudSync,
         closePromptOpen: false,
       });
+      setView({ type: "chat", agentId: "director" });
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
@@ -315,7 +325,7 @@ export function applyEvent(ev: KernelEvent) {
       const v = state.view;
       if (v.type === "review" && v.approvalId === ev.approvalId) {
         const next = rest[0]?.approvalId;
-        if (next) setState("view", { type: "review", approvalId: next });
+        if (next) setView({ type: "review", approvalId: next });
         else actions.leaveReview();
       }
       return;
@@ -662,7 +672,7 @@ export const actions = {
   async runCapability(id: CapabilityInfo["id"]) {
     try {
       await bridge.request("capability.run", { id });
-      setState({ view: { type: "chat", agentId: "director" } });
+      setView({ type: "chat", agentId: "director" });
     } catch (e) {
       toast(errText(e), "error");
     }
@@ -725,7 +735,7 @@ export const actions = {
     }
   },
   openDoc(kind: DocKindId, id: string, focus?: string) {
-    setState("view", focus === undefined ? { type: "doc", kind, id } : { type: "doc", kind, id, focus });
+    setView(focus === undefined ? { type: "doc", kind, id } : { type: "doc", kind, id, focus });
   },
   /** 撤掉一段还没发出去的引文：输入框里的小 ref 和旁边那张卡是同一件东西，两处都能撤 */
   dropQuote(id: string) {
@@ -756,20 +766,24 @@ export const actions = {
     setState("annotations", (ns) => ns.filter((n) => n.label !== label));
   },
   openChat(agentId: string) {
-    setState("view", { type: "chat", agentId });
+    setView({ type: "chat", agentId });
   },
-  /** 进审阅：记住现在停在哪，审完好退回去。已经在审阅里就只换 approvalId，别把回头路记成审阅本身 */
+  /**
+   * 进审阅：记住现在停在哪，审完好退回去。已经在审阅里就只换 approvalId，别把回头路记成审阅本身。
+   * 存的必须是脱钩的快照：直接把 state.view 塞进去存的是同一个 store 节点，
+   * 下一句切视图会把它一起改成审阅，退出时等于原地不动。
+   */
   openReview(approvalId: string) {
-    if (state.view.type !== "review") setState("reviewBack", state.view);
-    setState("view", { type: "review", approvalId });
+    if (state.view.type !== "review") setState("reviewBack", { ...unwrap(state.view) });
+    setView({ type: "review", approvalId });
   },
   /** 离开审阅：回到进来之前那个视图，没记住就回主会话 */
   leaveReview() {
-    setState("view", state.reviewBack ?? { type: "chat", agentId: "director" });
+    setView(state.reviewBack ? { ...unwrap(state.reviewBack) } : { type: "chat", agentId: "director" });
     setState("reviewBack", null);
   },
   openAgents() {
-    setState("view", { type: "agents" });
+    setView({ type: "agents" });
   },
 
   // ───────────── 云端 ─────────────
