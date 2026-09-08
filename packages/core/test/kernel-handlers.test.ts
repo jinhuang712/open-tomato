@@ -242,6 +242,12 @@ describe("approval / question 幽灵回执", () => {
     expect(ev?.approvalId).toBe("ghost");
   });
 
+  test("自行批改的那份 frontmatter 写坏了：当场抛回 UI，审批不放行", async () => {
+    await expect(kernel.handle("approval.reply", { approvalId: "ghost", decision: "approve", content: "没有 frontmatter 的正文" })).rejects.toThrow();
+    // 抛在放行之前，UI 不该收到「这条已决」——审批还挂着，作者能接着修
+    expect(events.some((e) => e.type === "approval.resolved" && (e as any).approvalId === "ghost")).toBe(false);
+  });
+
   test("question.reply 找不到也让 UI 撤卡，不抛错", async () => {
     await kernel.handle("question.reply", { questionId: "ghost", answer: "继续" });
     const ev = events.find((e) => e.type === "question.resolved") as any;

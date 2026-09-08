@@ -667,8 +667,10 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async approve(approvalId: string) {
-    await bridge.request("approval.reply", { approvalId, decision: "approve" }).catch((e) => toast(errText(e), "error"));
+  /** content：作者在审阅里按 ⌘E 自行批改后的整份内容，落盘以它为准；没动手改就不带 */
+  async approve(approvalId: string, content?: string) {
+    const params = content === undefined ? { approvalId, decision: "approve" as const } : { approvalId, decision: "approve" as const, content };
+    await bridge.request("approval.reply", params).catch((e) => toast(errText(e), "error"));
   },
   async reject(approvalId: string, reason: string) {
     await bridge.request("approval.reply", { approvalId, decision: "reject", reason }).catch((e) => toast(errText(e), "error"));

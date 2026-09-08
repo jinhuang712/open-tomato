@@ -1,3 +1,4 @@
+import { createTwoFilesPatch } from "diff";
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
 import type { AgentInfo, AgentMode, CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
@@ -170,15 +171,31 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
       },
       signal,
     );
-    // 作者的每次放行和退回都是一条批：退回理由若是词汇表里的词就记进 word，其余进 text
     const reason = outcome.reason.trim();
+    // 作者批准前在审阅里按 ⌘E 自己改过：落盘以作者那版为准，agent 提的那版只是底稿。
+    // 单独记一条 edit 批，写手下次开写前 read_marks 能看见作者动了哪儿——放行本身说不出这个。
+    const edited = outcome.decision === "approve" ? normalizeEdit(outcome.content, preview.after) : null;
+    const final = edited ?? preview.after;
+    if (edited) {
+      await store.records.appendMark({
+        kind,
+        id: preview.id,
+        type: "edit",
+        by: "author",
+        before: contentHash(preview.after),
+        version: contentHash(edited),
+        patch: createTwoFilesPatch(preview.path, preview.path, preview.after, edited, "", "", { context: 3 }),
+        agentId: ctx.agentId,
+      });
+    }
+    // 作者的每次放行和退回都是一条批：退回理由若是词汇表里的词就记进 word，其余进 text
     await store.records.appendMark({
       kind,
       id: preview.id,
       type: outcome.decision,
       by: "author",
       ...(REJECT_WORDS.has(reason) ? { word: reason } : reason ? { text: reason } : {}),
-      version: contentHash(preview.after),
+      version: contentHash(final),
       agentId: ctx.agentId,
     });
     if (outcome.decision === "reject") {
@@ -192,9 +209,20 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
           `理由是一个问题，先回答它，不要再提一版；理由和任务书或已有材料对不上、或你拿不准该怎么改，把矛盾写清楚停下，你这一停话就交回主编，由主编和作者定，不要自己编一个说法把两头缝上。`,
       );
     }
-    const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
+    const header = await store.write(kind, preview.id, final, { expectBefore: preview.before });
     const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
     const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
+    // 落的不是你提的那版，必须说出来：不然 agent 会拿自己那份当磁盘上的现状，接着 edit_doc 就把作者的改动盖回去
+    if (edited) {
+      return text(`已写入 ${header.path}（${header.title}），但落盘的是作者亲手改过的版本，不是你提的那版。要再动这篇先 read_doc 拿磁盘上的正文，别在你自己那版上接着改。${tail}`);
+    }
     return text(`已写入 ${header.path}（${header.title}）${tail}`);
   };
+}
+
+/** 作者改的那份：补上末尾换行好和 previewWrite 的 after 对齐；空的、跟 agent 那版一字不差的都当没改 */
+function normalizeEdit(content: string | undefined, after: string): string | null {
+  if (content === undefined || content.trim() === "") return null;
+  const normalized = content.endsWith("\n") ? content : `${content}\n`;
+  return normalized === after ? null : normalized;
 }

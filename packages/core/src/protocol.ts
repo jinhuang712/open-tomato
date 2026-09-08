@@ -671,7 +671,11 @@ export interface RequestMap {
   "capability.run": { params: { id: CapabilityId }; result: null };
   "roles.list": { params: Record<string, never>; result: RoleInfo[] };
   "approval.reply": {
-    params: { approvalId: string; decision: ApprovalDecision; reason?: string };
+    /**
+     * content：作者在审阅里按 ⌘E 自行批改后的整份内容，落盘以它为准，不是 agent 提的那份。
+     * 只对 approve 有意义；没动手改就不带。
+     */
+    params: { approvalId: string; decision: ApprovalDecision; reason?: string; content?: string };
     result: null;
   };
   "question.reply": { params: { questionId: string; answer: string }; result: null };

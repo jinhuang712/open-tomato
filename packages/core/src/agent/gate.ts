@@ -4,6 +4,8 @@ import type { ApprovalDecision, ApprovalRequest, QuestionRequest } from "../prot
 export interface ApprovalOutcome {
   decision: ApprovalDecision;
   reason: string;
+  /** 作者批准前自己动手改过的整份内容；没改就没有这个字段 */
+  content?: string;
 }
 
 interface Pending<T> {
