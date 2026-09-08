@@ -255,7 +255,7 @@ export function Composer(props: { agentId?: string }) {
         <textarea
           ref={box}
           onPaste={(e) => void onPaste(e)}
-          class="w-full bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm placeholder:text-ink-3"
+          class="w-full min-h-14 bg-transparent px-4 pt-3 pb-1 outline-none resize-none text-sm placeholder:text-ink-3"
           rows={2}
           placeholder={placeholder()}
           value={text()}
