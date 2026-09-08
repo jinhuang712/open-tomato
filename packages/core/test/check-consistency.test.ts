@@ -77,3 +77,30 @@ describe("退场的里程碑不参与记账", () => {
     expect(issues.some((i) => i.id === "点评收编" && i.message.includes("没有任何卷纲覆盖"))).toBe(true);
   });
 });
+
+describe("正文不写里程碑排序键", () => {
+  const volumeWith = (plan: string) => volume.replace("## 里程碑分配\n无。", `## 里程碑分配\n${plan}`);
+  const world = `---\ntitle: 多多\nsummary: 母体\nkeywords: []\nstatus: draft\ncategory: 势力\n---\n\n## 定义\nin order to win。\n\n## 规则与边界\n无。\n\n## 与故事的关系\n无。\n`;
+  test("卷纲正文写「按 order 依次落」「order1」→ 建议改", async () => {
+    await store.write("volumes", "01", volumeWith("按 order 依次落：系统上线（order1，2009.10）。"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.id === "01" && i.level === "warning" && i.message.includes("排序键"))).toBe(true);
+  });
+  test("线索正文写「里程碑order13」→ 建议改，修补请求里点名这篇", async () => {
+    await store.write("threads", "三方归一", thread("draft").replace("三方同城。", "参股饱了么（里程碑order13，2015下半年）。"));
+    const issues = await runCheck(store);
+    const hit = issues.find((i) => i.id === "三方归一" && i.message.includes("排序键"));
+    expect(hit?.level).toBe("warning");
+    expect(hit?.fix).toContain("里程碑名字");
+  });
+  test("里程碑自己的 frontmatter order 不算正文提到", async () => {
+    await store.write("milestones", "系统上线", milestone("系统上线", 1, "draft"));
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.message.includes("排序键"))).toBe(false);
+  });
+  test("英文里的普通 order 不误报", async () => {
+    await store.write("world", "多多", world);
+    const issues = await runCheck(store);
+    expect(issues.some((i) => i.message.includes("排序键"))).toBe(false);
+  });
+});

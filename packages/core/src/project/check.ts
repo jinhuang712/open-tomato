@@ -9,12 +9,19 @@ export { PLACEHOLDER };
 export const DEFERRED = "待定";
 /** 正文里这些说法都是「先放一放」：出现了却没记进 frontmatter open，机检会漏掉这笔欠账 */
 const DEFER_PHRASES = ["先放一放", "先不落细", "先不定", "先不写死", "待拍板", "等你拍板", "等作者拍板", "记 open", "记进 open", "记open", "open 清单"];
+/**
+ * 正文里出现里程碑的排序键：里程碑order13 / order1 / 按 order 依次落。
+ * order 只是里程碑卡自己的 frontmatter 字段，写进正文作者读到的是内部黑话，重排之后编号还会对不上；
+ * 正文一律按名字引用（里程碑/系统上线）。模式避开英文里的普通 order（in order to）。
+ */
+const ORDER_MENTION = /里程碑\s*order\s*\d*|\border\s*\d+|\border(?=\s*[\u4e00-\u9fff])/i;
 
 /**
  * 机械对账。只报不拦：
  * - frontmatter 缺必填字段 / 仍是「待填」/ 枚举字段填了范围外的值
  * - 正文残留「待填」；段落只写了「待定」；缺必填段（按 frontmatter 条件算）
  * - 章纲引用的人物 / 线索 / 卷不存在；里程碑引用的线索不存在
+ * - 正文提到里程碑的排序键 order（应写名字）
  * - 正文没有对应章纲
  * - 章号 / 里程碑 order 断档或重复
  * - 排了章纲之后还没被任何章纲 / 里程碑引用的线索、没被任何卷纲覆盖的里程碑（孤儿）
@@ -67,6 +74,13 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
       if (openList.length === 0) {
         const hit = DEFER_PHRASES.find((w) => doc.body.includes(w));
         if (hit) push("warning", h, `正文写了「${hit}」，但 open 里没有记这笔搁置`, kind, `${ref(kind, h)}正文里说了「${hit}」，帮我把搁置的项记进 open`);
+      }
+      // 正文写了里程碑的排序键：作者读到的是黑话，编号重排之后还会对不上
+      const orderHit = ORDER_MENTION.exec(doc.body);
+      if (orderHit) {
+        const at = orderHit.index;
+        const snippet = doc.body.slice(Math.max(0, at - 8), at + orderHit[0].length + 8).replace(/\s+/g, " ").trim();
+        push("warning", h, `正文里写了里程碑排序键「${orderHit[0]}」`, kind, `${ref(kind, h)}正文里的「…${snippet}…」用了里程碑的排序键 order，帮我改成里程碑名字（如 里程碑/系统上线）`);
       }
       const present = new Set(doc.sections);
       const missing = requiredSectionsOf(kind, fm).filter((s) => !present.has(s.name));
