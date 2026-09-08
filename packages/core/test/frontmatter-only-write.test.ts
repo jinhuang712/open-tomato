@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 /** 一旦有人敲审批门就记下来，并放行，方便断言「到底敲没敲」 */
-function tools() {
+function tools(perms: { writableKinds?: readonly (typeof DOC_KIND_IDS)[number][]; bookkeepAnyKind?: boolean } = {}) {
   const asked: string[] = [];
   let gate: Gate;
   const sink: GateSink = {
@@ -33,7 +33,7 @@ function tools() {
   };
   gate = new Gate(sink);
   const ctx: ToolContext = { store, gate, agentId: "lead", runCheck: async () => [], docsChanged: async () => [], search: async () => [] };
-  const all = createTools(ctx, { writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
+  const all = createTools(ctx, { writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false, ...perms });
   const call = (name: string, params: unknown) => {
     const t = all.find((x) => x.name === name);
     if (!t) throw new Error(`没有 ${name}`);
@@ -56,17 +56,20 @@ describe("只改 frontmatter 不过审批门", () => {
     expect(doc?.raw).toContain("初创兄弟");
   });
 
-  test("改 tier 这种结构字段：正文没动也敲门，正文没变不等于故事没变", async () => {
+  test("改 tier 这种结构字段：也在 frontmatter 里，不敲门", async () => {
     await store.write("characters", "陈默", CARD);
     const { asked, call } = tools();
-    await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "tier: 主角", new: "tier: 一般配角" }] });
-    expect(asked.length).toBe(1);
+    const out = await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "tier: 主角", new: "tier: 一般配角" }] });
+    expect(asked).toEqual([]);
+    expect(textOf(out)).toContain("frontmatter 字段 tier");
+    const doc = await store.read("characters", "陈默");
+    expect(doc?.raw).toContain("tier: 一般配角");
   });
 
-  test("记账字段和结构字段一起改：敲门", async () => {
+  test("多个字段一起改：一次落盘，回话里列全改了哪些", async () => {
     await store.write("characters", "陈默", CARD);
     const { asked, call } = tools();
-    await call("edit_doc", {
+    const out = await call("edit_doc", {
       kind: "characters",
       id: "陈默",
       edits: [
@@ -74,7 +77,10 @@ describe("只改 frontmatter 不过审批门", () => {
         { old: "tier: 主角", new: "tier: 重要配角" },
       ],
     });
-    expect(asked.length).toBe(1);
+    expect(asked).toEqual([]);
+    const t = textOf(out);
+    expect(t).toContain("status");
+    expect(t).toContain("tier");
   });
 
   test("改 status 并把改了什么写进回话", async () => {
@@ -82,7 +88,7 @@ describe("只改 frontmatter 不过审批门", () => {
     const { asked, call } = tools();
     const out = await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "status: draft", new: "status: final" }] });
     expect(asked).toEqual([]);
-    expect(textOf(out)).toContain("记账字段 status");
+    expect(textOf(out)).toContain("frontmatter 字段 status");
   });
 
   test("正文也动了：照旧敲门", async () => {
@@ -96,5 +102,19 @@ describe("只改 frontmatter 不过审批门", () => {
     const { asked, call } = tools();
     await call("write_doc", { kind: "characters", id: "许燃", content: "---\ntitle: 许燃\nsummary: 兄弟\nkeywords: []\nstatus: draft\ntier: 重要配角\n---\n" });
     expect(asked.length).toBe(1);
+  });
+
+  test("越界写别人的材料：只放行记账字段，结构字段照旧被拦", async () => {
+    await store.write("characters", "陈默", CARD);
+    const { call } = tools({ writableKinds: ["threads"], bookkeepAnyKind: true });
+    await expect(call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "tier: 主角", new: "tier: 一般配角" }] })).rejects.toThrow("不归你写");
+  });
+
+  test("越界写别人的材料：改记账字段仍放行", async () => {
+    await store.write("characters", "陈默", CARD);
+    const { asked, call } = tools({ writableKinds: ["threads"], bookkeepAnyKind: true });
+    const out = await call("edit_doc", { kind: "characters", id: "陈默", edits: [{ old: "status: draft", new: "status: retired" }] });
+    expect(asked).toEqual([]);
+    expect(textOf(out)).toContain("frontmatter 字段 status");
   });
 });
