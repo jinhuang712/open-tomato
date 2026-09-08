@@ -727,6 +727,10 @@ export const actions = {
   openDoc(kind: DocKindId, id: string, focus?: string) {
     setState("view", focus === undefined ? { type: "doc", kind, id } : { type: "doc", kind, id, focus });
   },
+  /** 撤掉一段还没发出去的引文：输入框里的小 ref 和旁边那张卡是同一件东西，两处都能撤 */
+  dropQuote(id: string) {
+    setState("composerQuotes", (qs) => qs.filter((q) => q.id !== id));
+  },
   /** 把输入框里带来源的引文打成一条批注：登记桩，返回给主编看的全文 */
   makeAnnotation(quotes: ComposerQuote[], text: string): { label: string; body: string } | null {
     const sourced = quotes.filter((q): q is ComposerQuote & { source: QuoteSource } => q.source !== undefined);

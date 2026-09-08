@@ -4,8 +4,9 @@ import { createEffect, createSignal, For, on, Show } from "solid-js";
 import { keyHint } from "../../shared/keymap";
 import { autoGrow } from "../autogrow";
 import { bridge } from "../bridge";
-import { actions, quoteLabel, setState, state } from "../state";
+import { actions, quoteLabel, setState, state, type ComposerQuote } from "../state";
 import { QuoteCard } from "./QuoteCard";
+import { railRoom } from "./QuoteRail";
 
 interface Attachment {
   id: string;
@@ -99,7 +100,7 @@ export function Composer(props: { agentId?: string }) {
       { defer: true },
     ),
   );
-  const dropQuote = (id: string) => setState("composerQuotes", (qs) => qs.filter((q) => q.id !== id));
+  const dropQuote = (id: string) => actions.dropQuote(id);
   // 发送后清空要把高度收回去
   createEffect(() => {
     text();
@@ -220,7 +221,15 @@ export function Composer(props: { agentId?: string }) {
       >
         <Show when={isLead() && quotes().length > 0}>
           <div class="flex flex-col gap-1.5 px-3 pt-3">
-            <For each={quotes()}>{(q) => <QuoteCard from={quoteLabel(q)} text={q.text} clamp onRemove={() => dropQuote(q.id)} />}</For>
+            {/* 引文本体贴在它指的那段字旁边（QuoteRail），输入框只留一个小 ref；旁边放不下时整张卡还是留在这儿 */}
+            <Show
+              when={railRoom()}
+              fallback={<For each={quotes()}>{(q) => <QuoteCard from={quoteLabel(q)} text={q.text} clamp onRemove={() => dropQuote(q.id)} />}</For>}
+            >
+              <div class="flex flex-wrap gap-1.5">
+                <For each={quotes()}>{(q) => <QuoteRef quote={q} onRemove={() => dropQuote(q.id)} />}</For>
+              </div>
+            </Show>
             {/* 圈的是正文时给词汇表：说不出哪里不对的人也能选一个，点了填进输入框，还能接着写 */}
             <Show when={quotes().some((q) => q.source?.path.startsWith("正文/"))}>
               <div class="flex flex-wrap gap-1 pl-3">
@@ -310,6 +319,31 @@ export function Composer(props: { agentId?: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 输入框里的小 ref：只说「你在对哪段说话」，引文本体在旁边那张卡上。
+ * 圈的是材料时点一下跳回原处 —— 那张卡在材料页，不在眼前。
+ */
+function QuoteRef(props: { quote: ComposerQuote; onRemove: () => void }) {
+  const line = () => props.quote.text.replace(/\s+/g, " ").trim();
+  const src = () => props.quote.source;
+  const label = () => quoteLabel(props.quote);
+  return (
+    <span class="inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-md border border-line-2 bg-paper text-xs text-ink-2" title={`${label()}：${line()}`}>
+      <span class="font-serif text-ink-3 leading-none translate-y-px">❝</span>
+      <Show when={src()} fallback={<span class="max-w-[12rem] truncate">{line()}</span>}>
+        {(s) => (
+          <button class="max-w-[12rem] truncate hover:text-ink" title={`回到 ${s().path} 看这段`} onClick={() => actions.openDoc(s().kind, s().id, props.quote.text)}>
+            {line()}
+          </button>
+        )}
+      </Show>
+      <button class="shrink-0 w-4 h-4 rounded text-ink-3 hover:text-ink hover:bg-paper-3" title="去掉这段引用" onClick={props.onRemove}>
+        ×
+      </button>
+    </span>
   );
 }
 

@@ -9,10 +9,12 @@ import { Message } from "./Message";
 import { QuestionDock, summarizeQuestion } from "./QuestionDock";
 import { QuickActions } from "./QuickActions";
 import { QuotePill } from "./QuotePill";
+import { QuoteRail, type RailNote } from "./QuoteRail";
 
 
 export function Chat(props: { agentId: string }) {
   let scroller: HTMLDivElement | undefined;
+  let column: HTMLDivElement | undefined;
   const messages = () => state.transcripts[props.agentId] ?? [];
   const agent = () => state.agents[props.agentId];
   const isLead = () => props.agentId === "director";
@@ -45,6 +47,17 @@ export function Chat(props: { agentId: string }) {
   const onWheel = (e: WheelEvent) => {
     if (e.deltaY < 0) setFollowing(false);
   };
+
+  /**
+   * 圈出来还没发出去的段落贴在右边空白里，和那段字齐平；输入框那边只留一个小 ref。
+   * 圈的是材料（有 source）的那张卡在材料页上，不在这儿 —— 卡跟着它指的那段字走。
+   */
+  const railNotes = (): RailNote[] =>
+    isLead()
+      ? state.composerQuotes
+          .filter((q) => !q.source)
+          .map((q) => ({ id: q.id, label: "等你说话", text: q.text, onRemove: () => actions.dropQuote(q.id) }))
+      : [];
 
   // 切换 agent 时重新贴底
   createEffect(on(() => props.agentId, () => queueMicrotask(scrollToBottom)));
@@ -128,8 +141,14 @@ export function Chat(props: { agentId: string }) {
       </Show>
       {/* 自定义滚动条占 10px 布局（见 styles.css）：会话变长、滚动条一出现，消息列就在（全宽-10px）里居中，
         和下面固定的输入框错开半个滚动条，看着像输入框变窄了。两边都预留 gutter，消息列永远居全宽正中。 */}
-      <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3 [scrollbar-gutter:stable_both-edges]" onScroll={onScroll} onWheel={onWheel}>
-        <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
+      <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto [overflow-x:clip] py-3 [scrollbar-gutter:stable_both-edges]" onScroll={onScroll} onWheel={onWheel}>
+        <div ref={column} class="relative max-w-[760px] mx-auto w-full min-h-full flex flex-col">
+        <QuoteRail
+          root={() => column}
+          bounds={() => scroller}
+          notes={railNotes}
+          deps={() => [messages().length, messages().at(-1)?.parts.length] as const}
+        />
         <Show when={messages().length === 0}>
           <Show when={isLead()} fallback={<div class="h-full flex items-center justify-center text-ink-3">子 agent 还没有输出</div>}>
             <EmptyStart />
