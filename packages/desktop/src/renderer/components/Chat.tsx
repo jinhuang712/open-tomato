@@ -1,7 +1,6 @@
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import { actions, agentErrorText, state } from "../state";
 import { AgentStrip } from "./AgentStrip";
-import { LiveBadges, liveBadgeCount } from "./LiveBadges";
 import { ApprovalDock } from "./ApprovalDock";
 import { Composer } from "./Composer";
 import { EmptyStart } from "./EmptyStart";
@@ -98,13 +97,6 @@ export function Chat(props: { agentId: string }) {
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
-      {/* 会话区头一行只剩会动的徽章（等你拍板）；没有就不占高度。
-        和消息同一列宽——左沿的留白留给在场名单，这一行不能压在它上面 */}
-      <Show when={liveBadgeCount() > 0}>
-        <div class="shrink-0 max-w-[760px] mx-auto w-full flex items-start gap-2 px-5 pt-2">
-          <LiveBadges />
-        </div>
-      </Show>
       <Show when={isLead()}>
         <QuotePill within={() => scroller} />
       </Show>

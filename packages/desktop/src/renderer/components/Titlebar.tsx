@@ -5,9 +5,8 @@ import { CloudIndicator } from "./CloudIndicator";
 import { actions, setState, state } from "../state";
 
 /**
- * 顶栏只放高频入口：项目菜单 + 书名 · 搜索 · 等你拍板 · 子 agent · 模型。
+ * 顶栏只放高频入口：项目菜单 + 书名 · 搜索 · 模型。
  * 菜单入口是书名左边的常驻底色按钮（和搜索框同一套控件语言），书名只是标题（留在拖拽区里，可以拖着窗口走）。
- * 拍板徽章把待答和待审合成一个数，点进主编会话处理。子 agent 徽章常驻，跑着的和出错的一眼可见。
  */
 export function Titlebar() {
   return (
@@ -33,7 +32,7 @@ export function Titlebar() {
           </button>
         </Show>
       </div>
-      {/* 右侧只放静态项（云端、模型），会动的徽章在会话区左上角（LiveBadges）；一律不折行，空间不够只截模型名 */}
+      {/* 右侧只放静态项（云端、模型），会动的徽章在左沿在场名单上（AgentStrip）；一律不折行，空间不够只截模型名 */}
       <div class="no-drag flex items-center justify-end gap-1 text-xs min-w-0 whitespace-nowrap">
         <Show when={state.project && state.cloud?.configured}>
           <CloudIndicator />

@@ -11,7 +11,9 @@ const SEATS = 8;
  * 那条留白本来就是空的（消息列居中留出来的），所以名单来去都不推动正文——
  * 派出去一位、回来一位，作者读到的那一行仍在原处。窗口窄到留白不够时裁的是名单，正文一步不让。
  * 整层不接鼠标，只有名字本身可点，滚轮照旧落在下面的消息上。
- * 名单只放需要作者注意的人：主编、在跑的、出错的、当前打开的那位。
+ * 名单只放需要作者注意的人：主编、在跑的、出错的、有事等作者拍板的、当前打开的那位。
+ * 有待答 / 待审时，那一行的「正在……」换成「N 项等你拍板」：谁在等你，就写在谁身上，
+ * 点名字直接进它的会话。这件事不再在正文顶上另挂一个徽章。
  * 交完活的不是在歇着，是干完了；它们不占名单，末尾一句「N 位子 agent」带去花名册那一页回看。
  * 竖排一位一行，每人都带上它自报的「正在……」，宽度不够就截断，全文在悬停提示里。
  * 人多到一列排不下时只留最需要作者的几位，其余折成一个「+N」，去花名册看全部。
@@ -22,13 +24,15 @@ export function AgentStrip() {
   const all = createMemo(() => state.agentOrder.map((id) => state.agents[id]).filter((a): a is AgentInfo => !!a));
   const lead = () => all().filter((a) => a.parentId === null);
   const subs = () => all().filter((a) => a.parentId !== null).reverse();
-  const needsEye = (a: AgentInfo) => a.status === "running" || a.status === "error" || a.agentId === active();
+  /** 这位身上压着几件等作者拍板的：待答 + 待审 */
+  const pendingOn = (id: string) => state.questions.filter((q) => q.agentId === id).length + state.approvals.filter((a) => a.agentId === id).length;
+  const needsEye = (a: AgentInfo) => a.status === "running" || a.status === "error" || a.agentId === active() || pendingOn(a.agentId) > 0;
   const wanted = createMemo(() => [...lead(), ...subs().filter(needsEye)]);
-  /** 满座时按「谁更需要作者」留人：主编、正看着的、出错的在前，在跑的按新到旧。留下来的仍按原顺序排，位置不跟着点击跳 */
+  /** 满座时按「谁更需要作者」留人：主编、正看着的、等拍板的、出错的在前，在跑的按新到旧。留下来的仍按原顺序排，位置不跟着点击跳 */
   const shown = createMemo(() => {
     const list = wanted();
     if (list.length <= SEATS) return list;
-    const rank = (a: AgentInfo) => (a.parentId === null ? 0 : a.agentId === active() ? 1 : a.status === "error" ? 2 : 3);
+    const rank = (a: AgentInfo) => (a.parentId === null ? 0 : a.agentId === active() ? 1 : pendingOn(a.agentId) > 0 ? 2 : a.status === "error" ? 3 : 4);
     const keep = new Set(
       [...list]
         .sort((x, y) => rank(x) - rank(y))
@@ -39,6 +43,8 @@ export function AgentStrip() {
   });
   const folded = () => wanted().length - shown().length;
   const statusOf = (a: AgentInfo) => (a.status === "running" && a.statusText) || STATUS[a.status];
+  /** 等作者拍板压过「正在……」：它手上那步做到哪儿，此刻不如「它在等你」重要 */
+  const lineOf = (a: AgentInfo) => (pendingOn(a.agentId) > 0 ? `${pendingOn(a.agentId)} 项等你拍板` : statusOf(a));
   /** 主编在正文里管它们叫「策划1」，名单上就得是同一个名字，作者才对得上人。旧会话没有 handle，退回角色名 */
   const name = (a: AgentInfo) => a.handle || a.label;
   const inChild = () => active() !== null && active() !== "director";
@@ -61,7 +67,7 @@ export function AgentStrip() {
                 <button
                   class="pointer-events-auto w-full min-w-0 shrink-0 flex items-start gap-2 text-left hover:text-ink"
                   classList={{ "text-ink": active() === a.agentId }}
-                  title={`${name(a)} · ${statusOf(a)}${a.task ? `\n${a.task}` : ""}`}
+                  title={`${name(a)} · ${lineOf(a)}${a.task ? `\n${a.task}` : ""}`}
                   onClick={() => actions.openChat(a.agentId)}
                 >
                   <span
@@ -73,15 +79,23 @@ export function AgentStrip() {
                   <span class="min-w-0 flex-1">
                     <span class="flex items-center gap-1.5 min-w-0">
                       <span class="truncate">{name(a)}</span>
-                      <Show when={a.status === "running"}>
-                        <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0 ring-3 ring-accent-soft" />
-                      </Show>
-                      <Show when={a.status === "error"}>
-                        <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
+                      {/* 一个人只点一个点：等作者拍板时它其实卡在提问那儿，报「在跑」是假的 */}
+                      <Show
+                        when={pendingOn(a.agentId) === 0}
+                        fallback={<span class="w-1.5 h-1.5 rounded-full bg-warn shrink-0 ring-3 ring-warn-soft" />}
+                      >
+                        <Show when={a.status === "running"}>
+                          <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0 ring-3 ring-accent-soft" />
+                        </Show>
+                        <Show when={a.status === "error"}>
+                          <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
+                        </Show>
                       </Show>
                     </span>
                     {/* 截断时这句还在悬停提示里，不是没了 */}
-                    <span class="block truncate text-ink-3">{statusOf(a)}</span>
+                    <span class="block truncate" classList={{ "text-warn font-medium": pendingOn(a.agentId) > 0, "text-ink-3": pendingOn(a.agentId) === 0 }}>
+                      {lineOf(a)}
+                    </span>
                   </span>
                 </button>
               )}
