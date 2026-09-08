@@ -17,10 +17,9 @@ export function registerEscape(close: Closer): void {
   });
 }
 
-/** 全局浮层，越靠前的越可能叠在最上面（关闭确认 > 审阅 > 表单类弹窗 > 设置 / 搜索） */
+/** 全局浮层，越靠前的越可能叠在最上面（关闭确认 > 表单类弹窗 > 设置 / 搜索）。审阅不在这里：它是主区的一个视图 */
 const OVERLAYS: { open: () => boolean; close: () => void }[] = [
   { open: () => state.closePromptOpen, close: () => setState("closePromptOpen", false) },
-  { open: () => Boolean(state.reviewOpen), close: () => setState("reviewOpen", null) },
   { open: () => state.cloudSettingsOpen, close: () => setState("cloudSettingsOpen", false) },
   { open: () => state.modelPickerOpen, close: () => setState("modelPickerOpen", false) },
   { open: () => state.settingsOpen, close: () => setState("settingsOpen", false) },
@@ -48,9 +47,14 @@ export function escapeOneLevel(): boolean {
   // 1. 浮层
   for (const o of OVERLAYS) if (o.open()) return (o.close(), true);
 
-  // 2. 二级视图：文档、子 agent 名册、子 agent 会话，都回主编的主会话
+  // 2. 二级视图：文档、子 agent 名册、子 agent 会话，都回主编的主会话；
+  //    审阅退回进来之前那个视图（作者可能是从某张卡上被叫过来的），待审那条还挂在 dock 上能再进
   if (!state.project) return false;
   const v = state.view;
+  if (v.type === "review") {
+    actions.leaveReview();
+    return true;
+  }
   if (v.type === "doc" || v.type === "agents" || (v.type === "chat" && v.agentId !== "director")) {
     actions.openChat("director");
     return true;

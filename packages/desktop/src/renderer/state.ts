@@ -22,9 +22,9 @@ import type {
 import { quoteBlock } from "@opentomato/core/protocol";
 import { bridge } from "./bridge";
 
-export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string } | { type: "agents" };
+export type View = { type: "chat"; agentId: string } | { type: "doc"; kind: DocKindId; id: string; focus?: string } | { type: "agents" } | { type: "review"; approvalId: string };
 
-/** 一段引文是从哪儿圈出来的：已落盘的材料。没有 source 的是对话里的话。审阅弹窗里圈的段不进这儿，直接成拒绝理由 */
+/** 一段引文是从哪儿圈出来的：已落盘的材料。没有 source 的是对话里的话。审阅视图里圈的段不进这儿，直接成拒绝理由 */
 export type QuoteSource = { type: "doc"; kind: DocKindId; id: string; path: string };
 
 /**
@@ -105,8 +105,11 @@ export interface State {
   composerDraft: string | null;
   /** 作者在主会话里圈出来准备批注的段落，随下一条消息一起发出 */
   composerQuotes: ComposerQuote[];
-  /** 正在弹窗审阅的 approvalId */
-  reviewOpen: string | null;
+  /**
+   * 进审阅视图之前停在哪：审完（或 Esc 退出）回到那儿，而不是一律弹回主会话。
+   * 审阅是插进来的活，不该把作者正读的那张卡挤掉。
+   */
+  reviewBack: View | null;
   /** 还活着的批注，与桩一一对应 */
   annotations: Annotation[];
   /** 批注编号，整个应用生命周期内递增 */
@@ -154,7 +157,7 @@ const initial: State = {
   searchOpen: false,
   composerDraft: null,
   composerQuotes: [],
-  reviewOpen: null,
+  reviewBack: null,
   annotations: [],
   annotationSeq: 0,
   cloud: null,
@@ -206,7 +209,7 @@ export function applyEvent(ev: KernelEvent) {
         queues: {},
         queueHold: {},
         pausePending: {},
-        reviewOpen: null,
+        reviewBack: null,
         annotations: [],
         approvals: [],
         questions: [],
@@ -218,7 +221,7 @@ export function applyEvent(ev: KernelEvent) {
       void bridge.request("project.recent", {}).then((r) => setState("recent", r));
       return;
     case "project.closed":
-      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, queueHold: {}, pausePending: {}, composerDraft: null, composerQuotes: [], reviewOpen: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
+      setState({ project: null, docs: [], agents: {}, agentOrder: [], transcripts: {}, interruptedAfter: {}, queues: {}, queueHold: {}, pausePending: {}, composerDraft: null, composerQuotes: [], reviewBack: null, annotations: [], approvals: [], questions: [], issues: null, cloudSync: idleCloudSync, closePromptOpen: false });
       // 回到欢迎页，云端列表重新拉一遍：刚关掉的项目可能刚同步过
       void actions.refreshCloud();
       return;
@@ -302,14 +305,19 @@ export function applyEvent(ev: KernelEvent) {
       return;
     case "approval.requested":
       setState("approvals", (a) => [...a, ev.request]);
-      // 没在审别的就直接弹出来
-      if (!state.reviewOpen) setState("reviewOpen", ev.request.approvalId);
+      // 没在审别的就直接把主区切过去；正审着另一条时不抢，审完会自动接上
+      if (state.view.type !== "review") actions.openReview(ev.request.approvalId);
       return;
     case "approval.resolved": {
       const rest = state.approvals.filter((x) => x.approvalId !== ev.approvalId);
       setState("approvals", rest);
-      // 刚决掉的就是正在看的：有下一条就接着审，没有才关；手动关掉的不碰
-      if (state.reviewOpen === ev.approvalId) setState("reviewOpen", rest[0]?.approvalId ?? null);
+      // 刚决掉的就是正在看的：有下一条就接着审，没有才退回进来之前那个视图
+      const v = state.view;
+      if (v.type === "review" && v.approvalId === ev.approvalId) {
+        const next = rest[0]?.approvalId;
+        if (next) setState("view", { type: "review", approvalId: next });
+        else actions.leaveReview();
+      }
       return;
     }
     case "question.requested":
@@ -743,6 +751,16 @@ export const actions = {
   },
   openChat(agentId: string) {
     setState("view", { type: "chat", agentId });
+  },
+  /** 进审阅：记住现在停在哪，审完好退回去。已经在审阅里就只换 approvalId，别把回头路记成审阅本身 */
+  openReview(approvalId: string) {
+    if (state.view.type !== "review") setState("reviewBack", state.view);
+    setState("view", { type: "review", approvalId });
+  },
+  /** 离开审阅：回到进来之前那个视图，没记住就回主会话 */
+  leaveReview() {
+    setState("view", state.reviewBack ?? { type: "chat", agentId: "director" });
+    setState("reviewBack", null);
   },
   openAgents() {
     setState("view", { type: "agents" });

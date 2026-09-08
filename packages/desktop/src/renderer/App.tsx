@@ -9,7 +9,7 @@ import { Chat } from "./components/Chat";
 import { DocPeek } from "./components/DocPeek";
 import { DocViewer } from "./components/DocViewer";
 import { ModelPicker } from "./components/ModelPicker";
-import { ReviewModal } from "./components/ReviewModal";
+import { ReviewPanel } from "./components/ReviewPanel";
 import { SearchPalette } from "./components/SearchPalette";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
@@ -107,6 +107,15 @@ export function App() {
               <Match when={state.view.type === "agents"}>
                 <AgentHistory />
               </Match>
+              <Match when={state.view.type === "review" && state.view}>
+                {(v) => (
+                  // 待审那条被撤掉（agent 被掐、会话重建）时列表里就没了；
+                  // approval.resolved 会把视图退回去，这里只兜住中间那一帧
+                  <Show when={state.approvals.find((a) => a.approvalId === v().approvalId)} keyed fallback={<div class="p-6 text-ink-3">这条审批已经不在了。</div>}>
+                    {(r) => <ReviewPanel request={r} />}
+                  </Show>
+                )}
+              </Match>
             </Switch>
           </main>
         </div>
@@ -126,7 +135,6 @@ export function App() {
       <Show when={state.searchOpen && state.project}>
         <SearchPalette />
       </Show>
-      <Show when={state.approvals.find((a) => a.approvalId === state.reviewOpen)} keyed>{(r) => <ReviewModal request={r} />}</Show>
       <DocPeek />
       <Toasts />
     </div>

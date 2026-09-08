@@ -1,9 +1,9 @@
 import type { ApprovalRequest } from "@opentomato/core/protocol";
 import { createMemo, Show } from "solid-js";
-import { actions, setState, state } from "../state";
+import { actions, state } from "../state";
 import { DocLink } from "./DocLink";
 
-/** 输入框位置的紧凑条：一句话说明 + 打开审阅弹窗；弹窗关掉后还能从这里再进 */
+/** 输入框位置的紧凑条：一句话说明 + 切到审阅视图；从审阅退出来后还能从这里再进 */
 export function ApprovalDock(props: { request: ApprovalRequest }) {
   const agent = () => state.agents[props.request.agentId];
   const stats = createMemo(() => {
@@ -29,10 +29,7 @@ export function ApprovalDock(props: { request: ApprovalRequest }) {
           <span class="text-ok">+{stats().add}</span> <span class="text-danger">−{stats().del}</span>
         </span>
         <span class="flex-1" />
-        <button
-          class="h-7 px-3 rounded-md bg-warn text-paper text-xs font-medium hover:brightness-110"
-          onClick={() => setState("reviewOpen", props.request.approvalId)}
-        >
+        <button class="h-7 px-3 rounded-md bg-warn text-paper text-xs font-medium hover:brightness-110" onClick={() => actions.openReview(props.request.approvalId)}>
           审阅
         </button>
         <button class="h-7 px-3 rounded-md text-xs text-ink-2 hover:text-ink" onClick={() => void actions.approve(props.request.approvalId)} title="不看了，直接写">

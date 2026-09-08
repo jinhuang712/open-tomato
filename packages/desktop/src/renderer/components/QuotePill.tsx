@@ -20,7 +20,7 @@ interface Hit {
  */
 export function QuotePill(props: {
   within: () => HTMLElement | undefined;
-  /** 宿主自己收引文（审阅弹窗：圈的段直接成拒绝理由的引用）。不给就进主编输入框 */
+  /** 宿主自己收引文（审阅视图：圈的段直接成拒绝理由的引用）。不给就进主编输入框 */
   onTake?: (text: string, from?: string) => void;
   title?: string;
 }) {

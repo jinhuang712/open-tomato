@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 
 /**
  * 一段被圈出来的原话：左竖线、上面一行小字说圈的是谁 / 哪份材料，下面是引文。
- * 三处共用一张卡——输入框上方的引用条、审阅弹窗的拒绝理由、发出去以后的用户气泡——作者在哪儿看到都是同一件东西。
+ * 三处共用一张卡——输入框上方的引用条、审阅视图的拒绝理由、发出去以后的用户气泡——作者在哪儿看到都是同一件东西。
  * clamp：还没发出去时折成两三行省地方；进了气泡就全文展开，那是记录
  */
 export function QuoteCard(props: { from: string; text: string; clamp?: boolean; onRemove?: () => void }) {

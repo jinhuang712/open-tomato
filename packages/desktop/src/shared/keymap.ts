@@ -44,7 +44,7 @@ export const KEYMAP: KeyBinding[] = [
 
   { id: "doc.edit", label: "编辑这张卡", scope: "panel", keys: ["CmdOrCtrl+E"], note: "卡片打开着、还在预览时" },
   { id: "doc.save", label: "保存并回到预览", scope: "panel", keys: ["CmdOrCtrl+S"], note: "卡片编辑模式里" },
-  { id: "review.approve", label: "审阅通过 / 确认拒绝", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "审阅弹窗：没写理由时是通过，一旦圈了批注或开始写理由就是拒绝" },
+  { id: "review.approve", label: "审阅通过 / 确认拒绝", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "审阅视图：没写理由时是通过，一旦圈了批注或开始写理由就是拒绝" },
   { id: "question.submit", label: "提交回答", scope: "panel", keys: ["CmdOrCtrl+Enter"], note: "问答卡" },
   { id: "search.move", label: "上下选择", scope: "panel", keys: ["Up", "Down"], note: "搜索面板" },
   { id: "search.pick", label: "打开选中项", scope: "panel", keys: ["Enter"], note: "搜索面板" },
