@@ -125,7 +125,9 @@ export function Chat(props: { agentId: string }) {
       <Show when={isLead()}>
         <QuotePill within={() => scroller} />
       </Show>
-      <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3" onScroll={onScroll} onWheel={onWheel}>
+      {/* 自定义滚动条占 10px 布局（见 styles.css）：会话变长、滚动条一出现，消息列就在（全宽-10px）里居中，
+        和下面固定的输入框错开半个滚动条，看着像输入框变窄了。两边都预留 gutter，消息列永远居全宽正中。 */}
+      <div ref={scroller} class="flex-1 min-h-0 overflow-y-auto py-3 [scrollbar-gutter:stable_both-edges]" onScroll={onScroll} onWheel={onWheel}>
         <div class="max-w-[760px] mx-auto w-full min-h-full flex flex-col">
         <Show when={messages().length === 0}>
           <Show when={isLead()} fallback={<div class="h-full flex items-center justify-center text-ink-3">子 agent 还没有输出</div>}>
