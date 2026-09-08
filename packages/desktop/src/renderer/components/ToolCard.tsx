@@ -1,8 +1,9 @@
-import { hasLongOptions, optionLabel, parseChecklistAnswer, summarizeChecklistMarks, type ChecklistMark, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
+import { hasLongOptions, optionLabel, parseChecklistAnswer, splitQuotes, summarizeChecklistMarks, type ChecklistMark, type QuestionOption, type UiPart } from "@opentomato/core/protocol";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { renderMarkdown } from "../markdown";
 import { DispatchCard, ROLE_LABELS } from "./DispatchCard";
 import { DocLink } from "./DocLink";
+import { QuoteCard } from "./QuoteCard";
 import { WebSearchCard } from "./WebSearchCard";
 
 type ToolPart = Extract<UiPart, { type: "tool" }>;
@@ -126,7 +127,9 @@ function AskCard(props: { part: ToolPart }) {
   // 候选可能是 string 或 {label, text}。历史里只铺短候选；长句候选不重复铺开，「答」那行已经写了选的是哪个
   const raw = () => (Array.isArray(a().options) ? (a().options as QuestionOption[]) : []);
   const options = () => (hasLongOptions(raw()) ? [] : raw().map(optionLabel));
-  const answer = () => props.part.output.replace(/^作者回答：/, "");
+  // 作者圈了段落再答的，开头是引用围栏：拆出来还原成引用卡，剩下的才是他自己那句话
+  const replied = () => splitQuotes(props.part.output);
+  const answer = () => replied().rest.replace(/^作者回答：/, "");
   // checklist 历史：按「作者逐条表态」拆回三组序号展示。老会话的 kind 可能缺失，认答案前缀兜底
   const isChecklist = () => (a() as { kind?: unknown }).kind === "checklist" || answer().startsWith("作者逐条表态");
   const parsed = () => (isChecklist() ? parseChecklistAnswer(answer()) : null);
@@ -200,7 +203,12 @@ function AskCard(props: { part: ToolPart }) {
       >
         <div class="px-4 pb-3 flex gap-2.5 selectable">
           <span class="text-ink-3 shrink-0">答</span>
-          <span class={props.part.status === "error" ? "text-danger" : "text-ink"}>{checklistReply() ?? answer()}</span>
+          <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+            <For each={replied().quotes}>{(q) => <QuoteCard from={q.from} text={q.text} />}</For>
+            <Show when={checklistReply() ?? answer()}>
+              {(said) => <span class={props.part.status === "error" ? "text-danger" : "text-ink"}>{said()}</span>}
+            </Show>
+          </div>
         </div>
       </Show>
     </div>
