@@ -467,3 +467,168 @@ describe("子 agent 会话落盘", () => {
     expect((kernel as any).agents.has("child-9")).toBe(false);
   });
 });
+
+describe("ephemeral 一次性子 agent", () => {
+  const slotOf = (slots: unknown[]) => (slots[0] as { agentId: string; handle: string }).agentId;
+
+  test("runChild 不落盘、不进索引，报告照常交回，状态是 done", async () => {
+    const k = kernel as any;
+    const store = k.requireStore();
+    const slots: unknown[] = [];
+    const { handle, report } = await k.runChild("director", { role: "proofreader", task: "看一章", ephemeral: true }, slots, { touch: () => {} });
+    expect(handle).toBe("校对1");
+    expect(report).toContain("## 校对1");
+    const agentId = slotOf(slots);
+    expect(k.ephemeralAgents.has(agentId)).toBe(true);
+    expect(k.agents.get(agentId).info.status).toBe("done");
+    expect(await store.agentRecords()).toEqual([]);
+    expect(await fs.stat(store.agentSessionDir(agentId)).catch(() => null)).toBeNull();
+  });
+
+  test("spawn 名册给一次性标出来", async () => {
+    const k = kernel as any;
+    const result = await k.spawn("director", [{ role: "proofreader", task: "看一章", ephemeral: true }], () => {});
+    expect(result.text).toContain("校对1");
+    expect(result.text).toContain("一次性，交回即焚");
+  });
+
+  test("一次性的不能 continue_agent，要接着做就重派", async () => {
+    const k = kernel as any;
+    const slots: unknown[] = [];
+    await k.runChild("director", { role: "proofreader", task: "看一章", ephemeral: true }, slots, { touch: () => {} });
+    const live = k.resolveChild("校对1");
+    await expect(k.continueChild(live, "再看", undefined, () => {})).rejects.toThrow("一次性");
+  });
+
+  test("一次性的能封存：只改内存状态，不写索引", async () => {
+    const k = kernel as any;
+    const store = k.requireStore();
+    const slots: unknown[] = [];
+    await k.runChild("director", { role: "proofreader", task: "看一章", ephemeral: true }, slots, { touch: () => {} });
+    await k.archiveChild(slotOf(slots));
+    expect(k.agents.get(slotOf(slots)).info.status).toBe("archived");
+    expect(await store.agentRecords()).toEqual([]);
+  });
+
+  test("spawn_agents 工具透传 ephemeral，不传就不带", async () => {
+    const { makeSpawnAgentsTool } = await import("../src/agent/tools/spawn-agents.js");
+    const store = (kernel as any).requireStore();
+    await store.write("manuscript", "1", "---\ntitle: 第一章\nsummary: 开场\nkeywords: []\nstatus: draft\nwords: 0\nrevision: 0\n---\n\n正文。\n");
+    const seen: unknown[] = [];
+    const tool = makeSpawnAgentsTool({ store, spawn: async (tasks: unknown) => { seen.push(tasks); return { text: "ok", details: { slots: [] } }; } } as any);
+    const exec = tool.execute as any;
+    await exec("t1", { tasks: [{ role: "proofreader", task: "t", ephemeral: true }] }, new AbortController().signal, undefined);
+    expect(seen).toEqual([[{ role: "proofreader", task: "t", ephemeral: true }]]);
+    await exec("t2", { tasks: [{ role: "proofreader", task: "t" }] }, new AbortController().signal, undefined);
+    expect(seen[1]).toEqual([{ role: "proofreader", task: "t" }]);
+  });
+});
+
+describe("fork 转交进首条消息", () => {
+  test("全文包进新会话首条提示，工具结果剥掉，任务书置顶在最后", async () => {
+    const prompts: string[] = [];
+    const f = fakeSessionFactory({ onPrompt: (t) => prompts.push(t) });
+    const home2 = await fs.mkdtemp(path.join(os.tmpdir(), "ot-home-"));
+    const root2 = await fs.mkdtemp(path.join(os.tmpdir(), "ot-proj-"));
+    await fs.rm(root2, { recursive: true, force: true });
+    const k2 = new Kernel(home2, () => {}, { sessionFactory: f.factory });
+    try {
+      await k2.init("test");
+      await k2.handle("project.create", { root: root2, name: "b" });
+      const kk = k2 as any;
+      kk.agents.set("director", {
+        info: { agentId: "director", parentId: null, role: "director", label: "主编", handle: "主编", task: "", status: "idle", error: null, statusText: "", mode: "commit" },
+        session: {
+          sessionManager: {
+            getBranch: () => [
+              { type: "message", id: "m1", parentId: null, timestamp: "", message: { role: "user", content: "陈默要更痞一点" } },
+              { type: "message", id: "m2", parentId: "m1", timestamp: "", message: { role: "assistant", content: "好，语音签名加黑话" } },
+              { type: "message", id: "m3", parentId: "m2", timestamp: "", message: { role: "toolResult", toolCallId: "t", toolName: "read_doc", content: "文档全文……" } },
+            ],
+          },
+        },
+        unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", tools: [],
+        inbox: [], steering: [], hold: false, flushRest: false, asked: false, pendingError: null,
+      });
+      await kk.runChild("director", { role: "designer", task: "落人物卡陈默", fork: true }, [], { touch: () => {} });
+      const first = prompts[0] ?? "";
+      expect(first).toContain("陈默要更痞一点");
+      expect(first).toContain("语音签名加黑话");
+      expect(first).not.toContain("文档全文……");
+      expect(first).toContain("本次任务：落人物卡陈默");
+    } finally {
+      await k2.dispose().catch(() => {});
+      await fs.rm(home2, { recursive: true, force: true });
+      await fs.rm(root2, { recursive: true, force: true });
+    }
+  });
+
+  test("派单人会话不在就派单失败，不静默吞掉", async () => {
+    const k = kernel as any;
+    const slots: unknown[] = [];
+    const roster = { touch: () => {} };
+    const { report } = await k.runChild("nobody", { role: "designer", task: "t", fork: true }, slots, roster);
+    expect(report).toContain("派单失败");
+  });
+});
+
+describe("spawn 预检", () => {
+  const BRIEF = "---\ntitle: 简介\nsummary: 立项\nkeywords: []\nstatus: draft\n---\n\n## 一句话故事\n\n有人要什么\n";
+  const CHAPTER = "---\ntitle: 第一章\nsummary: 开场\nkeywords: []\nstatus: draft\nvolume: '01'\ncharacters: []\n---\n\n## 本章目标\n\n活。\n";
+  const MANUSCRIPT = "---\ntitle: 第一章\nsummary: 开场\nkeywords: []\nstatus: draft\nwords: 0\nrevision: 0\n---\n\n正文。\n";
+
+  async function spawnTool() {
+    const { makeSpawnAgentsTool } = await import("../src/agent/tools/spawn-agents.js");
+    const store = (kernel as any).requireStore();
+    const seen: unknown[] = [];
+    const tool = makeSpawnAgentsTool({ store, spawn: async (tasks: unknown) => { seen.push(tasks); return { text: "ok", details: { slots: [] } }; } } as any);
+    return { exec: tool.execute as any, seen };
+  }
+
+  test("写手没章纲可依：直接拒，指回大纲编排", async () => {
+    const store = (kernel as any).requireStore();
+    await store.write("brief", "简介", BRIEF);
+    const { exec, seen } = await spawnTool();
+    await expect(exec("t1", { tasks: [{ role: "writer", task: "写第一章" }] }, new AbortController().signal, undefined)).rejects.toThrow("还没有章纲");
+    expect(seen).toEqual([]);
+  });
+
+  test("评审没正文可审：直接拒", async () => {
+    const { exec, seen } = await spawnTool();
+    await expect(exec("t1", { tasks: [{ role: "proofreader", task: "看第一章" }] }, new AbortController().signal, undefined)).rejects.toThrow("还没有正文可审");
+    expect(seen).toEqual([]);
+  });
+
+  test("材料齐了就放行，不拦", async () => {
+    const store = (kernel as any).requireStore();
+    await store.write("brief", "简介", BRIEF);
+    await store.write("chapters", "1", CHAPTER);
+    await store.write("manuscript", "1", MANUSCRIPT);
+    const { exec, seen } = await spawnTool();
+    await exec("t1", { tasks: [{ role: "writer", task: "写第一章" }, { role: "proofreader", task: "看第一章" }] }, new AbortController().signal, undefined);
+    expect(seen).toHaveLength(1);
+  });
+});
+
+describe("落盘轮交回带封存提醒，候选轮不带", () => {
+  const slot = { agentId: "child-1", role: "writer", label: "写手", handle: "写手1", task: "t", status: "running", error: null };
+  const roster = { touch: () => {} };
+  const liveWith = (mode: string) => ({
+    session: { prompt: async () => {}, abort: async () => {}, messages: [{ role: "assistant", content: [{ type: "text", text: "结论" }] }] },
+    info: { agentId: "child-1", role: "writer", label: "写手", handle: "写手1" },
+    mode,
+  });
+
+  test("commit 交回带一句封存提醒，判断留给主编", async () => {
+    const out = await (kernel as any).promptChild(liveWith("commit"), "任务", slot, roster);
+    expect(out).toContain("结论");
+    expect(out).toContain("archive_agent");
+    expect(out).toContain("写手1");
+  });
+
+  test("propose 交回不带：候选悬着不能封", async () => {
+    const out = await (kernel as any).promptChild(liveWith("propose"), "任务", slot, roster);
+    expect(out).toContain("结论");
+    expect(out).not.toContain("archive_agent");
+  });
+});

@@ -45,6 +45,7 @@ import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orphanedQuestion, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
 import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
 import { extractDanglingQuestion, hasDanglingQuestion } from "./kernel/lead-rules.js";
+import { buildForkPrompt } from "./kernel/fork.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
@@ -93,6 +94,8 @@ export class Kernel {
   private readonly agents = new Map<string, LiveAgent>();
   /** 每个角色派到第几位，用来起 handle。关项目清空，接回时抬到已用过的最大值 */
   private readonly handleSeq = new Map<RoleId, number>();
+  /** 一次性子 agent 的 id：会话只在内存，不落盘、不进索引，不能续派。关项目清空 */
+  private readonly ephemeralAgents = new Set<string>();
   /** 早期版本把所有项目的会话混放在这个全局目录；现在只用来迁移 */
   private readonly legacySessionsDir: string;
   private readonly ready: Promise<void>;
@@ -248,6 +251,7 @@ export class Kernel {
     for (const a of lives) a.unsubscribe();
     this.agents.clear();
     this.handleSeq.clear();
+    this.ephemeralAgents.clear();
     for (const a of lives) {
       await a.session.abort().catch(() => {});
       a.session.dispose();
@@ -609,7 +613,9 @@ export class Kernel {
       void this.runChild(parentId, task, slots, roster).then(({ handle, report }) => this.deliverReport(parentId, handle, report));
     }
     returned = true;
-    const lines = slots.map((x) => `- ${x.handle}：${x.task}`).join("\n");
+    // slots 与 tasks 同序：runChild 在第一个 await 之前就同步推进名册，见上面注释。tags 认这个顺序。
+    const tags = (i: number) => [tasks[i]?.fork ? "带讨论全文" : "", tasks[i]?.ephemeral ? "一次性，交回即焚" : ""].filter(Boolean).join("；");
+    const lines = slots.map((x, i) => `- ${x.handle}：${x.task}${tags(i) ? `（${tags(i)}）` : ""}`).join("\n");
     return { text: `${DISPATCHED_NOTICE}\n${lines}`, details: roster.snapshot() };
   }
 
@@ -649,8 +655,13 @@ export class Kernel {
     let live: LiveAgent | null = null;
     try {
       const store = this.requireStore();
-      // 子 agent 会话和主编一样落在项目里：作者可能在候选悬着时关掉应用去休息，重开后主编还能续派它
-      const { session, tools } = await this.buildSession(task.role, agentId, SessionManager.create(store.info.root, store.agentSessionDir(agentId)));
+      // 一次性任务走内存会话：不落盘、不进索引，重开项目无需接回，交回即焚
+      const ephemeral = task.ephemeral === true;
+      const { session, tools } = await this.buildSession(
+        task.role,
+        agentId,
+        ephemeral ? SessionManager.inMemory(store.info.root) : SessionManager.create(store.info.root, store.agentSessionDir(agentId)),
+      );
       const mode = task.mode ?? "commit";
       live = this.register(
         { agentId, parentId, role: task.role, label: def.label, handle, task: task.task, status: "running", error: null, statusText: "", mode },
@@ -658,8 +669,17 @@ export class Kernel {
         tools,
       );
       this.setMode(live, mode);
-      await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode, reported: false });
-      const report = await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, task.task) : task.task, slot, roster);
+      if (ephemeral) this.ephemeralAgents.add(agentId);
+      else await store.saveAgentRecord({ agentId, parentId, role: task.role, label: def.label, handle, task: task.task, mode, reported: false });
+      // fork 转交：派单人的讨论全文包进首条消息，只进新会话，不污染派单人那边
+      let first = task.task;
+      if (task.fork === true) {
+        const parent = this.agents.get(parentId);
+        const branch = parent?.session.sessionManager?.getBranch?.();
+        if (!branch) throw new Error("派单人会话不在，fork 无从取来；去掉 fork 重派");
+        first = buildForkPrompt(branch, task.task);
+      }
+      const report = await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, first) : first, slot, roster);
       return { handle, report };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -671,6 +691,7 @@ export class Kernel {
 
   private async continueChild(live: LiveAgent, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress): Promise<DispatchResult> {
     const childId = live.info.agentId;
+    if (this.ephemeralAgents.has(childId)) throw new Error(`${live.info.handle}是一次性任务，会话没有保留、报告交回即焚；这条线要接着做就重新 spawn_agents`);
     if (live.info.status === "running") throw new Error(`${live.info.handle}还在跑，等它这一轮回来再续`);
     if (live.info.status === "archived") throw new Error(`${live.info.handle}已封存，不能再续派；这条线要接着做就重新 spawn_agents`);
     if (mode && mode !== live.mode) {
@@ -703,6 +724,8 @@ export class Kernel {
     if (live.info.status === "running") throw new Error(`${live.info.handle}还在跑，等它这一轮回来再封`);
     if (live.info.status === "archived") throw new Error(`${live.info.handle}已经封存了`);
     this.setStatus(live, "archived");
+    // 一次性的没有索引可记，状态只活在内存
+    if (this.ephemeralAgents.has(childId)) return;
     const store = this.requireStore();
     const rec = (await store.agentRecords()).find((r) => r.agentId === childId);
     if (rec) await store.saveAgentRecord({ ...rec, archived: true });
@@ -721,7 +744,8 @@ export class Kernel {
     this.agents.delete(childId);
     live.unsubscribe();
     live.session.dispose();
-    await this.requireStore().dropAgentRecord(childId);
+    // 一次性的没有索引和会话目录，摘表即焚
+    if (!this.ephemeralAgents.delete(childId)) await this.requireStore().dropAgentRecord(childId);
     this.emit({ type: "agent.retired", agentId: childId });
   }
 
@@ -755,7 +779,12 @@ export class Kernel {
       const answer = lastAssistantText(session.messages as unknown[]);
       this.setStatus(live, "done");
       roster.touch(slot, "done");
-      return `${header}\n\n${CHILD_REPORT_NOTICE}\n\n${answer || "（没有文字结论）"}`;
+      // 落盘轮交回才带一句封存提醒：候选轮（propose）悬着等拍板，不能封，不说；
+      // 一次性的没有索引可记，封存只是内存状态，也不打扰。
+      // 要不要封仍是主编的判断，这里只负责让他看见这件事。
+      const archiveHint =
+        live.mode === "commit" && !this.ephemeralAgents.has(info.agentId) ? `\n\n（已交回：这条线了了就 archive_agent 封存${info.handle}，还有活就续派。）` : "";
+      return `${header}\n\n${CHILD_REPORT_NOTICE}\n\n${answer || "（没有文字结论）"}${archiveHint}`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
@@ -765,7 +794,8 @@ export class Kernel {
     } finally {
       // 出了结论就记一笔：成功、失败都算交回，两种都会送报告给派它的人。
       // 走到这儿之前进程没了的，索引上留着 false，接回来才知道那位是被打断的。
-      await this.noteReported(info.agentId);
+      // 一次性的没有索引可记，跳过。
+      if (!this.ephemeralAgents.has(info.agentId)) await this.noteReported(info.agentId);
     }
   }
 

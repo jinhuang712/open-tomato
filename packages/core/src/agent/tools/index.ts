@@ -32,11 +32,13 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
   tools.push(makeListOpenTool(ctx));
   tools.push(makeReadDocTool(ctx));
   tools.push(makeSearchDocsTool(ctx));
-  tools.push(makeWebSearchTool(ctx));
-  tools.push(makeDocTemplateTool(ctx));
   tools.push(makeRunCheckTool(ctx));
 
   if (perms.writableKinds.length > 0) {
+    // 联网查证与模板是动笔的活：只读角色（评审与裁决）对照章纲与正文下判断，不需要它们；
+    // 不给就是边界，不靠提示词自觉，还省上下文
+    tools.push(makeWebSearchTool(ctx));
+    tools.push(makeDocTemplateTool(ctx));
     tools.push(makeWriteDocTool(ctx, perms.writableKinds));
     tools.push(makeEditDocTool(ctx, perms.writableKinds, perms.bookkeepAnyKind ?? false));
   }

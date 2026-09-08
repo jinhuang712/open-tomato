@@ -33,7 +33,7 @@ function toolFor(name: string, extra: Partial<ToolContext> = {}) {
     search: async () => [],
     ...extra,
   };
-  const all = createTools(ctx, { writableKinds: [], canSpawn: false, canAsk: false });
+  const all = createTools(ctx, { writableKinds: ["manuscript"], canSpawn: false, canAsk: false });
   const t = all.find((x) => x.name === name);
   if (!t) throw new Error(`没有 ${name}`);
   return (params: unknown) => t.execute("t", params as never, undefined as never, undefined as never, undefined as never);

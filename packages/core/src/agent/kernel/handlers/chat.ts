@@ -111,7 +111,23 @@ export function chatHandlers(
         // 掐断的是子 agent：这一轮的报告不会再来了，状态就得说被打断。
         // 留着「在跑」，主编一查 list_agents 读到的是「等它交回」，就会接着等一个死人——
         // 这不是循环停了需要人推，是它手里的事实过期了。
-        if (a.info.parentId !== null && a.info.status === "running") api.setStatus(a, "interrupted");
+        // 所以不等主编来查，顺手推一条过去：走报告同一条路（跑着就排队，空着就直送）。
+        if (a.info.parentId !== null && a.info.status === "running") {
+          api.setStatus(a, "interrupted");
+          const parent = api.agents.get(a.info.parentId);
+          if (parent) {
+            const text = stubPrompt(
+              `${a.info.handle}被打断`,
+              `${a.info.handle}被作者停止，这一轮的报告不会来了。要接着做就重新 spawn_agents，或这条线的活你自己接过来。`,
+            );
+            if (parent.session.isStreaming || parent.hold) {
+              parent.inbox.push({ id: randomUUID(), label: `${a.info.handle}被打断`, text });
+              api.emitQueue(parent);
+            } else {
+              api.sendTo(parent.info.agentId, text);
+            }
+          }
+        }
       }
       return null;
     },

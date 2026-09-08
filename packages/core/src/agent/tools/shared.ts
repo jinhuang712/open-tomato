@@ -12,6 +12,9 @@ export type SpawnMode = AgentMode;
 /** 没有一句话故事就不能派的角色：排大纲、写正文都建在故事之上 */
 export const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["plotter", "writer"]);
 
+/** 只读评审角色：对照已落盘的正文下判断，没有正文就没有可审的东西 */
+export const REVIEW_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["ops", "reader", "copyeditor", "proofreader", "arbiter"]);
+
 /** propose 时从会话里剥掉的工具 */
 export const WRITE_TOOL_NAMES = ["write_doc", "edit_doc"] as const;
 
@@ -20,6 +23,16 @@ export interface SpawnTask {
   task: string;
   /** propose：只出候选，落盘工具被挡住；commit：可以落盘。默认 commit */
   mode?: SpawnMode;
+  /**
+   * 一次性任务（评审小检等无状态判断）：会话只在内存，不落盘、不进索引，报告交回即焚，不能 continue_agent。
+   * 需要迭代、同线续派的别用。默认 false。
+   */
+  ephemeral?: boolean;
+  /**
+   * 带上主编与作者的讨论全文转交（刚聊透的落地用）：任务书只写增量，与纪要冲突以任务书为准。
+   * 问策、评审通常不用。默认 false。
+   */
+  fork?: boolean;
 }
 
 /** 派单过程中每次有人开始/完成/失败都回调一次：text 是给模型看的进度，details 是给渲染层的名册 */
