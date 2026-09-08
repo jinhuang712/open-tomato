@@ -331,7 +331,7 @@ export class Kernel {
   private async buildSession(role: RoleId, agentId: string, sessionManager: SessionManager): Promise<{ session: AgentSession; tools: string[] }> {
     const store = this.requireStore();
     const def = ROLES[role];
-    const tools = createTools(this.toolContext(agentId, def.canSpawn), {
+    const tools = createTools({ ...this.toolContext(agentId, def.canSpawn), history: () => sessionManager.getBranch() }, {
       writableKinds: def.writableKinds,
       ...(def.bookkeepAnyKind ? { bookkeepAnyKind: true } : {}),
       canSpawn: def.canSpawn,

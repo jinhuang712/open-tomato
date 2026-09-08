@@ -1,3 +1,4 @@
+import { makeConversationHistoryTool } from "./conversation-history.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { makeAskUserTool } from "./ask-user.js";
 import { makeContinueAgentTool } from "./continue-agent.js";
@@ -24,6 +25,7 @@ import type { ToolContext, ToolPermissions } from "./shared.js";
 
 export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefinition[] {
   const tools: ToolDefinition[] = [];
+  if (ctx.history) tools.push(makeConversationHistoryTool(ctx.history));
 
   tools.push(makeProjectOverviewTool(ctx));
   tools.push(makeListDocsTool(ctx));

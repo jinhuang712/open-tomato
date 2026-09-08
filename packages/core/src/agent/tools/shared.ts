@@ -30,6 +30,8 @@ export interface DispatchResult {
 }
 
 export interface ToolContext {
+  /** 当前会话分支的原始记录，包含被压缩的消息。 */
+  history?: () => import("@earendil-works/pi-coding-agent").SessionEntry[];
   store: ProjectStore;
   gate: Gate;
   agentId: string;
