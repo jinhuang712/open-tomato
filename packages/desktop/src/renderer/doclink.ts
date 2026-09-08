@@ -31,6 +31,8 @@ const ALIASES: Record<string, DocKindId> = {
 
 /** 单例文档没有 目录/id 形式，路径就是名字 */
 const SINGLETONS: Record<string, DocKindId> = { 简介: "brief" };
+/** 中文后缀：名字 + 后缀还是指同一张卡。真名优先，stem 必须全项目唯一 */
+const SUFFIXES = ["势力卡", "势力", "卡", "线"];
 const SINGLETON_ALTERNATION = Object.keys(SINGLETONS).join("|");
 
 /** 老会话里的守则引用：英文 id → 中文；「守则/立项」现在是 简介 */
@@ -49,14 +51,18 @@ let cacheKey = "";
 let cachedRef: RegExp | null = null;
 /** kind + 正文里写出的名字 → 真实文档 id；标题只给守则开放，重名标题不入表 */
 let cachedAliases = new Map<string, string>();
+/** 正文里不带目录直接写的名字 → 文档。只收全项目唯一的名字，两张卡同名就都不认 */
+let cachedBare = new Map<string, DocRef>();
 
 const aliasKey = (kind: DocKindId, shown: string) => `${kind}\u0000${shown}`;
 
 /**
- * 只认带目录的全名（目录/id，最长优先），裸写卡名不成链：中文里没有词边界，
- * 裸名会把「陈默卡」切成「陈默」+「卡」、把「卷纲01」切成「卷纲」+「01」，下划线看起来时有时无。
+ * 认三种写法（最长优先）：带目录的全名「目录/id」，缺「/」的粘连（卷纲01、守则001、人物陈默），以及正文里直接写的唯一卡名（含 陈默卡 / 复仇线 / 饭团势力卡 这类后缀）。
  * 全名里的「/」本身就是定界符，所以前后紧贴汉字也照认（「读人物/陈默的卡」「从卷纲/01往下推」都能命中）；
  * 单例「简介」没有「/」定界，前后紧贴汉字时不认，避免把「个人简介」里的两个字链到立项简介。
+ * 裸名是回退：中文里没有词边界，这一支不做汉字边界（否则「陈默说」永远链不上），只靠全项目唯一 + 最长优先，真名优先于后缀展开；
+ * 纯数字编号（01、0001）不收进裸名——正文里数字太多，只写编号不链；但粘连里的 守则001 照认，因为目录锚定了 kind，误伤不了。
+ * 显示规则：渲染只加链不改字——全名显示规范路径，其余保持原文；真目标永远写在 title 和悬停速览里。
  * 守则对作者显示的是 title，不是 001 这类编号，所以唯一 title 也是合法引用名；重名时不猜。
  * 项目文档尚未载入时，只识别仍在正则表里的旧守则引用。
  */
@@ -100,8 +106,41 @@ function refPattern(): RegExp {
   }
 
   const idAlt = shown.size > 0 ? [...shown].sort((a, b) => b.length - a.length).map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
+
+  // 裸名字：卡的 id（守则换成唯一 title）。中文名前后紧贴正文是常态，所以这一支不做汉字边界，只靠最长优先；
+  // 纯数字编号不收（只写 01、0001 不链），否则正文里随手一个数字就成链；目录锚定的粘连（守则001）不受这条限制。
+  cachedBare = new Map();
+  const bareCounts = new Map<string, number>();
+  const bareNames: [string, DocRef][] = [];
+  for (const d of docs) {
+    if (d.kind === "brief") continue;
+    const name = d.kind === "rules" ? d.title : d.id;
+    if (!name || name.length < 2 || /^[\d]+$/.test(name) || (d.kind === "rules" && titleCounts.get(name) !== 1)) continue;
+    bareCounts.set(name, (bareCounts.get(name) ?? 0) + 1);
+    bareNames.push([name, { kind: d.kind, id: d.id }]);
+  }
+  for (const [name, ref] of bareNames) {
+    if (bareCounts.get(name) !== 1) continue;
+    cachedBare.set(name, ref);
+    if (escapeHtml(name) !== name) cachedBare.set(escapeHtml(name), ref);
+  }
+  // 后缀：真名优先（已在表里的不动），剩下唯一的才展开；命中时整词成链、显示原文。
+  const uniqueStems = bareNames
+    .filter(([name]) => bareCounts.get(name) === 1)
+    .map(([name]) => name)
+    .sort((a, b) => b.length - a.length);
+  for (const stem of uniqueStems) {
+    const ref = cachedBare.get(stem);
+    if (!ref) continue;
+    for (const s of SUFFIXES) {
+      for (const key of new Set([stem + s, escapeHtml(stem) + s])) {
+        if (!cachedBare.has(key)) cachedBare.set(key, ref);
+      }
+    }
+  }
+  const bareAlt = cachedBare.size > 0 ? [...cachedBare.keys()].sort((a, b) => b.length - a.length).map(escapeRe).join("|") : "(?!)";
   cachedRef = new RegExp(
-    `(?:(?<![\\w/.\\-])(${DIR_ALTERNATION})\\/(${idAlt})(\\.md)?(?![\\w/.\\-])|(?<![\\w/.\\-\\p{Script=Han}])(${SINGLETON_ALTERNATION})(\\.md)?(?![\\w/.\\-\\p{Script=Han}]))`,
+    `(?:(?<![\\w/.\\-])(${DIR_ALTERNATION})\\/(${idAlt})(\\.md)?(?![\\w/.\\-])|(?<![\\w/.\\-\\p{Script=Han}])(${SINGLETON_ALTERNATION})(\\.md)?(?![\\w/.\\-\\p{Script=Han}])|(?<![\\w/\\-])(${bareAlt})(?![\\w/\\-])|(?<![\\w/.\\-])(${DIR_ALTERNATION})[ \u3000]?(${idAlt})(\\.md)?(?![\\w/.\\-]))`,
     "gu",
   );
   return cachedRef;
@@ -115,8 +154,16 @@ export function displayPath(kind: DocKindId | string, id: string): string {
   return `${dir}/${shownId}`;
 }
 
-/** 正则命中的分组 → 文档引用；有项目时还要校验 kind/id 配对，不能拿别类的 id 串过来 */
-function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined): DocRef | null {
+/** 正则命中的分组 → 文档引用；bare 查裸名表，glue（目录粘连）走和全名同一套 kind/id 校验 */
+function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined, bare?: string, glueDir?: string, glueId?: string): DocRef | null {
+  if (bare !== undefined) return cachedBare.get(bare) ?? null;
+  if (glueDir !== undefined && glueId !== undefined) {
+    const kind = ALIASES[glueDir];
+    if (!kind) return null;
+    if (state.docs.length === 0) return { kind, id: glueId };
+    const resolved = cachedAliases.get(aliasKey(kind, glueId));
+    return resolved ? { kind, id: resolved } : null;
+  }
   if (single !== undefined) {
     const kind = SINGLETONS[single];
     return kind ? { kind, id: single } : null;
@@ -132,25 +179,26 @@ function refFromMatch(dir: string | undefined, id: string | undefined, single: s
 export function parseDocRef(text: string): DocRef | null {
   const m = new RegExp(refPattern().source, "u").exec(text.trim());
   if (!m || m[0] !== text.trim()) return null;
-  return refFromMatch(m[1], m[2], m[4]);
+  return refFromMatch(m[1], m[2], m[4], m[6], m[7], m[8]);
 }
 
 /**
- * 把 HTML 里出现的全名引用（目录/id）包成可点的链接（只碰文本，不碰标签属性）。
- * 只认全名：裸写卡名不成链，模型必须写全名，界面显示的也永远是全名（对外只有一个名字）。
- * `self` 是正在看的这张卡，它自己的全名在自己正文里不成链。
+ * 把 HTML 里出现的文档引用包成可点的链接（只碰文本，不碰标签属性）。
+ * 认三种写法：目录/id 全名、缺「/」的粘连、唯一卡名（含后缀）；全名显示规范路径，其余保持原文。
+ * `self` 是正在看的这张卡，它自己在自己正文里不成链。
  */
 export function linkifyDocRefs(html: string, self?: DocRef): string {
   return html
     .split(/(<[^>]+>)/g)
     .map((chunk) => {
       if (chunk.startsWith("<")) return chunk;
-      return chunk.replace(refPattern(), (whole, dir: string | undefined, id: string | undefined, _md: string | undefined, single: string | undefined) => {
-        const ref = refFromMatch(dir, id, single);
+      return chunk.replace(refPattern(), (whole, dir: string | undefined, id: string | undefined, _md: string | undefined, single: string | undefined, _md2: string | undefined, bare: string | undefined, glueDir: string | undefined, glueId: string | undefined) => {
+        const ref = refFromMatch(dir, id, single, bare, glueDir, glueId);
         if (!ref) return whole;
         if (self && ref.kind === self.kind && ref.id === self.id) return whole;
         const path = escapeHtml(displayPath(ref.kind, ref.id));
-        return `<a class="doc-link" data-doc="${escapeHtml(`${ref.kind}/${ref.id}`)}" title="打开 ${path}">${path}</a>`;
+        const shown = bare !== undefined || glueDir !== undefined ? whole : path;
+        return `<a class="doc-link" data-doc="${escapeHtml(`${ref.kind}/${ref.id}`)}" title="打开 ${path}">${shown}</a>`;
       });
     })
     .join("")
