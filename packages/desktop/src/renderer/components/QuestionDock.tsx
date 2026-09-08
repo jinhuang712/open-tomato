@@ -1,9 +1,11 @@
-import { formatChecklistAnswer, optionLabel, optionText, type ChecklistMark, type QuestionKind, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
+import { formatChecklistAnswer, optionLabel, optionText, quoteBlock, type ChecklistMark, type QuestionKind, type QuestionOption, type QuestionRequest } from "@opentomato/core/protocol";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { autoGrow } from "../autogrow";
 import { actions, state } from "../state";
 import { renderMarkdown } from "../markdown";
 import { escapesFor, type Escape } from "../question-escapes";
+import { QuoteCard } from "./QuoteCard";
+import { QuotePill } from "./QuotePill";
 
 /** 自由输入框的提示语按形态换 */
 const PLACEHOLDER: Record<QuestionKind, string> = {
@@ -42,12 +44,30 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   });
   const agent = () => state.agents[props.request.agentId];
   const kind = (): QuestionKind => props.request.kind;
+  /** 作者在问题正文 / 某一版草稿上圈出来的段落，随这次回答一起交回去。换了问题就清空 */
+  const [quotes, setQuotes] = createSignal<{ id: string; from: string; text: string }[]>([]);
+  createEffect(() => {
+    props.request.questionId;
+    setQuotes([]);
+  });
+  let box: HTMLTextAreaElement | undefined;
+  /** 圈一段点「批注」：引文挂在回答框上方，光标跟过去，作者接着对着它说 */
+  const annotate = (t: string, from?: string) => {
+    setQuotes((qs) => [...qs, { id: crypto.randomUUID(), from: from ?? agent()?.label ?? "agent", text: t }]);
+    queueMicrotask(() => box?.focus());
+  };
+  const dropQuote = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id));
+  /** 所有交答案的路都走这里：圈的引文按围栏排在最前面，agent 才知道作者说的是哪一段 */
+  const answer = (t: string) => {
+    const blocks = quotes().map((q) => quoteBlock(q.from, q.text));
+    void actions.answer(props.request.questionId, [...blocks, t].filter(Boolean).join("\n\n"));
+  };
   const submit = () => {
     const t = text().trim();
     if (!t) return;
-    void actions.answer(props.request.questionId, t);
+    answer(t);
   };
-  const pick = (o: QuestionOption) => void actions.answer(props.request.questionId, answerOf(o));
+  const pick = (o: QuestionOption) => answer(answerOf(o));
 
   // multi：勾选态放本地，点「确定」一次交出去。换了问题就清空
   const [picked, setPicked] = createSignal<Set<number>>(new Set());
@@ -81,7 +101,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   const submitChecklist = () => {
     if (!canSubmitChecklist()) return;
     const t = text().trim();
-    void actions.answer(props.request.questionId, formatChecklistAnswer(props.request.options, marks(), t || undefined));
+    answer(formatChecklistAnswer(props.request.options, marks(), t || undefined));
   };
   const checklistEscapes = (): Escape[] => {
     const n = props.request.options.length;
@@ -97,11 +117,14 @@ export function QuestionDock(props: { request: QuestionRequest }) {
   const submitMulti = () => {
     const labels = props.request.options.filter((_, i) => picked().has(i)).map(optionLabel);
     if (!labels.length) return;
-    void actions.answer(props.request.questionId, `作者选了：${labels.join("、")}`);
+    answer(`作者选了：${labels.join("、")}`);
   };
 
+  let card: HTMLDivElement | undefined;
   return (
-    <div class="mx-5 mb-2 rounded-lg border border-line-2 bg-paper-2 overflow-hidden">
+    <div ref={card} class="mx-5 mb-2 rounded-lg border border-line-2 bg-paper-2 overflow-hidden">
+      {/* 提问卡自己收引文：圈问题正文或某一版草稿，引文进回答框上方，不往主编输入框里去（那会儿它是藏着的） */}
+      <QuotePill within={() => card} onTake={annotate} title="对这段说点什么，连引文一起回给它" />
       <button
         class="w-full flex items-center gap-2 px-4 h-9 text-xs text-left hover:bg-paper"
         classList={{ "border-b border-line": open() }}
@@ -119,7 +142,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
       </button>
 
       <Show when={open()}>
-      <div class="px-4 py-3 prose-zh" innerHTML={renderMarkdown(props.request.text)} />
+      <div class="px-4 py-3 prose-zh" data-quote-from={agent()?.label ?? "agent"} innerHTML={renderMarkdown(props.request.text)} />
 
       <Show when={kind() === "single"}>
         <div class="flex flex-wrap gap-2 px-4 pb-3">
@@ -133,7 +156,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
               </button>
             )}
           </For>
-          <EscapeButtons request={props.request} />
+          <EscapeButtons request={props.request} onAnswer={answer} />
         </div>
       </Show>
 
@@ -165,7 +188,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
           >
             确定{picked().size > 0 ? `（已选 ${picked().size} 项）` : ""}
           </button>
-          <EscapeButtons request={props.request} />
+          <EscapeButtons request={props.request} onAnswer={answer} />
         </div>
       </Show>
 
@@ -221,7 +244,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
               <button
                 class="min-h-7 px-3 py-1 rounded-md border border-dashed border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink text-left"
                 title={e.hint}
-                onClick={() => void actions.answer(props.request.questionId, e.answer)}
+                onClick={() => answer(e.answer)}
               >
                 {e.label}
               </button>
@@ -232,7 +255,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
 
       <Show when={kind() === "open"}>
         <div class="flex flex-wrap gap-2 px-4 pb-3">
-          <EscapeButtons request={props.request} />
+          <EscapeButtons request={props.request} onAnswer={answer} />
         </div>
       </Show>
 
@@ -243,7 +266,7 @@ export function QuestionDock(props: { request: QuestionRequest }) {
             {(opt, i) => (
               <article class="draft">
                 <header class="draft-tab">{draftLabel(opt, i())}</header>
-                <div class="draft-body prose-zh" innerHTML={renderMarkdown(optionText(opt))} />
+                <div class="draft-body prose-zh" data-quote-from={draftLabel(opt, i())} innerHTML={renderMarkdown(optionText(opt))} />
                 <footer class="draft-foot">
                   <button class="draft-pick" onClick={() => pick(opt)}>
                     选这个
@@ -254,16 +277,24 @@ export function QuestionDock(props: { request: QuestionRequest }) {
           </For>
         </div>
         <div class="flex flex-wrap gap-2 px-4 pb-3">
-          <EscapeButtons request={props.request} />
+          <EscapeButtons request={props.request} onAnswer={answer} />
+        </div>
+      </Show>
+
+      {/* 圈出来的段落排在回答框上方：输入框收起（allowFreeText 关掉）时也照样露出来，跟着选的那一项交回去 */}
+      <Show when={quotes().length > 0}>
+        <div class="mx-4 mb-2 flex flex-col gap-1.5">
+          <For each={quotes()}>{(q) => <QuoteCard from={q.from} text={q.text} clamp onRemove={() => dropQuote(q.id)} />}</For>
         </div>
       </Show>
 
       <Show when={props.request.allowFreeText}>
         <div class="mx-4 mb-3 rounded-md border border-line-2 bg-paper focus-within:border-ink-3">
           <textarea
+            ref={box}
             class="w-full bg-transparent px-3 pt-1.5 pb-1 outline-none resize-none placeholder:text-ink-3"
             rows={2}
-            placeholder={`${PLACEHOLDER[kind()]}（⌘↩ 发送）`}
+            placeholder={`${quotes().length > 0 ? "对这段说点什么" : PLACEHOLDER[kind()]}（⌘↩ 发送）`}
             value={text()}
             onInput={(e) => {
               setText(e.currentTarget.value);
@@ -294,14 +325,14 @@ export function QuestionDock(props: { request: QuestionRequest }) {
 }
 
 /** 逃生选项：永远都有，不靠模型记得给；具体几个、叫什么，按问题形态定 */
-function EscapeButtons(props: { request: QuestionRequest }) {
+function EscapeButtons(props: { request: QuestionRequest; onAnswer: (text: string) => void }) {
   return (
     <For each={escapesFor(props.request)}>
       {(e) => (
         <button
           class="min-h-7 px-3 py-1 rounded-md border border-dashed border-line-2 text-ink-3 hover:border-ink-3 hover:text-ink text-left"
           title={e.hint}
-          onClick={() => void actions.answer(props.request.questionId, e.answer)}
+          onClick={() => props.onAnswer(e.answer)}
         >
           {e.label}
         </button>
