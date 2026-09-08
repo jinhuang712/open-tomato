@@ -13,7 +13,7 @@ interface Hit {
 
 /**
  * 作者划过一段字，选区末尾上方浮出「批注」。
- * 点下去这段字就进输入框上方的引用条，等作者对着它说话；宿主给了 onTake 就交给宿主处理。
+ * 点下去这段字贴到它右边的空白里（QuoteRail），输入框只留一个小 ref，等作者对着它说话；宿主给了 onTake 就交给宿主处理。
  * 宿主三种：消息气泡（data-role，圈的是谁说的话）、材料正文（data-quote-src，圈的是哪份稿、哪篇卡）、
  * 自己收引文的卡片（data-quote-from，属性值就是引文那行小字，比如提问卡的「写法一」）。
  * 消息区只挂在主编会话：子 agent 不面向作者说话，也就没有被批注的资格。
@@ -114,7 +114,7 @@ export function QuotePill(props: {
           // mousedown 会先把选区清掉，拦住它让 click 还能读到选区
           onMouseDown={(e) => e.preventDefault()}
           onClick={take}
-          title={props.title ?? "把这段放进输入框，对着它说话"}
+          title={props.title ?? "把这段圈下来贴在旁边，对着它说话"}
         >
           <span class="font-serif text-sm leading-none translate-y-px">❝</span>
           批注
