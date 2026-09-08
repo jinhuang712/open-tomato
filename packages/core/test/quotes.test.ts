@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { normalizeMessage } from "../src/agent/kernel/history.js";
-import { quoteBlock, splitQuotes, userTextParts, type UiPart } from "../src/protocol.js";
+import { formatAnswer, quoteBlock, splitQuotes, userTextParts, type UiPart } from "../src/protocol.js";
 
 describe("引用围栏", () => {
   test("拼出来再拆回去，多段引用按顺序、正文留在最后", () => {
@@ -37,5 +37,26 @@ describe("引用围栏", () => {
     expect(normalizeMessage({ role: "user", content: [{ type: "text", text }] })?.parts).toEqual(want);
     // assistant 的正文不拆，模型自己写出围栏也只是文字
     expect(normalizeMessage({ role: "assistant", content: text })?.parts).toEqual([{ type: "text", text }]);
+  });
+});
+
+describe("答案里的引文", () => {
+  test("圈了一段再回答：引文留在最前面，前缀只加在作者自己的话上", () => {
+    const answer = `${quoteBlock("写法一", "这句留着")}\n\n其他用写法二`;
+    expect(formatAnswer(answer)).toBe(`${quoteBlock("写法一", "这句留着")}\n\n作者回答：其他用写法二`);
+  });
+
+  test("界面自己组好的句子不再被套一层前缀", () => {
+    const answer = `${quoteBlock("主编", "这句")}\n\n作者选了：A、C`;
+    expect(formatAnswer(answer)).toBe(answer);
+  });
+
+  test("只圈了段落没写话：留下引文，不多出一个空的「作者回答：」", () => {
+    expect(formatAnswer(quoteBlock("主编", "这句"))).toBe(quoteBlock("主编", "这句"));
+  });
+
+  test("没有引文的答案一字不差", () => {
+    expect(formatAnswer("就这样吧")).toBe("作者回答：就这样吧");
+    expect(formatAnswer("作者逐条表态：改 1")).toBe("作者逐条表态：改 1");
   });
 });

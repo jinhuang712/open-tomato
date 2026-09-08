@@ -495,8 +495,14 @@ export function optionText(o: QuestionOption): string {
  */
 export const ANSWER_PREFIXES = ["作者回答：", "作者选了：", "作者逐条表态"] as const;
 
+/**
+ * 作者圈的引文必须留在最前面：UI 和模型都靠开头的围栏认出「引的哪段」，
+ * 前缀只加在他自己的话上。整段答案没有引文时，行为和以前一字不差。
+ */
 export function formatAnswer(answer: string): string {
-  return ANSWER_PREFIXES.some((p) => answer.startsWith(p)) ? answer : `作者回答：${answer}`;
+  const { quotes, rest } = splitQuotes(answer);
+  const body = rest.trim() === "" ? "" : ANSWER_PREFIXES.some((p) => rest.startsWith(p)) ? rest : `作者回答：${rest}`;
+  return [...quotes.map((q) => quoteBlock(q.from, q.text)), body].filter(Boolean).join("\n\n");
 }
 
 /** checklist 每条的表态：改 / 不改 / 没碰 */
