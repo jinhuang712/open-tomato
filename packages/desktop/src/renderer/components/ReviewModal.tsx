@@ -14,33 +14,28 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const [tab, setTab] = createSignal<Tab>("review");
   const [reason, setReason] = createSignal("");
   const [rejecting, setRejecting] = createSignal(false);
-  /** 作者在稿上圈的那段：批注连同附言一起回给 agent，批准和拒绝都带 */
+  /** 作者在稿上圈的那段：批注即拒绝理由，引文排在理由前面回给 agent */
   const [quoted, setQuoted] = createSignal<string | null>(null);
   const quotedFrom = () => `审阅 ${props.request.path}`;
   const agent = () => state.agents[props.request.agentId];
   const close = () => setState("reviewOpen", null);
-  /** 批注 + 附言拼成回给 agent 的一句话：引文排在前面 */
-  const commentOf = () => {
-    const q = quoted();
-    const block = q ? quoteBlock(quotedFrom(), q) : "";
-    return [block, reason().trim()].filter(Boolean).join("\n\n");
-  };
   /** 批/拒只发动作，切到下一条由 approval.resolved 事件推进：
    * 乐观读过期列表会跳回已决项（连审三条以上时甚至把弹窗关掉、剩下没审的）。
-   * 事件是 gate 里同步发出的，弹窗只多留一瞬，且动作失败时正好停在原项可重试。
-   * 批准时有批注/附言就一起带给 agent，落盘结果里会缀上这句，agent 在同一轮里接着处理 */
-  const approve = () => void actions.approve(props.request.approvalId, commentOf() || undefined);
-  /** 拒绝原因必填：没有原因 agent 只能瞎猜，白耗一轮；批准附言可选，有就一起带给 agent */
+   * 事件是 gate 里同步发出的，弹窗只多留一瞬，且动作失败时正好停在原项可重试。 */
+  const approve = () => void actions.approve(props.request.approvalId);
+  /** 原因必填：没有原因 agent 只能瞎猜，白耗一轮 */
   const canReject = () => reason().trim() !== "";
   const reject = () => {
     if (!canReject()) return;
-    void actions.reject(props.request.approvalId, commentOf());
+    const q = quoted();
+    const block = q ? quoteBlock(quotedFrom(), q) : "";
+    void actions.reject(props.request.approvalId, [block, reason().trim()].filter(Boolean).join("\n\n"));
   };
   const cancelReject = () => {
     setRejecting(false);
     setQuoted(null);
   };
-  /** 圈一段点「批注」：进附言态，引文挂在原因框上方，批准或拒绝都会连引文一起回给 agent */
+  /** 圈一段点「批注」：进拒绝态，引文挂在原因框上方，作者接着写为什么 */
   const annotate = (text: string) => {
     setQuoted(text);
     setRejecting(true);
@@ -49,12 +44,10 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const QUICK_REASONS = props.request.kind === "manuscript" ? PROSE_REJECT_WORDS : MATERIAL_REJECT_WORDS;
   const remaining = () => state.approvals.length - 1;
 
-  /** ⌘↩ / Ctrl↩ 直接批准（带上已圈的批注/附言）：写东西时手不离键盘，弹窗开着随手就批了 */
+  /** ⌘↩ / Ctrl↩ 直接批准：写东西时手不离键盘，弹窗开着随手就批了 */
   createEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        // 输入框里的 ⌘↩ 由输入框自己接（避免和拒绝的回车冲突），这里只接框外的
-        if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !rejecting()) {
         e.preventDefault();
         approve();
       }
@@ -105,10 +98,10 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
           </button>
         </div>
 
-        <QuotePill within={() => scroller} onTake={annotate} title="对这段提意见，批准或拒绝都会连引文一起回给 agent" />
+        <QuotePill within={() => scroller} onTake={annotate} title="对这段提意见，作为拒绝理由回给 agent" />
         <div ref={scroller} class="flex-1 overflow-y-auto px-8 py-6">
           <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} maxHeight="70vh" />}>
-            {/* data-quote-src 只是让 QuotePill 认出这是能圈的正文；引文由弹窗自己收，批准/拒绝都会带给 agent */}
+            {/* data-quote-src 只是让 QuotePill 认出这是能圈的正文；引文由弹窗自己收，不进主编输入框 */}
             <div data-quote-src={JSON.stringify({ type: "review", path: props.request.path })}>
               <TrackChanges before={props.request.before} after={props.request.after} isNew={props.request.isNew} />
             </div>
@@ -150,15 +143,10 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
               </div>
               <input
                 class="w-full px-3 py-1.5 rounded-lg border border-line bg-paper outline-none focus:border-accent"
-                placeholder={quoted() ? "这段哪里不对（批准会带批注一起回给 agent，拒绝必填）" : "附言 / 拒绝原因（批准可选，拒绝必填，会回给 agent）"}
+                placeholder={quoted() ? "这段哪里不对（必填，连引文一起回给 agent）" : "拒绝原因（必填，会回给 agent，让它照着改）"}
                 value={reason()}
                 onInput={(e) => setReason(e.currentTarget.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    approve();
-                    return;
-                  }
                   if (e.key === "Enter") reject();
                   if (e.key === "Escape") {
                     e.preventDefault();
@@ -168,14 +156,6 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 autofocus
               />
             </div>
-            <div class="flex flex-col gap-1.5">
-              <button
-                class="px-3 py-1.5 rounded-lg bg-ink text-paper hover:brightness-110 whitespace-nowrap"
-                title={commentOf() ? "批准写入，并把上面的批注/附言带给 agent（⌘↩）" : "直接批准写入（⌘↩）"}
-                onClick={approve}
-              >
-                {commentOf() ? "批准并附言" : "批准写入"}
-              </button>
             <button
               class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
               disabled={!canReject()}
@@ -187,7 +167,6 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
             <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={cancelReject}>
               取消
             </button>
-            </div>
           </Show>
         </div>
       </div>

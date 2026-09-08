@@ -217,19 +217,6 @@ function rejectReason(output: string): string {
   return m?.[1]?.trim() ?? "";
 }
 
-/**
- * 批准附言只取作者写的那一句：模型看的操作指引一个字都不能漏出来。
- * 引文围栏太长，只留附言正文首行，完整内容点开工具行看原文。
- */
-function approveComment(output: string): string {
-  const m = output.match(/同时留了一句批注：([\s\S]*?)。这句是作者对你说的话/);
-  const raw = m?.[1]?.trim() ?? "";
-  if (!raw) return "";
-  const noQuotes = raw.replace(/⟦引用 [^⟧\n]*⟧\r?\n[\s\S]*?\r?\n⟦\/引用⟧/g, "").trim();
-  const first = (noQuotes || raw).split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
-  return first.length > 60 ? `${first.slice(0, 60)}…` : first;
-}
-
 /** 写文档：路径 + 落盘结果，diff 已经在审批时看过，这里不重复。
  * 失败（非拒因的 error：stale、参数错、审批被 abort……）必须写成「失败」并露出原因，
  * 不能掉进默认分支报「已写入」。 */
@@ -239,7 +226,6 @@ function WriteCard(props: { part: ToolPart }) {
   const rejected = () => props.part.output.startsWith("用户拒绝");
   const failed = () => !running() && !rejected() && props.part.status === "error";
   const reason = () => rejectReason(props.part.output);
-  const comment = () => (!rejected() && !running() ? approveComment(props.part.output) : "");
   return (
     <div class={`my-1 h-7 flex items-center gap-2 text-xs ${running() ? "px-3 rounded-md bg-warn-soft text-warn" : "text-ink-3"}`}>
       <span class={`w-1.5 h-1.5 rounded-full ${running() ? "bg-warn" : rejected() || failed() ? "bg-danger" : "bg-ok"}`} />
@@ -247,9 +233,6 @@ function WriteCard(props: { part: ToolPart }) {
       <DocLink kind={str(a().kind)} id={str(a().id)} class="text-xs shrink-0" />
       <Show when={rejected() && reason()}>
         <span class="text-ink-3 truncate selectable">拒因：{reason()}</span>
-      </Show>
-      <Show when={comment()}>
-        <span class="text-ink-3 truncate selectable" title={props.part.output}>附言：{comment()}</span>
       </Show>
       <Show when={failed()}>
         <span class="text-danger truncate selectable" title={props.part.output}>{props.part.output}</span>

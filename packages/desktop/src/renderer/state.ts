@@ -659,9 +659,8 @@ export const actions = {
       toast(errText(e), "error");
     }
   },
-  async approve(approvalId: string, reason?: string) {
-    const r = reason?.trim();
-    await bridge.request("approval.reply", r ? { approvalId, decision: "approve", reason: r } : { approvalId, decision: "approve" }).catch((e) => toast(errText(e), "error"));
+  async approve(approvalId: string) {
+    await bridge.request("approval.reply", { approvalId, decision: "approve" }).catch((e) => toast(errText(e), "error"));
   },
   async reject(approvalId: string, reason: string) {
     await bridge.request("approval.reply", { approvalId, decision: "reject", reason }).catch((e) => toast(errText(e), "error"));

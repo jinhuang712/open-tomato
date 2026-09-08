@@ -195,10 +195,6 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
     const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
     const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
     const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
-    // 批准时带的批注同样是作者的话：写进工具结果，agent 在同一轮里接着处理，也会留在会话里能回看
-    if (reason) {
-      return text(`已写入 ${header.path}（${header.title}）。作者批准了这一版，同时留了一句批注：${reason}。这句是作者对你说的话，能照着改的改好后重新走审批提交，不要静默吞掉；是问题的先回答它，不要再提一版。${tail}`);
-    }
     return text(`已写入 ${header.path}（${header.title}）${tail}`);
   };
 }
