@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { endsWithQuestion, hasDanglingQuestion } from "../src/agent/kernel/lead-rules.js";
+import { endsWithQuestion, extractDanglingQuestion, hasDanglingQuestion } from "../src/agent/kernel/lead-rules.js";
 
 type Live = Parameters<typeof hasDanglingQuestion>[0];
 
@@ -39,4 +39,11 @@ describe("endsWithQuestion", () => {
   test("引号包着的问句算", () => expect(endsWithQuestion("他会问「我们算什么？」")).toBe(true));
   test("半角问号一样算", () => expect(endsWithQuestion("which one?")).toBe(true));
   test("问号后跟收尾符号、换行也算", () => expect(endsWithQuestion("**这个推测对不对？**\n\n")).toBe(true));
+});
+
+describe("extractDanglingQuestion", () => {
+  test("尾句原样取出", () => expect(extractDanglingQuestion("这三个方向你挑哪个？")).toBe("这三个方向你挑哪个？"));
+  test("蹭掉问号后面的收尾符号", () => expect(extractDanglingQuestion("这个方向对吗？」")).toBe("这个方向对吗？"));
+  test("半角问号一样留", () => expect(extractDanglingQuestion("which one?**")).toBe("which one?"));
+  test("空的不算", () => expect(extractDanglingQuestion(undefined)).toBe(""));
 });

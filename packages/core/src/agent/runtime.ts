@@ -44,7 +44,7 @@ import {
 import { CloudManager } from "./kernel/cloud-manager.js";
 import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orphanedQuestion, takeStatusLine, wasInterrupted, type RawMessage } from "./kernel/history.js";
 import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
-import { DANGLING_QUESTION_PROMPT, hasDanglingQuestion } from "./kernel/lead-rules.js";
+import { extractDanglingQuestion, hasDanglingQuestion } from "./kernel/lead-rules.js";
 import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
@@ -862,9 +862,19 @@ export class Kernel {
         // 会话 jsonl 又长了一截，和云端快照对不上了
         this.markCloudDirty();
         // 轮末不推循环：做完一件接着取下一件是主编自己的判断，内核不替它踩油门。
-        // 只管一件事——问题写在正文结尾却没调 ask_user，作者面前没有问题卡，只能干等。
+        // 只管一件事——问题写在正文结尾却没调 ask_user：不叫模型回来重问（多空转一轮还污染历史），
+        // 直接把尾句挂成开放问题卡，候选都在上面的正文里，作者照着答，答案当普通 followUp 喂回去。
         if (hasDanglingQuestion(live, this.hasRunningChildren(live.info.agentId))) {
-          this.sendTo(LEAD_ID, stubPrompt("问出来", DANGLING_QUESTION_PROMPT), "followUp");
+          const question = extractDanglingQuestion(live.tail);
+          live.asked = true;
+          this.gate
+            .requestQuestion({ agentId: LEAD_ID, text: question, kind: "open", options: [], allowFreeText: true })
+            .then((answer) => {
+              if (this.agents.get(LEAD_ID) !== live) return;
+              this.authorActed(live);
+              this.sendTo(LEAD_ID, formatAnswer(answer));
+            })
+            .catch(() => {});
           return;
         }
         this.flushInbox(live);

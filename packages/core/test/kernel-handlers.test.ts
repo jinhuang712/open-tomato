@@ -402,7 +402,7 @@ describe("forward 事件映射", () => {
     expect(ends).toHaveLength(1);
   });
 
-  test("作者答完 ask_user，同一轮里正文结尾又挂个问句：照样补提示", async () => {
+  test("作者答完 ask_user，同一轮里正文结尾又挂个问句：尾句直接挂开放卡，不叫模型回来重问", async () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
     (kernel as any).forward(fake, { type: "tool_execution_start", toolName: "ask_user", toolCallId: "t1", args: {} });
@@ -412,8 +412,16 @@ describe("forward 事件映射", () => {
     fake.spoke = true;
     fake.tail = "地图线是并进入口战争线，还是单独立？";
     (kernel as any).forward(fake, { type: "agent_end" });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]![0]).toContain("没有调 ask_user");
+    // 没给模型发补问桩：历史保持干净，不多空转一轮
+    expect(calls).toHaveLength(0);
+    // 问题卡直接挂到门上：开放形态，问题原文来自尾句
+    const asked = events.filter((e) => e.type === "question.requested");
+    expect(asked).toHaveLength(1);
+    const req = (asked[0] as any).request;
+    expect(req.agentId).toBe("director");
+    expect(req.kind).toBe("open");
+    expect(req.text).toBe("地图线是并进入口战争线，还是单独立？");
+    expect(fake.asked).toBe(true);
   });
 
   test("问答之前那段正文的问号不算悬空：规规矩矩问过了就不补", async () => {
@@ -435,18 +443,19 @@ describe("forward 事件映射", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("补的那一句只说正文与 ask_user 两个通道，不再提 say", () => {
+  test("悬空问句的答案：当普通 followUp 喂回去，前缀与 ask_user 一致", async () => {
     const { fake, calls } = fakeLead(false);
     fake.info.status = "running";
     fake.spoke = true;
     fake.tail = "这三个方向你挑哪个？";
     (kernel as any).forward(fake, { type: "agent_end" });
+    const asked = events.filter((e) => e.type === "question.requested");
+    expect(asked).toHaveLength(1);
+    const questionId = (asked[0] as any).request.questionId as string;
+    (kernel as any).gate.resolveQuestion(questionId, "第二个");
+    await new Promise((r) => setTimeout(r, 0));
     expect(calls).toHaveLength(1);
-    expect(calls[0]![0] as string).toMatch(/^⟦stub:问出来⟧/);
-    const text = calls[0]![0] as string;
-    expect(text).toContain("正文");
-    expect(text).toContain("ask_user");
-    expect(text).not.toMatch(/say/);
+    expect(calls[0]![0]).toBe("作者回答：第二个");
   });
 
   test("queue_update 同步已插入列表", async () => {
