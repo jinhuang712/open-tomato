@@ -49,13 +49,14 @@ let cacheKey = "";
 let cachedRef: RegExp | null = null;
 /** kind + 正文里写出的名字 → 真实文档 id；标题只给守则开放，重名标题不入表 */
 let cachedAliases = new Map<string, string>();
-/** 正文里不带目录直接写的名字 → 文档。只收全项目唯一的名字，两张卡同名就都不认 */
-let cachedBare = new Map<string, DocRef>();
 
 const aliasKey = (kind: DocKindId, shown: string) => `${kind}\u0000${shown}`;
 
 /**
- * 只认项目里真实存在的文档 id（最长优先），中文 id 后面紧跟正文也不会多吃或少吃。
+ * 只认带目录的全名（目录/id，最长优先），裸写卡名不成链：中文里没有词边界，
+ * 裸名会把「陈默卡」切成「陈默」+「卡」、把「卷纲01」切成「卷纲」+「01」，下划线看起来时有时无。
+ * 全名里的「/」本身就是定界符，所以前后紧贴汉字也照认（「读人物/陈默的卡」「从卷纲/01往下推」都能命中）；
+ * 单例「简介」没有「/」定界，前后紧贴汉字时不认，避免把「个人简介」里的两个字链到立项简介。
  * 守则对作者显示的是 title，不是 001 这类编号，所以唯一 title 也是合法引用名；重名时不猜。
  * 项目文档尚未载入时，只识别仍在正则表里的旧守则引用。
  */
@@ -98,27 +99,9 @@ function refPattern(): RegExp {
     shown.add(id);
   }
 
-  // 裸名字：卡的 id（守则是编号，换成唯一 title）。中文名前后紧贴正文是常态，所以这一支不做汉字边界，只靠最长优先
-  cachedBare = new Map();
-  const bareCounts = new Map<string, number>();
-  const bareNames: [string, DocRef][] = [];
-  for (const d of docs) {
-    if (d.kind === "brief") continue;
-    const name = d.kind === "rules" ? d.title : d.id;
-    if (!name || name.length < 2 || (d.kind === "rules" && titleCounts.get(name) !== 1)) continue;
-    bareCounts.set(name, (bareCounts.get(name) ?? 0) + 1);
-    bareNames.push([name, { kind: d.kind, id: d.id }]);
-  }
-  for (const [name, ref] of bareNames) {
-    if (bareCounts.get(name) !== 1) continue;
-    cachedBare.set(name, ref);
-    if (escapeHtml(name) !== name) cachedBare.set(escapeHtml(name), ref);
-  }
-  const bareAlt = cachedBare.size > 0 ? [...cachedBare.keys()].sort((a, b) => b.length - a.length).map(escapeRe).join("|") : "(?!)";
-
   const idAlt = shown.size > 0 ? [...shown].sort((a, b) => b.length - a.length).map(escapeRe).join("|") : "[\\p{L}\\p{N}_\\-]+";
   cachedRef = new RegExp(
-    `(?<![\\w/.\\-\\p{Script=Han}])(?:(${DIR_ALTERNATION})\\/(${idAlt})|(${SINGLETON_ALTERNATION}))(\\.md)?(?![\\w/.\\-\\p{Script=Han}])|(?<![\\w/\\-])(${bareAlt})(?![\\w/\\-])`,
+    `(?:(?<![\\w/.\\-])(${DIR_ALTERNATION})\\/(${idAlt})(\\.md)?(?![\\w/.\\-])|(?<![\\w/.\\-\\p{Script=Han}])(${SINGLETON_ALTERNATION})(\\.md)?(?![\\w/.\\-\\p{Script=Han}]))`,
     "gu",
   );
   return cachedRef;
@@ -132,9 +115,8 @@ export function displayPath(kind: DocKindId | string, id: string): string {
   return `${dir}/${shownId}`;
 }
 
-/** 正则命中的三个分组 → 文档引用；有项目时还要校验 kind/id 配对，不能拿别类的 id 串过来 */
-function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined, bare?: string): DocRef | null {
-  if (bare !== undefined) return cachedBare.get(bare) ?? null;
+/** 正则命中的分组 → 文档引用；有项目时还要校验 kind/id 配对，不能拿别类的 id 串过来 */
+function refFromMatch(dir: string | undefined, id: string | undefined, single: string | undefined): DocRef | null {
   if (single !== undefined) {
     const kind = SINGLETONS[single];
     return kind ? { kind, id: single } : null;
@@ -150,25 +132,25 @@ function refFromMatch(dir: string | undefined, id: string | undefined, single: s
 export function parseDocRef(text: string): DocRef | null {
   const m = new RegExp(refPattern().source, "u").exec(text.trim());
   if (!m || m[0] !== text.trim()) return null;
-  return refFromMatch(m[1], m[2], m[3], m[5]);
+  return refFromMatch(m[1], m[2], m[4]);
 }
 
 /**
- * 把 HTML 里出现的文档引用包成可点的链接（只碰文本，不碰标签属性）。
- * 认两种写法：目录/id 路径，以及正文里直接写的卡名。卡名保持原样显示；`self` 是正在看的这张卡，自己的名字不成链。
+ * 把 HTML 里出现的全名引用（目录/id）包成可点的链接（只碰文本，不碰标签属性）。
+ * 只认全名：裸写卡名不成链，模型必须写全名，界面显示的也永远是全名（对外只有一个名字）。
+ * `self` 是正在看的这张卡，它自己的全名在自己正文里不成链。
  */
 export function linkifyDocRefs(html: string, self?: DocRef): string {
   return html
     .split(/(<[^>]+>)/g)
     .map((chunk) => {
       if (chunk.startsWith("<")) return chunk;
-      return chunk.replace(refPattern(), (whole, dir: string | undefined, id: string | undefined, single: string | undefined, _md: string | undefined, bare: string | undefined) => {
-        const ref = refFromMatch(dir, id, single, bare);
+      return chunk.replace(refPattern(), (whole, dir: string | undefined, id: string | undefined, _md: string | undefined, single: string | undefined) => {
+        const ref = refFromMatch(dir, id, single);
         if (!ref) return whole;
-        if (bare !== undefined && self && ref.kind === self.kind && ref.id === self.id) return whole;
+        if (self && ref.kind === self.kind && ref.id === self.id) return whole;
         const path = escapeHtml(displayPath(ref.kind, ref.id));
-        const shown = bare !== undefined ? whole : path;
-        return `<a class="doc-link" data-doc="${escapeHtml(`${ref.kind}/${ref.id}`)}" title="打开 ${path}">${shown}</a>`;
+        return `<a class="doc-link" data-doc="${escapeHtml(`${ref.kind}/${ref.id}`)}" title="打开 ${path}">${path}</a>`;
       });
     })
     .join("")
