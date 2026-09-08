@@ -12,6 +12,7 @@ import { CardEditor, type CardEditorHandle } from "./CardEditor";
 import { LiveBadges } from "./LiveBadges";
 import { actions, errText, setState, state, toast, type QuoteSource } from "../state";
 import { QuotePill } from "./QuotePill";
+import { QuoteRail, type RailNote } from "./QuoteRail";
 
 export function DocViewer(props: { kind: DocKindId; id: string }) {
   const [doc, { refetch }] = createResource(
@@ -76,6 +77,13 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
     if (!prose || !scroller) return;
     if (!focusText(prose, scroller, q)) toast("这段已经改过，找不到原处了");
   };
+  /** 旁边那一栏：已经发出去的批注一条一张卡，加上还没发出去的引文 */
+  const railNotes = (): RailNote[] => [
+    ...notes().map((n) => ({ id: n.label, label: n.label, text: n.quotes[0] ?? "", note: n.text || "（只圈了这段，没写话）", onClick: () => focusQuote(n.quotes[0] ?? "") })),
+    ...state.composerQuotes
+      .filter((q) => q.source?.kind === props.kind && q.source.id === props.id)
+      .map((q) => ({ id: q.id, label: "等你说话", text: q.text, onRemove: () => actions.dropQuote(q.id) })),
+  ];
   // 正文渲染完：先撤掉引文已经找不到的批注，再看有没有点桩跳回来要标亮的
   createEffect(
     on(
@@ -213,7 +221,7 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
         </div>
       </Show>
       <QuotePill within={() => scroller} />
-      <div ref={scroller} class="flex-1 overflow-y-auto">
+      <div ref={scroller} class="flex-1 overflow-y-auto [overflow-x:clip]">
         <Show when={doc.loading && !doc()}>
           <div class="p-6 text-ink-3">读取中…</div>
         </Show>
@@ -225,20 +233,9 @@ export function DocViewer(props: { kind: DocKindId; id: string }) {
             <Show
               when={editing()}
               fallback={
-                <div class="max-w-3xl mx-auto px-8 py-6">
+                <div class="relative max-w-3xl mx-auto px-8 py-6">
                   <DocHead doc={d()} />
-                  <Show when={notes().length > 0}>
-                    <div class="mb-4 flex flex-col gap-1 text-sm">
-                      <For each={notes()}>
-                        {(n) => (
-                          <button class="text-left flex items-start gap-2 px-2 py-1 rounded-md hover:bg-paper-3" onClick={() => focusQuote(n.quotes[0] ?? "")} title="滚到这段">
-                            <span class="shrink-0 text-xs text-ink-3 mt-0.5">{n.label}</span>
-                            <span class="text-ink-2 line-clamp-2">{n.text || "（只圈了这段，没写话）"}</span>
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
+                  <QuoteRail root={() => prose} bounds={() => scroller} notes={railNotes} deps={() => [d().raw, notes().length] as const} />
                   <div
                     ref={prose}
                     data-quote-src={JSON.stringify(quoteSource())}
