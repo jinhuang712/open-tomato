@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { queueLabel, stubPrompt, systemStubLabel } from "../../../protocol.js";
 import { loadPrompt } from "../../prompt-text.js";
-import { LEAD_ID, type LiveAgent } from "../types.js";
+import { agentBusy, LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 
 const PAUSE_PROMPT_LEAD = loadPrompt("kernel/pause-lead");
@@ -31,7 +31,7 @@ export function chatHandlers(
       api.authorActed(live);
       const how = deliverAs ?? "steer";
       // 排队的不进 pi 的队列，进我们自己的收件箱：能单条打断、能单条取消，轮末一并送
-      if (how === "followUp" && live.session.isStreaming) {
+      if (how === "followUp" && agentBusy(live)) {
         live.inbox.push({ id: randomUUID(), label: queueLabel(text), text });
         api.emitQueue(live);
         return null;
@@ -120,7 +120,7 @@ export function chatHandlers(
               `${a.info.handle}被打断`,
               `${a.info.handle}被作者停止，这一轮的报告不会来了。要接着做就重新 spawn_agents，或这条线的活你自己接过来。`,
             );
-            if (parent.session.isStreaming || parent.hold) {
+            if (agentBusy(parent) || parent.hold) {
               parent.inbox.push({ id: randomUUID(), label: `${a.info.handle}被打断`, text });
               api.emitQueue(parent);
             } else {

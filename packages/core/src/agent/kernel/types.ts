@@ -47,6 +47,14 @@ export interface LiveAgent {
   hold: boolean;
   /** 轮末送了收件箱的第一条，其余等这一轮 agent_start 后插进去 */
   flushRest: boolean;
+  /**
+   * 已经把一条新 prompt 交给 pi、它还没跑完。
+   * pi 的 isStreaming 要等它内部走完几个 await 才置上，这段空窗期里读到的还是 false：
+   * 同一个 agent 上有作者发言、桩消息、子 agent 交报告、轮末取件好几个触发源，
+   * 两个撞进空窗就都会当成「没在跑」再发一条裸 prompt，后到的那条撞上 pi 的互斥锁报
+   * 「Agent is already processing a prompt」。这个标记同步置位，补上那段读不到的忙。
+   */
+  starting: boolean;
   /** 手上有一个还没收口的 ask_user。作者答完就翻篇，不代表这一轮之后都算问过 */
   asked: boolean;
   /** 本轮有状态行之外的正文出去了：那就是对作者说的话 */
@@ -55,6 +63,11 @@ export interface LiveAgent {
   tail?: string;
   /** 这轮模型调用报的错，先攥着：pi 可能自动重试，等 agent_end 看 willRetry 再决定要不要标成 error */
   pendingError: string | null;
+}
+
+/** pi 在跑，或者刚接了一条新 prompt 还没跑起来：两种都不能再发裸 prompt */
+export function agentBusy(live: Pick<LiveAgent, "session" | "starting">): boolean {
+  return live.session.isStreaming || live.starting;
 }
 
 export interface InboxEntry {

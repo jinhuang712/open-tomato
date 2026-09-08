@@ -46,7 +46,7 @@ import { contentText, lastAssistantText, normalizeHistory, normalizeMessage, orp
 import { repairAskArgs, type AskArgs } from "./tools/ask-args.js";
 import { extractDanglingQuestion, hasDanglingQuestion } from "./kernel/lead-rules.js";
 import { buildForkPrompt } from "./kernel/fork.js";
-import { LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
+import { agentBusy, LEAD_ID, type AgentSession, type LiveAgent, type SessionEvent, type SessionFactory, type SessionFactoryArgs } from "./kernel/types.js";
 import { loadPrompt } from "./prompt-text.js";
 import type { HandlerMap, KernelApi } from "./kernel/handlers/shared.js";
 import { approvalHandlers } from "./kernel/handlers/approvals.js";
@@ -370,7 +370,7 @@ export class Kernel {
   }
 
   private register(info: AgentInfo, session: AgentSession, tools: string[]): LiveAgent {
-    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, asked: false, pendingError: null };
+    const live: LiveAgent = { info, session, tools, unsubscribe: () => {}, streamingMessageId: null, headBuffer: null, skipBlank: false, mode: "commit", inbox: [], steering: [], hold: false, flushRest: false, starting: false, asked: false, pendingError: null };
     live.unsubscribe = session.subscribe((event) => this.forward(live, event));
     this.agents.set(info.agentId, live);
     this.emit({ type: "agent.spawned", agent: info });
@@ -550,7 +550,7 @@ export class Kernel {
   /**
    * 轮末取件：收件箱非空且没被暂停，就把第一条送进去开新一轮，其余等 agent_start 后插进去。
    * 分两步是因为 pi 一次只接一条直发，其余得等它跑起来再 steer。
-   * agent_end 发出时 run 可能还没完全收尾，等一拍再送；sendTo 看 isStreaming 自己决定直发还是排到 pi 的队列。
+   * agent_end 发出时 run 可能还没完全收尾，等一拍再送；sendTo 看忙不忙自己决定直发还是排到 pi 的队列。
    */
   private flushInbox(live: LiveAgent) {
     if (live.hold || live.inbox.length === 0) return;
@@ -566,11 +566,29 @@ export class Kernel {
 
   private sendTo(agentId: string, text: string, deliverAs: "steer" | "followUp" = "steer") {
     const live = this.requireLive(agentId);
-    const run = live.session.isStreaming ? live.session.prompt(text, { streamingBehavior: deliverAs }) : live.session.prompt(text);
+    let run: Promise<unknown>;
+    if (agentBusy(live)) {
+      run = live.session.prompt(text, { streamingBehavior: deliverAs });
+    } else {
+      // 同步置位再交给 pi：它的 isStreaming 要等内部几个 await 才置上，
+      // 空窗期里别的触发源读到 false 就会再发一条裸 prompt 撞上互斥锁
+      live.starting = true;
+      run = live.session.prompt(text).finally(() => {
+        live.starting = false;
+      });
+    }
     run.catch((e: unknown) => {
       // 旧 run 在退场后才报错（dispose 时的 abort）：新会话的门不归它管，直接吞掉
       if (this.agents.get(agentId) !== live) return;
       const msg = e instanceof Error ? e.message : String(e);
+      // 还是撞上了 pi 的互斥锁：这条话不该赔掉，退回收件箱等轮末再送。
+      // 子 agent 的报告尤其不能丢 —— 它在磁盘索引里已经记成交过了，丢了就凭空没有
+      if (msg.includes("already processing a prompt")) {
+        live.inbox.unshift({ id: randomUUID(), label: queueLabel(text), text });
+        this.emitQueue(live);
+        this.flushInbox(live);
+        return;
+      }
       this.setStatus(live, "error", msg);
       // run 死了，它挂着的问答/待审再也没人能答，一并拒掉，别留幽灵 pending
       this.gate.rejectAgent(agentId, msg);
@@ -628,7 +646,7 @@ export class Kernel {
     if (!live) return;
     const label = `${handle}交回`;
     const text = stubPrompt(label, report);
-    if (live.session.isStreaming || live.hold) {
+    if (agentBusy(live) || live.hold) {
       live.inbox.push({ id: randomUUID(), label, text });
       this.emitQueue(live);
       return;
