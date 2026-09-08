@@ -46,6 +46,19 @@ function Tracked(props: { from: string | undefined; to: string | undefined; isNe
 }
 
 /**
+ * 审阅正文的排版。自行批改时编辑器套的是同一串：按下 ⌘E 只该是增删标消失、光标出现，
+ * 字号行距和小标题的样子一点不跳。所以它在这里只写一处。
+ */
+export const REVIEW_PROSE = "prose-zh tc-doc font-serif text-lg";
+
+/** 头部一颗芯片：same 原样，ins/del 是审阅里的增删标；dim 是不常看的字段 */
+export interface Chip {
+  text: string;
+  state: "same" | "ins" | "del";
+  dim: boolean;
+}
+
+/**
  * 头部和文档阅读页同一个样子：标题、摘要、一排芯片（状态、关键词、其余字段）。
  * 芯片增删按 ins/del 标：删掉的芯片划掉，新加的标绿；改了值的字段旧芯片划掉、新芯片标绿。
  */
@@ -53,8 +66,8 @@ function MetaHead(props: { before: Record<string, string>; after: Record<string,
   const chips = createMemo(() => {
     const b = props.before;
     const a = props.after;
-    const out: { text: string; state: "same" | "ins" | "del"; dim: boolean }[] = [];
-    const push = (text: string, state: "same" | "ins" | "del", dim = false) => out.push({ text, state: state === "same" && props.isNew ? "ins" : state, dim });
+    const out: Chip[] = [];
+    const push = (text: string, state: Chip["state"], dim = false) => out.push({ text, state: state === "same" && props.isNew ? "ins" : state, dim });
     if (b.status !== a.status) {
       if (b.status) push(b.status, "del");
       if (a.status) push(a.status, "ins");
@@ -82,19 +95,44 @@ function MetaHead(props: { before: Record<string, string>; after: Record<string,
       <div class="text-ink-2 mb-1">
         <Tracked from={props.before.summary} to={props.after.summary} isNew={props.isNew} />
       </div>
-      <div class="flex flex-wrap gap-1.5 text-xs">
-        <For each={chips()}>
-          {(c) => (
-            <span class={`px-1.5 rounded ${c.dim ? "bg-paper-2 text-ink-3" : "bg-paper-3 text-ink-2"}`}>
-              <Show when={c.state === "same"} fallback={c.state === "ins" ? <ins class="tc-ins">{c.text}</ins> : <del class="tc-del">{c.text}</del>}>
-                {c.text}
-              </Show>
-            </span>
-          )}
-        </For>
-      </div>
+      <MetaChips chips={chips()} />
     </div>
   );
+}
+
+/** 那排芯片。审阅里带 ins/del 标；自行批改时喂 plainChips 原样出，两处长得一模一样 */
+export function MetaChips(props: { chips: Chip[] }) {
+  return (
+    <div class="flex flex-wrap gap-1.5 text-xs">
+      <For each={props.chips}>
+        {(c) => (
+          <span class={`px-1.5 rounded ${c.dim ? "bg-paper-2 text-ink-3" : "bg-paper-3 text-ink-2"}`}>
+            <Show when={c.state === "same"} fallback={c.state === "ins" ? <ins class="tc-ins">{c.text}</ins> : <del class="tc-del">{c.text}</del>}>
+              {c.text}
+            </Show>
+          </span>
+        )}
+      </For>
+    </div>
+  );
+}
+
+/** 一份 frontmatter 的芯片，全是「没变」态：自行批改时头部不该出现 ins/del，那是审阅的语言 */
+export function plainChips(fm: Record<string, unknown>): Chip[] {
+  const out: Chip[] = [];
+  const push = (text: string, dim = false) => out.push({ text, state: "same", dim });
+  const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+  if (str(fm.status)) push(str(fm.status));
+  const kw = Array.isArray(fm.keywords) ? fm.keywords.map(str) : listOf(str(fm.keywords));
+  for (const k of kw) if (k) push(k);
+  const skip = new Set(["title", "summary", "keywords", "status"]);
+  for (const [k, v] of Object.entries(fm)) {
+    if (skip.has(k)) continue;
+    // 嵌套结构在芯片里表达不了，跟审阅头部一样只出扁平值
+    const text = Array.isArray(v) ? v.map(str).filter(Boolean).join("、") : typeof v === "object" && v !== null ? "" : str(v);
+    if (text) push(`${k}=${text}`, true);
+  }
+  return out;
 }
 
 // 私用区字符当标记，先混进 markdown 源文本，渲染完再换成 <ins>/<del>
@@ -232,7 +270,7 @@ export function TrackChanges(props: { before: string; after: string; isNew: bool
         <div class="text-ink-3 text-center py-6">内容没有变化</div>
       </Show>
 
-      <div class="prose-zh tc-doc font-serif text-lg" innerHTML={html()} />
+      <div class={REVIEW_PROSE} innerHTML={html()} />
     </div>
   );
 }

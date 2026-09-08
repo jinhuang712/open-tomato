@@ -9,7 +9,7 @@ import { DiffView } from "./DiffView";
 import { DocLink } from "./DocLink";
 import { QuoteCard } from "./QuoteCard";
 import { QuotePill } from "./QuotePill";
-import { TrackChanges } from "./TrackChanges";
+import { REVIEW_PROSE, TrackChanges } from "./TrackChanges";
 
 type Tab = "review" | "source";
 
@@ -43,16 +43,32 @@ export function ReviewPanel(props: { request: ApprovalRequest }) {
     }
     void actions.approve(props.request.approvalId, card.raw());
   };
-  /** 进/出自行批改。改过东西再退出先问一声，别一个 ⌘E 把改的都吞了 */
-  const startEdit = () => {
-    setRejecting(false);
-    setQuoted(null);
-    setDirty(false);
-    setEditing(true);
+  /**
+   * 进/出自行批改。改过东西再退出先问一声，别一个 ⌘E 把改的都吞了。
+   * 两边都把滚动位置原样放回去：作者盯着第三场戏按下 ⌘E，不该被扔回文首。
+   */
+  const keepScroll = (fn: () => void) => {
+    const top = scroller?.scrollTop ?? 0;
+    fn();
+    requestAnimationFrame(() => scroller?.scrollTo({ top }));
   };
-  const stopEdit = async () => {
-    if (dirty() && !(await bridge.confirm({ message: "放弃这次批改？", detail: "刚改的内容不会带进这次批准。", okLabel: "放弃" }))) return;
-    setEditing(false);
+  const startEdit = () => {
+    keepScroll(() => {
+      setRejecting(false);
+      setQuoted(null);
+      setDirty(false);
+      setEditing(true);
+    });
+  };
+  const stopEdit = async (): Promise<boolean> => {
+    if (dirty() && !(await bridge.confirm({ message: "放弃这次批改？", detail: "刚改的内容不会带进这次批准。", okLabel: "放弃" }))) return false;
+    keepScroll(() => setEditing(false));
+    return true;
+  };
+  /** 批改中切视图：先当作结束批改问一声，问过了再切 */
+  const goTab = async (t: Tab) => {
+    if (editing() && !(await stopEdit())) return;
+    setTab(t);
   };
   /** 原因必填：没有原因 agent 只能瞎猜，白耗一轮 */
   const canReject = () => reason().trim() !== "";
@@ -131,26 +147,21 @@ export function ReviewPanel(props: { request: ApprovalRequest }) {
         </Show>
         <span class="text-ink-2 truncate">{props.request.title}</span>
         <span class="flex-1" />
-        <Show
-          when={editing()}
-          fallback={
-            <>
-              <button class="px-2.5 py-1 rounded-md border border-line hover:bg-paper-3" title={`不退回，自己动手把这一版改对（${keyHint("review.edit")}）`} onClick={startEdit}>
-                自行批改
-              </button>
-              <div class="flex rounded-md border border-line overflow-hidden">
-                <button class={`px-2.5 py-1 ${tab() === "review" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => setTab("review")}>
-                  审阅
-                </button>
-                <button class={`px-2.5 py-1 ${tab() === "source" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => setTab("source")}>
-                  逐行对比
-                </button>
-              </div>
-            </>
-          }
+        <button
+          class={`px-2.5 py-1 rounded-md border ${editing() ? "border-accent bg-accent-soft text-ink" : "border-line hover:bg-paper-3"}`}
+          title={editing() ? `结束批改，回到审阅（${keyHint("review.edit")}）` : `不退回，自己动手把这一版改对（${keyHint("review.edit")}）`}
+          onClick={() => (editing() ? void stopEdit() : startEdit())}
         >
-          <span class="text-ink-3">批改中，批准写入的将是你这一版</span>
-        </Show>
+          自行批改
+        </button>
+        <div class="flex rounded-md border border-line overflow-hidden">
+          <button class={`px-2.5 py-1 ${!editing() && tab() === "review" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => void goTab("review")}>
+            审阅
+          </button>
+          <button class={`px-2.5 py-1 ${!editing() && tab() === "source" ? "bg-paper-3 text-ink" : "text-ink-3 hover:text-ink"}`} onClick={() => void goTab("source")}>
+            逐行对比
+          </button>
+        </div>
       </div>
 
       <Show when={!editing()}>
@@ -161,8 +172,17 @@ export function ReviewPanel(props: { request: ApprovalRequest }) {
           <Show
             when={!editing()}
             fallback={
-              // 编辑的是 agent 提的这一版（after），不是磁盘上的旧版：作者在它上面接着改，改完直接批准
-              <CardEditor kind={props.request.kind} raw={props.request.after} onChange={() => setDirty(true)} onReady={(h) => (card = h)} />
+              // 编辑的是 agent 提的这一版（after），不是磁盘上的旧版：作者在它上面接着改，改完直接批准。
+              // head / proseClass 都照审阅视图那身皮传：按下 ⌘E 只是增删标消失、光标出现，版式一点不跳
+              <CardEditor
+                kind={props.request.kind}
+                raw={props.request.after}
+                head="brief"
+                proseClass={REVIEW_PROSE}
+                autofocus={false}
+                onChange={() => setDirty(true)}
+                onReady={(h) => (card = h)}
+              />
             }
           >
             <Show when={tab() === "review"} fallback={<DiffView patch={props.request.patch} />}>
@@ -177,6 +197,9 @@ export function ReviewPanel(props: { request: ApprovalRequest }) {
 
       <div class="flex items-end gap-2 px-5 py-3 border-t border-line bg-paper-2">
         <span class="flex-1" />
+        <Show when={editing()}>
+          <span class="text-ink-3 text-xs mr-2 self-center">批准写入的是你改过的这一版</span>
+        </Show>
         <Show when={remaining() > 0}>
           <span class="text-ink-3 text-xs mr-2 self-center">还有 {remaining()} 条待审</span>
         </Show>
