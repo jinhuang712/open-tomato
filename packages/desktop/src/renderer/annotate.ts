@@ -64,6 +64,17 @@ export function findTextRange(root: HTMLElement, text: string): Range | null {
   return range;
 }
 
+/**
+ * 只要一个位置（批注卡贴在哪一行的旁边），不要求整段都对得上：
+ * 跨段的选区里那个换行在 DOM 里并不存在，整段永远找不到，退成用第一行定位。
+ */
+export function findAnchorRange(root: HTMLElement, text: string): Range | null {
+  const whole = findTextRange(root, text);
+  if (whole) return whole;
+  const first = text.split("\n").map((s) => s.trim()).find((s) => s.length >= 2);
+  return first ? findTextRange(root, first) : null;
+}
+
 /** 标亮并滚到这段；返回是否找到 */
 export function focusText(root: HTMLElement, scroller: HTMLElement, text: string): boolean {
   const range = findTextRange(root, text);

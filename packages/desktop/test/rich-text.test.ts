@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { useDom } from "./dom";
 
 // TipTap 要一个 DOM 才能建编辑器。注册要发生在 tiptap 载入之前，所以这两个模块动态引
-GlobalRegistrator.register();
+useDom();
 const { Editor } = await import("@tiptap/core");
 const { cardExtensions, cardMarkdown } = await import("../src/renderer/rich-text");
 

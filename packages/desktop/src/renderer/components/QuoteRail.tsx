@@ -1,10 +1,10 @@
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
-import { findTextRange } from "../annotate";
+import { findAnchorRange } from "../annotate";
 
 /**
  * 批注栏：圈出来的段落不进输入框，就贴在它右边的空白里，和那段字齐平。
  * 卡只是那段字的一个标记，位置靠每次重新在正文里找引文算出来 —— 内容流着长、窗口缩放都跟着走。
- * 找不到（跨段的选区在 DOM 里没有那个换行）就退一步用第一行定位；连第一行都找不到，卡浮在当前视口顶上，不让它消失。
+ * 找不到（findAnchorRange 连第一行都对不上）时卡浮在当前视口顶上，不让它消失。
  * 窗口窄到旁边放不下时整栏不出现，输入框那边据此把整张引用卡留着（railRoom）。
  */
 
@@ -31,14 +31,6 @@ export interface RailNote {
 const [room, setRoom] = createSignal(true);
 /** 旁边还放得下批注卡吗：放不下时输入框那边把整张引用卡留着，别只剩一个小 ref */
 export const railRoom = () => room();
-
-/** 整段找不到就退成第一行：卡只需要一个高度 */
-function anchor(root: HTMLElement, text: string): Range | null {
-  const whole = findTextRange(root, text);
-  if (whole) return whole;
-  const first = text.split("\n").map((s) => s.trim()).find((s) => s.length >= 2);
-  return first ? findTextRange(root, first) : null;
-}
 
 export function QuoteRail(props: {
   /** 在这个容器里找引文（消息列 / 正文）。卡按它的左上角定位，所以它必须是 relative */
@@ -71,7 +63,7 @@ export function QuoteRail(props: {
     const desired = props
       .notes()
       .map((n) => {
-        const r = anchor(root, n.text);
+        const r = findAnchorRange(root, n.text);
         return { id: n.id, top: r ? r.getBoundingClientRect().top - base : inView };
       })
       .sort((a, b) => a.top - b.top);
