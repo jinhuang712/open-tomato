@@ -85,9 +85,10 @@ export function Chat(props: { agentId: string }) {
   return (
     <div class="relative flex flex-col h-full min-w-0">
       <AgentStrip />
-      {/* 会话区头一行：左边是会动的徽章（等你拍板 / 子 agent），右边是暂停；两边都没有就不占高度 */}
+      {/* 会话区头一行：左边是会动的徽章（等你拍板），右边是暂停；两边都没有就不占高度。
+        和消息同一列宽——左沿的留白留给在场名单，这一行不能压在它上面 */}
       <Show when={running() || pausePending() || liveBadgeCount() > 0}>
-        <div class="shrink-0 flex items-start justify-between gap-2 px-5 pt-2">
+        <div class="shrink-0 max-w-[760px] mx-auto w-full flex items-start justify-between gap-2 px-5 pt-2">
           <LiveBadges />
           {/* 暂停和停止并列，不再是「点一次变另一个」：按下去之前就知道会拿到哪个 */}
           <Show when={running() || pausePending()} fallback={<span />}>

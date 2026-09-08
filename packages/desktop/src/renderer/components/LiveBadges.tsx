@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 import { actions, state } from "../state";
 
-/** 有多少个会动的徽章：目前只有「等你拍板」。为 0 时整行不用留位。子 agent 的动静看顶栏，不在这儿重复 */
+/** 有多少个会动的徽章：目前只有「等你拍板」。为 0 时整行不用留位。子 agent 的动静看左沿名单，不在这儿重复 */
 export const pendingCount = () => state.questions.length + state.approvals.length;
 export const liveBadgeCount = () => (pendingCount() > 0 ? 1 : 0);
 
