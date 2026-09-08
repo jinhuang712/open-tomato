@@ -7,18 +7,21 @@ interface Hit {
   text: string;
   role?: "user" | "assistant";
   source?: QuoteSource;
+  /** 宿主自己写好的引文出处（data-quote-from），比如提问卡的「写法一」 */
+  from?: string;
 }
 
 /**
  * 作者划过一段字，选区末尾上方浮出「批注」。
  * 点下去这段字就进输入框上方的引用条，等作者对着它说话；宿主给了 onTake 就交给宿主处理。
- * 宿主两种：消息气泡（data-role，圈的是谁说的话）和材料正文（data-quote-src，圈的是哪份稿、哪篇卡）。
+ * 宿主三种：消息气泡（data-role，圈的是谁说的话）、材料正文（data-quote-src，圈的是哪份稿、哪篇卡）、
+ * 自己收引文的卡片（data-quote-from，属性值就是引文那行小字，比如提问卡的「写法一」）。
  * 消息区只挂在主编会话：子 agent 不面向作者说话，也就没有被批注的资格。
  */
 export function QuotePill(props: {
   within: () => HTMLElement | undefined;
   /** 宿主自己收引文（审阅弹窗：圈的段直接成拒绝理由的引用）。不给就进主编输入框 */
-  onTake?: (text: string) => void;
+  onTake?: (text: string, from?: string) => void;
   title?: string;
 }) {
   const [hit, setHit] = createSignal<Hit | null>(null);
@@ -31,7 +34,7 @@ export function QuotePill(props: {
     const node = range.commonAncestorContainer;
     const el = node instanceof Element ? node : node.parentElement;
     // 跨消息的选区 closest 落不到单条消息上，直接不理
-    const host = el?.closest<HTMLElement>("[data-role], [data-quote-src]");
+    const host = el?.closest<HTMLElement>("[data-role], [data-quote-src], [data-quote-from]");
     const root = props.within();
     if (!host || !root || !root.contains(host)) return null;
     const text = sel.toString().replace(/\n{3,}/g, "\n\n").trim();
@@ -40,6 +43,9 @@ export function QuotePill(props: {
     // 单行贴在末尾上方；多行贴在首行末尾，离作者松手的地方近
     const anchor = (rects.length > 1 ? rects[0] : rects[rects.length - 1]) ?? range.getBoundingClientRect();
     const at = { x: anchor.right, y: anchor.top, text };
+    const from = host.dataset.quoteFrom;
+    // 自己收引文的卡片长在消息流里，两颗药丸都罩得住它：只认自己收的那颗，不然同一处冒出两颗
+    if (from !== undefined) return props.onTake ? { ...at, from } : null;
     const srcRaw = host.dataset.quoteSrc;
     if (srcRaw) {
       try {
@@ -84,7 +90,7 @@ export function QuotePill(props: {
     const h = hit();
     if (!h) return;
     if (props.onTake) {
-      props.onTake(h.text);
+      props.onTake(h.text, h.from);
       document.getSelection()?.removeAllRanges();
       setHit(null);
       return;
