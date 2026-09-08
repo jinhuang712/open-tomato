@@ -44,12 +44,15 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
   const QUICK_REASONS = props.request.kind === "manuscript" ? PROSE_REJECT_WORDS : MATERIAL_REJECT_WORDS;
   const remaining = () => state.approvals.length - 1;
 
-  /** ⌘↩ / Ctrl↩ 直接批准：写东西时手不离键盘，弹窗开着随手就批了 */
+  /** ⌘↩ / Ctrl↩ 提交当前这一步，弹窗开着手不离键盘：
+   * 没进拒绝态就是批准；一进拒绝态（圈了批注、或开始写原因）⌘↩ 就是拒绝，
+   * 焦点在不在原因框里都一样——点过快捷理由按钮后焦点在按钮上，也不该按不动。 */
   createEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !rejecting()) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        approve();
+        if (rejecting()) reject();
+        else approve();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -147,7 +150,8 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
                 value={reason()}
                 onInput={(e) => setReason(e.currentTarget.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") reject();
+                  // ⌘↩ 由弹窗级 handler 统一接，这里放过去，不然一次按键发两条拒绝
+                  if (e.key === "Enter" && !(e.metaKey || e.ctrlKey)) reject();
                   if (e.key === "Escape") {
                     e.preventDefault();
                     cancelReject();
@@ -157,12 +161,13 @@ export function ReviewModal(props: { request: ApprovalRequest }) {
               />
             </div>
             <button
-              class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              class="px-3 py-1.5 rounded-lg bg-danger text-white hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={!canReject()}
-              title={canReject() ? "" : "先写拒绝原因"}
+              title={canReject() ? "确认拒绝（⌘↩）" : "先写拒绝原因"}
               onClick={reject}
             >
-              确认拒绝
+              <span>确认拒绝</span>
+              <kbd class="font-sans text-[10px] leading-4 px-1 rounded border border-white/30 text-white/70">⌘↩</kbd>
             </button>
             <button class="px-2 py-1.5 text-ink-2 hover:text-ink" onClick={cancelReject}>
               取消
