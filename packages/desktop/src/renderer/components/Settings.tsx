@@ -271,8 +271,13 @@ function AboutPane() {
             </Section>
             <Section title="链接">
               <Row label="pi 模型提供方文档">
-                <a class="text-xs text-accent hover:underline" href="https://github.com/badlogic/pi-mono" target="_blank" rel="noreferrer">
-                  github.com/badlogic/pi-mono
+                <a
+                  class="text-xs text-accent hover:underline"
+                  href="https://github.com/earendil-works/pi"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  github.com/earendil-works/pi
                 </a>
               </Row>
             </Section>

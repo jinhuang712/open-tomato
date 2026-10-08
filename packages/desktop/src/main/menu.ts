@@ -92,7 +92,7 @@ export function installMenu(getWindow: () => BrowserWindow | null) {
       submenu: [
         {
           label: "pi 模型提供方文档",
-          click: () => void shell.openExternal("https://github.com/badlogic/pi-mono"),
+          click: () => void shell.openExternal("https://github.com/earendil-works/pi"),
         },
       ],
     },
