@@ -144,14 +144,26 @@ describe("派单不阻塞主编", () => {
     expect(calls).toHaveLength(1);
   });
 
-  test("同角色的两位各自交回，报告正文完整传递", () => {
+  test("同角色的两位各自交回，报告正文完整传递", async () => {
     const { calls } = fakeLead(false);
     const report = "方案依据与取舍\n".repeat(3000);
     (kernel as any).deliverReport("director", "策划1", report);
+    // 第一条交给 pi 后到 prompt 结算前主编算忙（starting），等一拍它才空出来，第二份才能直发
+    await new Promise((r) => setTimeout(r, 0));
     (kernel as any).deliverReport("director", "策划2", "第二份报告");
     expect(calls[0]).toContain("策划1交回");
     expect(calls[0]).toContain(report);
     expect(calls[1]).toContain("策划2交回");
+  });
+
+  test("同一拍内连着交回：第二份进收件箱等轮末，不发第二条裸 prompt", () => {
+    const { fake, calls } = fakeLead(false);
+    (kernel as any).deliverReport("director", "策划1", "第一份报告");
+    (kernel as any).deliverReport("director", "策划2", "第二份报告");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("策划1交回");
+    expect(fake.inbox.map((e) => e.label)).toEqual(["策划2交回"]);
+    expect(fake.inbox[0]!.text).toContain("第二份报告");
   });
 
   test("派单人已不在：报告丢弃不报错", () => {
