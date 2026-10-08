@@ -23,7 +23,15 @@ function namesFor(role: RoleId): string[] {
   const gate = new Gate({ approvalRequested: () => {}, approvalClosed: () => {}, questionRequested: () => {}, questionClosed: () => {} });
   const ctx: ToolContext = { store, gate, agentId: role, runCheck: async () => [], docsChanged: async () => [], search: async () => [] };
   const def = ROLES[role];
-  return toolNames(createTools(ctx, { writableKinds: def.writableKinds, bookkeepAnyKind: def.bookkeepAnyKind ?? false, canSpawn: def.canSpawn, canAsk: def.canAsk, reviewAs: def.canReview ? role : undefined }));
+  return toolNames(
+    createTools(ctx, {
+      writableKinds: def.writableKinds,
+      bookkeepAnyKind: def.bookkeepAnyKind ?? false,
+      canSpawn: def.canSpawn,
+      canAsk: def.canAsk,
+      ...(def.canReview ? { reviewAs: role } : {}),
+    }),
+  );
 }
 
 describe("只读角色的工具表", () => {

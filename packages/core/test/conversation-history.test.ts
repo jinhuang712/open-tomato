@@ -13,7 +13,7 @@ describe("conversation_history", () => {
     let cursor: string | undefined;
     let restored = "";
     do {
-      const page = historyPage(entries, { cursor });
+      const page = historyPage(entries, cursor === undefined ? {} : { cursor });
       expect(page.items.reduce((n, r) => n + r.content.length, 0)).toBeLessThanOrEqual(8000);
       restored += page.items.filter((r) => r.message_id === "long").map((r) => r.content).join("");
       cursor = page.next_cursor ?? undefined;

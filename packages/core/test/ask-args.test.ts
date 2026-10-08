@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { repairAskArgs } from "../src/agent/tools/index.js";
-import { resolveQuestionKind } from "../src/agent/tools/ask-args.js";
+import { resolveQuestionKind, type AskArgs } from "../src/agent/tools/ask-args.js";
 
 describe("repairAskArgs", () => {
   test("完好的实参原样过", () => {
-    const args = { question: "主角叫什么？", kind: "single", options: ["李强", "陈默"], allowFreeText: false };
+    const args: AskArgs = {
+      question: "主角叫什么？",
+      kind: "single",
+      options: ["李强", "陈默"],
+      allowFreeText: false,
+    };
     expect(repairAskArgs(args)).toEqual(args);
   });
 

@@ -147,7 +147,9 @@ describe("doc.* / search", () => {
   });
 
   test("非法 kind 抛错并列出可选", async () => {
-    await expect(kernel.handle("doc.read", { kind: "不存在", id: "1" })).rejects.toThrow("未知的 kind");
+    await expect(kernel.handle("doc.read", { kind: "不存在" as never, id: "1" })).rejects.toThrow(
+      "未知的 kind",
+    );
   });
 
   test("作者手改落盘后交主编复核：带中文路径和 diff，桩标签是「作者手改」", async () => {

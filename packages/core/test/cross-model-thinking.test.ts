@@ -27,7 +27,7 @@ describe("dropForeignThinking", () => {
       ]),
     ];
     const out = dropForeignThinking(msgs, doubao) as unknown as { content: { type: string }[] }[];
-    expect(out[0].content.map((b) => b.type)).toEqual(["text", "toolCall"]);
+    expect(out[0]!.content.map((b) => b.type)).toEqual(["text", "toolCall"]);
   });
 
   test("当前模型自己的 thinking 块原样保留", () => {

@@ -18,8 +18,11 @@ function ctxWith(onAsk: (q: { text: string; kind: string; options: unknown[] }) 
 const run = (tool: ReturnType<typeof makeAskUserTool>, id: string, args: Record<string, unknown>) =>
   tool.execute(id, args as never, new AbortController().signal as never, undefined as never, undefined as never);
 
+const textOf = (res: Awaited<ReturnType<typeof run>>) =>
+  res.content.map((c) => (c.type === "text" ? c.text : "")).join("");
+
 test("ask_user 只有问题与候选：解释在正文里，参数表不再有 say / explainedReports", async () => {
-  let got: { text: string; kind: string; options: unknown[] } | null = null;
+  let got: unknown;
   const tool = makeAskUserTool(ctxWith((q) => (got = q)));
   const props = (tool.parameters as { properties: Record<string, unknown> }).properties;
   expect(Object.keys(props).sort()).toEqual(["allowFreeText", "kind", "options", "question"]);
@@ -41,11 +44,11 @@ test("旧会话里带 say 的实参照样能问，多出来的键被忽略", asy
   const prepared = await tool.prepareArguments!({ say: "铺垫", question: "继续？", explainedReports: ["策划"] });
   const res = await run(tool, "t2", prepared as Record<string, unknown>);
   expect(asked).toBe(true);
-  expect(res.content[0]!.text).toContain("say 字段已废弃");
+  expect(textOf(res)).toContain("say 字段已废弃");
 });
 
 test("没传 say 的正常提问，结果不带提醒", async () => {
   const tool = makeAskUserTool(ctxWith(() => {}));
   const res = await run(tool, "t3", { question: "继续？" });
-  expect(res.content[0]!.text).not.toContain("已废弃");
+  expect(textOf(res)).not.toContain("已废弃");
 });
