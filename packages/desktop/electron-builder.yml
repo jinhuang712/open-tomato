@@ -7,17 +7,6 @@ directories:
 files:
   - out/**
   - package.json
-extraResources:
-  - from: ../core/dist
-    to: core/dist
-  - from: .stage/core/node_modules
-    to: core/node_modules
-  - from: ../core/package.json
-    to: core/package.json
-  - from: ../core/guides
-    to: core/guides
-  - from: ../core/prompts
-    to: core/prompts
 asar: true
 npmRebuild: false
 mac:

@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { app, type BrowserWindow, utilityProcess, type UtilityProcess } from "electron";
 import type { Outbound, RequestEnvelope } from "@opentomato/core/protocol";
 
@@ -100,14 +98,10 @@ export class KernelHost {
 }
 
 /**
- * 内核入口：开发态走 workspace 里的 @opentomato/core；
- * 打包后 core 不进 asar，用 electron-builder extraResources 拷到 Resources/core（dist、prompts、guides 和生产依赖 node_modules，
- * 依赖由 scripts/stage-core-deps.mjs 打包前装好）。
+ * 内核入口：开发态走 workspace 里的 @opentomato/core，打包后走 app.asar/node_modules 里的那份。
+ * 入口必须留在 asar 内：core 的依赖（undici、pi……）都在 asar 的 node_modules 里，
+ * 拷到 Resources 外面的 dist 旁边没有 node_modules，内核一启动就找不到 undici。
  */
 function resolveServerEntry(): string {
-  if (app.isPackaged) {
-    const packaged = join(process.resourcesPath, "core", "dist", "server.js");
-    if (existsSync(packaged)) return packaged;
-  }
   return require.resolve("@opentomato/core/server");
 }
