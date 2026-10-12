@@ -290,11 +290,14 @@ export class Kernel {
 
   private loaderFor(systemPrompt: string): ResourceLoader {
     return {
-      getExtensions: () => ({
-        extensions: [stubStripExtension(), crossModelThinkingExtension(), leakedTokensExtension()],
-        errors: [],
-        runtime: createExtensionRuntime(),
-      }),
+      getExtensions: () => {
+        const cli = this.models.claudeCli;
+        return {
+          extensions: [stubStripExtension(), crossModelThinkingExtension(), leakedTokensExtension(), ...(cli?.extensions ?? [])],
+          errors: [],
+          runtime: cli?.runtime ?? createExtensionRuntime(),
+        };
+      },
       getSkills: () => ({ skills: [], diagnostics: [] }),
       getPrompts: () => ({ prompts: [], diagnostics: [] }),
       getThemes: () => ({ themes: [], diagnostics: [] }),

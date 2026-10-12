@@ -2,7 +2,8 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime, type LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
+import { loadClaudeCli } from "./claude-cli.js";
 import type { ModelInfo, ModelsState, ProviderInfo, ThinkingLevel } from "../protocol.js";
 import { readProjectSettings, writeProjectSettings, type ProjectSettings } from "../project/settings.js";
 
@@ -28,6 +29,8 @@ export class ModelsFacade {
   private constructor(
     public readonly runtime: ModelRuntime,
     private readonly statePath: string,
+    /** pi-claude-cli 扩展的加载结果；没装为 null。会话的 ResourceLoader 要带上它 */
+    public readonly claudeCli: LoadExtensionsResult | null = null,
   ) {}
 
   /** pi 自己的配置目录：凭据与自定义 provider 直接用 pi 的 */
@@ -38,7 +41,8 @@ export class ModelsFacade {
   static async create(home: string): Promise<ModelsFacade> {
     await fs.mkdir(home, { recursive: true });
     const runtime = await ModelRuntime.create();
-    const facade = new ModelsFacade(runtime, path.join(home, "state.json"));
+    const claudeCli = await loadClaudeCli(runtime, ModelsFacade.piAgentDir(), home);
+    const facade = new ModelsFacade(runtime, path.join(home, "state.json"), claudeCli);
     await facade.load();
     await facade.refreshAvailability();
     return facade;
