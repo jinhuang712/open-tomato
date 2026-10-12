@@ -722,6 +722,8 @@ export class Kernel {
       if (rec) await store.saveAgentRecord({ ...rec, mode });
     }
     const prompt = mode === "commit" ? modePrompt(mode, COMMIT_NOTICE, message) : mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, message) : message;
+    // 新一轮派出去了、还没交回：索引上翻回 false，这一轮中途被杀接回来才是 interrupted，不是上一轮留下的 done
+    await this.noteDispatched(childId);
     const slot: DispatchSlot = { agentId: childId, role: live.info.role, label: live.info.label, handle: live.info.handle, task: message, status: "running", error: null };
     let returned = false;
     const roster = this.roster([slot], (t, d) => {
@@ -817,6 +819,17 @@ export class Kernel {
       // 走到这儿之前进程没了的，索引上留着 false，接回来才知道那位是被打断的。
       // 一次性的没有索引可记，跳过。
       if (!this.ephemeralAgents.has(info.agentId)) await this.noteReported(info.agentId);
+    }
+  }
+
+  /** noteReported 的反面：续派时把「交回过」翻回「还没交回」。同样不连累派单，写不了就算了 */
+  private async noteDispatched(agentId: string): Promise<void> {
+    try {
+      const store = this.requireStore();
+      const rec = (await store.agentRecords()).find((r) => r.agentId === agentId);
+      if (rec && rec.reported !== false) await store.saveAgentRecord({ ...rec, reported: false });
+    } catch {
+      // 索引写不了就算了，续派照走
     }
   }
 

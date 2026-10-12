@@ -453,6 +453,19 @@ describe("子 agent 会话落盘", () => {
     expect(await reported()).toBe(true);
   });
 
+  test("continue 派出去就把索引上的 reported 翻回 false：这一轮中途被杀，接回来是 interrupted", async () => {
+    const store = (kernel as any).requireStore();
+    await store.saveAgentRecord({ ...rec, reported: true });
+    await kernel.handle("project.close", {});
+    await kernel.handle("project.open", { root });
+    const k = kernel as any;
+    k.promptChild = async () => "report"; // 不真跑模型，只看派出去那一刻
+    k.deliverReport = () => {};
+    await k.continueChild(k.agents.get("child-9"), "再来一版", undefined, () => {});
+    const saved = (await k.requireStore().agentRecords()).find((r: { agentId: string }) => r.agentId === "child-9");
+    expect(saved?.reported).toBe(false);
+  });
+
   test("主编开新会话时子 agent 退役：索引清空，会话目录删掉", async () => {
     const store = (kernel as any).requireStore();
     await store.saveAgentRecord(rec);
