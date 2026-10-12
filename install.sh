@@ -112,7 +112,15 @@ if [ "$INSTALL_APP" = 1 ]; then
   xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
   # pi-claude-cli 是可选扩展：装了才有 Claude 订阅这个模型来源
-  if ! ls "$HOME"/.pi/agent/git/github.com/*/pi-claude-cli/index.ts "$HOME"/.pi/agent/npm/node_modules/pi-claude-cli/index.ts >/dev/null 2>&1; then
+  #   位置与 packages/core/src/agent/claude-cli.ts 的 findClaudeCliEntry 一致；
+  #   逐个模式用 compgen 查（ls 只要有一个路径不存在就返回非零，会误报）
+  CLI_FOUND=0
+  for pat in "$HOME/.pi/agent/git/github.com/*/pi-claude-cli/index.ts" \
+             "$HOME/.pi/agent/npm/node_modules/pi-claude-cli/index.ts" \
+             "$HOME/.pi/agent/npm/node_modules/@ramarivera/pi-claude-cli/index.ts"; do
+    compgen -G "$pat" >/dev/null && CLI_FOUND=1
+  done
+  if [ "$CLI_FOUND" = 0 ]; then
     warn "没检测到 pi-claude-cli，模型选择器里不会有 Claude 订阅（pi install git:github.com/<owner>/pi-claude-cli）"
   fi
   log "完成。打开：open $DEST"
