@@ -50,6 +50,13 @@ describe("snapshot", () => {
     expect(files).toEqual([".opentomato/project.json", ".opentomato/sessions/lead/a.jsonl", "人物/主角.md"]);
   });
 
+  test("跳过 writeAtomic 现在写的 uuid 临时文件，不会被打进快照", async () => {
+    await seedProject(dir);
+    await fs.writeFile(path.join(dir, `.主角.md.4242.${crypto.randomUUID()}.tmp`), "half");
+    const files = (await listSnapshotFiles(dir)).map((f) => f.rel);
+    expect(files).toEqual([".opentomato/project.json", ".opentomato/sessions/lead/a.jsonl", "人物/主角.md"]);
+  });
+
   test("打包后解包内容一致，指纹一致；改动后指纹变化", async () => {
     await seedProject(dir);
     const bytes = await pack(dir);

@@ -12,8 +12,11 @@ import * as tar from "tar";
 /** 跳过的顶层 / 任意层目录与文件 */
 const SKIP_DIRS = new Set([".git", "node_modules"]);
 const SKIP_FILES = new Set([".DS_Store", "Thumbs.db"]);
-/** ProjectStore.writeAtomic 留下的临时文件形如 .xxx.<pid>.<ts>.tmp */
-const TMP_PATTERN = /^\..*\.\d+\.\d+\.tmp$/;
+/** ProjectStore.writeAtomic 留下的临时文件形如 .xxx.<pid>.<uuid>.tmp（旧版本是 <pid>.<毫秒时间戳>） */
+const TMP_PATTERN = /^\..+\.\d+\.(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.tmp$/;
+
+/** 遍历到读取之间文件被改名 / 删掉（原子写的临时文件最典型）：当它不存在 */
+const isGone = (e: unknown) => (e as NodeJS.ErrnoException).code === "ENOENT";
 
 export interface SnapshotEntry {
   /** 相对项目根、正斜杠分隔 */
@@ -35,7 +38,10 @@ export async function listSnapshotFiles(root: string): Promise<SnapshotEntry[]> 
       const abs = path.join(dir, ent.name);
       const rel = relBase ? `${relBase}/${ent.name}` : ent.name;
       if (ent.isDirectory()) await walk(abs, rel);
-      else if (ent.isFile()) out.push({ rel, size: (await fs.stat(abs)).size });
+      else if (ent.isFile()) {
+        const st = await fs.stat(abs).catch((e: unknown) => (isGone(e) ? null : Promise.reject(e)));
+        if (st) out.push({ rel, size: st.size });
+      }
     }
   }
   await walk(root, "");
@@ -51,8 +57,9 @@ export async function fingerprint(root: string): Promise<string> {
   const files = await listSnapshotFiles(root);
   const h = createHash("sha256");
   for (const f of files) {
-    const fh = createHash("sha256").update(await fs.readFile(path.join(root, f.rel))).digest("hex");
-    h.update(`${f.rel}\0${fh}\n`);
+    const bytes = await fs.readFile(path.join(root, f.rel)).catch((e: unknown) => (isGone(e) ? null : Promise.reject(e)));
+    if (!bytes) continue;
+    h.update(`${f.rel}\0${createHash("sha256").update(bytes).digest("hex")}\n`);
   }
   return h.digest("hex");
 }
