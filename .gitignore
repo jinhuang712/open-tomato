@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 release/
+.stage/
 *.log
 .DS_Store
 .env

@@ -101,7 +101,8 @@ export class KernelHost {
 
 /**
  * 内核入口：开发态走 workspace 里的 @opentomato/core；
- * 打包后 node_modules 不进 asar，用 electron-builder extraResources 拷到 Resources/core/dist。
+ * 打包后 core 不进 asar，用 electron-builder extraResources 拷到 Resources/core（dist、prompts、guides 和生产依赖 node_modules，
+ * 依赖由 scripts/stage-core-deps.mjs 打包前装好）。
  */
 function resolveServerEntry(): string {
   if (app.isPackaged) {
