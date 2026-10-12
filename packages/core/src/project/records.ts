@@ -111,10 +111,17 @@ export class ProjectRecords {
 
   async marks(kind: DocKindId, id: string): Promise<Mark[]> {
     const raw = await fs.readFile(this.marksPath(kind, id), "utf8").catch(() => "");
-    return raw
-      .split("\n")
-      .filter((line) => line.trim() !== "")
-      .map((line) => JSON.parse(line) as Mark);
+    // 追加写被打断会留下半行：坏行跳过，不让一行脏数据拖垮整个检查 / 打开项目
+    const out: Mark[] = [];
+    for (const line of raw.split("\n")) {
+      if (line.trim() === "") continue;
+      try {
+        out.push(JSON.parse(line) as Mark);
+      } catch {
+        // 坏行
+      }
+    }
+    return out;
   }
 
   /** 某一类材料下所有有批的 id */
@@ -181,7 +188,12 @@ export class ProjectRecords {
   private async readRounds(abs: string): Promise<ReviewRound[]> {
     const raw = await fs.readFile(abs, "utf8").catch(() => null);
     if (raw === null) return [];
-    const parsed = JSON.parse(raw) as { rounds?: ReviewRound[] };
-    return parsed.rounds ?? [];
+    // 文件损坏当作没有评审记录：否则这一章这个角色再也存不了新评审
+    try {
+      const parsed = JSON.parse(raw) as { rounds?: ReviewRound[] };
+      return parsed.rounds ?? [];
+    } catch {
+      return [];
+    }
   }
 }

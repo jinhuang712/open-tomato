@@ -36,6 +36,14 @@ describe("批", () => {
     expect(await store.records.markedIds("threads")).toEqual([]);
   });
 
+  test("追加写被打断留下半行：坏行跳过，好行照读", async () => {
+    await store.records.appendMark({ kind: "manuscript", id: "0001", type: "reject", by: "author", word: "太急" });
+    const file = path.join(root, ".opentomato", "marks", "manuscript", "0001.jsonl");
+    await fs.appendFile(file, '{"at":"2026-10-12T00:00:00.000Z","kind":"manu', "utf8");
+    const marks = await store.records.marks("manuscript", "0001");
+    expect(marks.map((m) => m.type)).toEqual(["reject"]);
+  });
+
   test("批落在 .opentomato/marks 下，不在材料目录里", async () => {
     await store.records.appendMark({ kind: "characters", id: "林尧", type: "edit", by: "author", patch: "" });
     expect(await fs.readFile(path.join(root, ".opentomato", "marks", "characters", "林尧.jsonl"), "utf8")).toContain('"type":"edit"');
@@ -62,6 +70,15 @@ describe("审稿记录", () => {
     const latest = await store.records.latestReviews("0003");
     expect(latest.length).toBe(1);
     expect(latest[0]?.verdict).toBe("好多了");
+  });
+
+  test("评审文件损坏：读回空，这一路还能继续存新评审", async () => {
+    await store.records.saveReview("0003", { role: "reader", version: "v1", verdict: "一般", items: [] });
+    const file = path.join(root, ".opentomato", "reviews", "0003", "reader.json");
+    await fs.writeFile(file, '{"rounds": [{"role":"rea', "utf8");
+    expect(await store.records.reviews("0003")).toEqual([]);
+    await store.records.saveReview("0003", { role: "reader", version: "v2", verdict: "好多了", items: [] });
+    expect((await store.records.reviews("0003")).map((r) => r.verdict)).toEqual(["好多了"]);
   });
 
   test("没审过的章读回空", async () => {
