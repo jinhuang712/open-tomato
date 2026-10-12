@@ -9,6 +9,7 @@ import type { AppInfo } from "../preload/bridge-types";
 import { KernelHost } from "./kernel";
 import { deleteProject } from "./delete-project";
 import { installMenu } from "./menu";
+import { isAllowedPath, isKnownProjectRoot } from "./path-guard";
 import { applyTheme, currentTheme, loadTheme, paperColor, saveTheme } from "./theme";
 import { watchZoom } from "./zoom";
 import { inheritShellProxyEnv } from "./shell-env";
@@ -145,13 +146,29 @@ ipcMain.handle("theme:set", (_e, source: "system" | "light" | "dark") => {
   mainWindow?.setBackgroundColor(paperColor());
 });
 
-ipcMain.handle("shell:openPath", (_e, path: string) => shell.openPath(path).then(() => undefined));
+/** 已知项目 = 最近列表里的（打开过的项目都会进去） */
+async function knownProjectRoots(): Promise<string[]> {
+  return (await kernel.request("project.recent", {})) as string[];
+}
+
+/** 渲染层能让主进程打开 / 定位的范围：应用数据、日志、pi 配置，加上已知项目里面 */
+async function assertAllowedPath(path: string): Promise<void> {
+  const roots = [app.getPath("userData"), app.getPath("logs"), join(homedir(), ".pi", "agent"), ...(await knownProjectRoots())];
+  if (!isAllowedPath(path, roots)) throw new Error(`不在允许的范围内：${path}`);
+}
+
+ipcMain.handle("shell:openPath", async (_e, path: string) => {
+  await assertAllowedPath(path);
+  await shell.openPath(path);
+});
 
 ipcMain.handle("dialog:confirm", (_e, options: { message: string; detail: string; okLabel: string }) =>
   confirmAction(mainWindow, options.message, options.detail, options.okLabel),
 );
 
 ipcMain.handle("shell:trashProject", async (_e, root: string, options: { withCloud?: boolean } = {}) => {
+  // 只许删已知项目的根目录，别的文件夹一概不动
+  if (!isKnownProjectRoot(root, await knownProjectRoots())) throw new Error(`不是已知项目，不删：${root}`);
   const name = root.split("/").filter(Boolean).pop() ?? root;
   const cloudNote = options.withCloud ? "云端的快照也会一起删掉，删了找不回。" : "";
   return deleteProject({
@@ -161,7 +178,10 @@ ipcMain.handle("shell:trashProject", async (_e, root: string, options: { withClo
   });
 });
 
-ipcMain.handle("shell:showInFolder", (_e, path: string) => shell.showItemInFolder(path));
+ipcMain.handle("shell:showInFolder", async (_e, path: string) => {
+  await assertAllowedPath(path);
+  shell.showItemInFolder(path);
+});
 
 // 开发态 app.getVersion() 给的是 Electron 自己的版本，统一从 package.json 读
 function appVersion(): string {
