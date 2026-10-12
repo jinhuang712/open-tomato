@@ -5,17 +5,20 @@
 #   ./install.sh            # 安装依赖 + 构建 core + 启动开发模式
 #   ./install.sh --no-dev   # 只安装 + 构建，不启动
 #   ./install.sh --clean    # 先清掉 node_modules / dist / out 再安装
+#   ./install.sh --app      # 安装 + 打包 macOS 应用并替换 /Applications/OpenTomato.app（不启动开发模式）
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
 RUN_DEV=1
 CLEAN=0
+INSTALL_APP=0
 for arg in "$@"; do
   case "$arg" in
     --no-dev) RUN_DEV=0 ;;
     --clean)  CLEAN=1 ;;
-    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    --app)    INSTALL_APP=1; RUN_DEV=0 ;;
+    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
     *) echo "未知参数: $arg"; exit 1 ;;
   esac
 done
@@ -82,7 +85,38 @@ bun run --filter @opentomato/core build
 log "类型检查"
 bun run typecheck || warn "typecheck 有报错，仍继续启动"
 
-if [ "$RUN_DEV" = 1 ]; then
+if [ "$INSTALL_APP" = 1 ]; then
+  [ "$(uname)" = "Darwin" ] || { warn "--app 只支持 macOS"; exit 1; }
+  APP_NAME="OpenTomato.app"
+  DEST="/Applications/$APP_NAME"
+
+  # 7. 打包：electron-builder 的 dir 目标产出 release/mac-arm64/OpenTomato.app
+  #    先清掉旧产物，免得 ls 到上次的残留
+  log "打包 macOS 应用"
+  rm -rf packages/desktop/release/mac-arm64
+  bun run dist
+  BUILT="packages/desktop/release/mac-arm64/$APP_NAME"
+  [ -d "$BUILT" ] || { warn "没找到打包产物 $BUILT"; exit 1; }
+
+  # 8. 替换：正在跑的先退出，再整包覆盖
+  if pgrep -x OpenTomato >/dev/null 2>&1; then
+    log "退出正在运行的 OpenTomato"
+    osascript -e 'tell application "OpenTomato" to quit' >/dev/null 2>&1 || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x OpenTomato >/dev/null 2>&1 || break; sleep 1; done
+    pgrep -x OpenTomato >/dev/null 2>&1 && { warn "OpenTomato 没退出，请手动退出后重跑"; exit 1; }
+  fi
+  log "安装到 $DEST"
+  rm -rf "$DEST"
+  cp -R "$BUILT" "$DEST"
+  # 本地打的包没签名，去掉隔离标记，免得 Gatekeeper 拦
+  xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+
+  # pi-claude-cli 是可选扩展：装了才有 Claude 订阅这个模型来源
+  if ! ls "$HOME"/.pi/agent/git/github.com/*/pi-claude-cli/index.ts "$HOME"/.pi/agent/npm/node_modules/pi-claude-cli/index.ts >/dev/null 2>&1; then
+    warn "没检测到 pi-claude-cli，模型选择器里不会有 Claude 订阅（pi install git:github.com/<owner>/pi-claude-cli）"
+  fi
+  log "完成。打开：open $DEST"
+elif [ "$RUN_DEV" = 1 ]; then
   log "启动开发模式（core watch + electron-vite dev），Ctrl+C 退出"
   exec bun run dev
 else
