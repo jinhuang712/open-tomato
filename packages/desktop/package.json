@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "test": "bun test",
-    "dist": "node scripts/stage-core-deps.mjs && electron-builder --mac --config electron-builder.yml"
+    "dist": "electron-builder --mac --config electron-builder.yml"
   },
   "dependencies": {
     "@opentomato/core": "workspace:*",
