@@ -8,9 +8,11 @@ import {
   frontmatterProblem,
   ISSUE_LEVEL_LABEL,
   parseFrontmatter,
+  ROLE_IDS,
   ROLES,
   runCheck,
   zhDir,
+  type DocKindId,
   type ProjectStore,
 } from "@opentomato/core/headless";
 import { roleOf } from "./agents.ts";
@@ -94,7 +96,7 @@ export function createWriteGate(store: ProjectStore, toolNames: ReadonlySet<stri
       if (!def.bookkeepAnyKind) assertWritableKind(material.kind, def.writableKinds);
       if (!(fmOnly && bookkeepingOnly(material.kind, current, next))) {
         throw new Error(
-          `${zhDir(material.kind)} 的内容不归你写，你对它只能改记账字段（status / open / keywords）。要改的内容写进你的报告，由主编派负责这类材料的角色去改。`,
+          `${zhDir(material.kind)} 的内容不归你写：要改就派${writersOf(material.kind)}。你自己对它只能改记账字段（status / open / keywords），比如把作废的标 status: retired。`,
         );
       }
     }
@@ -146,6 +148,15 @@ export function createWriteGate(store: ProjectStore, toolNames: ReadonlySet<stri
 
   return { before, evaluate, after };
 }
+
+/**
+ * 越界被打回的只会是统筹者（子角色在 assertWritableKind 就停了），话要对它说：派谁去改。
+ * App 里同一句话写的是「由主编派」，主编自己读到会以为自己不是主编。
+ */
+const writersOf = (kind: DocKindId): string =>
+  ROLE_IDS.filter((role) => !ROLES[role].canSpawn && ROLES[role].writableKinds.includes(kind))
+    .map((role) => ROLES[role].label)
+    .join("或");
 
 /** 照 edit 的语义算出改完的全文：oldString 须逐字唯一匹配（replaceAll 时全部替换），对不上就让 agent 重读原文 */
 function applyEdit(before: string, input: EditInput, material: Material): string {

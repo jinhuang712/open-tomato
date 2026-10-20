@@ -137,7 +137,7 @@ describe("写入把关", () => {
         oldString: "雨下了一夜。",
         newString: "雨停了。",
       }),
-    ).rejects.toThrow("内容不归你写");
+    ).rejects.toThrow("正文 的内容不归你写：要改就派写手。");
   });
 
   test("自己类别里只改 frontmatter：不问作者；改正文：问作者", async () => {
