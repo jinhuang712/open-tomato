@@ -1,4 +1,5 @@
-import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "./define.js";
 import { Type } from "typebox";
 import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../../project/gates.js";
 import { ROLE_IDS, ROLES, isRoleId } from "../roles.js";

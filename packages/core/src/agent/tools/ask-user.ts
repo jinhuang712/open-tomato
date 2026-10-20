@@ -1,4 +1,5 @@
-import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "./define.js";
 import { Type } from "typebox";
 import { formatAnswer } from "../../protocol.js";
 import { repairAskArgs, resolveQuestionKind } from "./ask-args.js";

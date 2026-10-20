@@ -1,4 +1,5 @@
-import { defineTool, type SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "./define.js";
 import { Type } from "typebox";
 import { text } from "./shared.js";
 

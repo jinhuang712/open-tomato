@@ -1,4 +1,5 @@
-import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "./define.js";
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL } from "../../protocol.js";
 import { fmtIssue, text, type ToolContext } from "./shared.js";

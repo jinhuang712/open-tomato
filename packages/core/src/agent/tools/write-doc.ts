@@ -1,4 +1,5 @@
-import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "./define.js";
 import { Type } from "typebox";
 import type { DocKindId } from "../../protocol.js";
 import { assertKind, makeApproveAndWrite, writableKindSchema, type ToolContext } from "./shared.js";
