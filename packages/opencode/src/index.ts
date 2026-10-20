@@ -1,6 +1,7 @@
 import { Plugin } from "@opencode/plugin";
 import { ProjectStore } from "@opentomato/core/headless";
-import { registerAgents } from "./agents.ts";
+import { registerAgents, roleOf } from "./agents.ts";
+import { createWriteGate } from "./gate.ts";
 import { materialTools } from "./tools.ts";
 
 /**
@@ -21,5 +22,14 @@ export default Plugin.define({
       for (const tool of tools) editor.add(tool);
     });
     await ctx.agent.transform(registerAgents);
+
+    const gate = createWriteGate(store, new Set(tools.map((tool) => tool.name)));
+    await ctx.tool.hook("execute.before", (event) => gate.before(event));
+    await ctx.permission.hook("evaluate", (event) => gate.evaluate(event));
+    await ctx.tool.hook("execute.after", (event) => gate.after(event));
+    // patch 和 write / edit 共用 edit 权限，规则收不掉，只能从写作角色的工具清单里拿走
+    await ctx.session.hook("context", (event) => {
+      if (roleOf(event.agent)) delete event.tools.patch;
+    });
   },
 });
