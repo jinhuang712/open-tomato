@@ -3,6 +3,7 @@ import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
 import type { AgentInfo, AgentMode, CheckIssue, DispatchDetails, DocKindId, RoleId, SearchHit } from "../../protocol.js";
 import { frontmatterDiffKeys, parseFrontmatter } from "../../project/frontmatter.js";
+import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../../project/gates.js";
 import { bookkeepingFields, DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../../project/kinds.js";
 import { contentHash } from "../../project/records.js";
 import type { ProjectStore } from "../../project/store.js";
@@ -15,6 +16,22 @@ export const STORY_GATED_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["plotter"
 
 /** 只读评审角色：对照已落盘的正文下判断，没有正文就没有可审的东西 */
 export const REVIEW_ROLES: ReadonlySet<RoleId> = new Set<RoleId>(["ops", "reader", "copyeditor", "proofreader", "arbiter"]);
+
+/**
+ * 派单前的硬门，返回拒绝理由，能派返回 null。没有一句话故事不排纲写章；
+ * 另有两道无谓派单的粗闸：写手没章纲可依、评审没正文可审，派出去也是空转一轮。
+ */
+export async function dispatchProblem(store: ProjectStore, roles: Iterable<RoleId>): Promise<string | null> {
+  const wanted = [...roles];
+  if (wanted.some((r) => STORY_GATED_ROLES.has(r)) && !(await hasOneLineStory(store))) return ONE_LINE_STORY_GATE_MESSAGE;
+  if (wanted.includes("writer") && (await store.list("chapters")).length === 0) {
+    return "还没有章纲，写手无从下笔；先走大纲编排把章纲排出来";
+  }
+  if (wanted.some((r) => REVIEW_ROLES.has(r)) && (await store.list("manuscript")).length === 0) {
+    return "还没有正文可审；先把章节写出来";
+  }
+  return null;
+}
 
 /** propose 时从会话里剥掉的工具 */
 export const WRITE_TOOL_NAMES = ["write_doc", "edit_doc"] as const;

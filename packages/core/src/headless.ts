@@ -30,6 +30,7 @@ export { Gate } from "./agent/gate.js";
 export {
   assertWritableKind,
   bookkeepingOnly,
+  dispatchProblem,
   fmtIssue,
   frontmatterOnly,
   zhDir,

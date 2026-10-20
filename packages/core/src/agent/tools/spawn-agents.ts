@@ -1,9 +1,8 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
-import { hasOneLineStory, ONE_LINE_STORY_GATE_MESSAGE } from "../../project/gates.js";
 import { ROLE_IDS, ROLES, isRoleId } from "../roles.js";
-import { REVIEW_ROLES, STORY_GATED_ROLES, text, type SpawnTask, type ToolContext } from "./shared.js";
+import { dispatchProblem, text, type SpawnTask, type ToolContext } from "./shared.js";
 
 export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
   const spawn = ctx.spawn!;
@@ -33,16 +32,8 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
         if (!isRoleId(role) || role === "director") throw new Error(`不能派这个角色：${String(role)}`);
         return { role, task: t.task, ...(t.mode ? { mode: t.mode } : {}), ...(t.ephemeral === true ? { ephemeral: true } : {}), ...(t.fork === true ? { fork: true } : {}) };
       });
-      if (tasks.some((t) => STORY_GATED_ROLES.has(t.role)) && !(await hasOneLineStory(store))) {
-        throw new Error(ONE_LINE_STORY_GATE_MESSAGE);
-      }
-      // 无谓派单的粗闸：写手没章纲可依、评审没正文可审，派出去也是空转一轮
-      if (tasks.some((t) => t.role === "writer") && (await store.list("chapters")).length === 0) {
-        throw new Error("还没有章纲，写手无从下笔；先走大纲编排把章纲排出来");
-      }
-      if (tasks.some((t) => REVIEW_ROLES.has(t.role)) && (await store.list("manuscript")).length === 0) {
-        throw new Error("还没有正文可审；先把章节写出来");
-      }
+      const problem = await dispatchProblem(store, tasks.map((t) => t.role));
+      if (problem) throw new Error(problem);
       const result = await spawn(tasks, (progress, details) => onUpdate?.({ ...text(progress), details }));
       return { ...text(result.text), details: result.details };
     },
