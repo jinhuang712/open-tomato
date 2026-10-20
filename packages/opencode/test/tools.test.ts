@@ -36,7 +36,7 @@ tier: 主角
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), "ot-plugin-"));
   store = await ProjectStore.create(root, "测试书");
-  tools = new Map(materialTools(store).map((tool) => [tool.name, tool]));
+  tools = new Map(materialTools(async () => store).map((tool) => [tool.name, tool]));
 });
 
 afterEach(async () => {

@@ -59,7 +59,10 @@ type EditInput = {
  * - after：落盘成功就附上这篇的机检结果
  * 写作角色不能用 shell、patch；别的 agent 用不了写作工具、派不了写作角色。
  */
-export function createWriteGate(store: ProjectStore, toolNames: ReadonlySet<string>) {
+export function createWriteGate(
+  project: () => Promise<ProjectStore>,
+  toolNames: ReadonlySet<string>,
+) {
   const pending = new Map<string, Pending>();
 
   async function before(event: BeforeEvent): Promise<void> {
@@ -80,7 +83,7 @@ export function createWriteGate(store: ProjectStore, toolNames: ReadonlySet<stri
 
     const input = (event.input ?? {}) as EditInput;
     if (typeof input.path !== "string") return; // 参数不全交给工具自己的校验去报
-    const material = await resolveMaterial(store, input.path, event.tool === "write");
+    const material = await resolveMaterial(await project(), input.path, event.tool === "write");
     const current = (await readFile(material.abs, "utf8").catch(() => null)) ?? "";
     const next =
       event.tool === "write" ? String(input.content ?? "") : applyEdit(current, input, material);
@@ -127,7 +130,7 @@ export function createWriteGate(store: ProjectStore, toolNames: ReadonlySet<stri
         `只改了 ${material.rel} 的 frontmatter 字段 ${material.frontmatterKeys.join("、")}，正文没动，无需作者审批。`,
       );
     }
-    const issues = (await runCheck(store)).filter(
+    const issues = (await runCheck(await project())).filter(
       (i) => i.kind === material.kind && i.id === material.id,
     );
     if (issues.length > 0) {

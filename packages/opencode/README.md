@@ -1,9 +1,9 @@
 # @opentomato/opencode
 
 OpenTomato 的 opencode v2 插件：把 App 里的写作方法搬进 opencode（终端、网页、桌面端都能用）。
-装在一本书的目录上，这个目录就是一个 OpenTomato 项目，和 App 同一套目录结构，两边都能打开。
+只有一个入口 `/open-tomato`：在哪个目录里输入，哪个目录就作为一本书打开，和 App 同一套目录结构，两边都能打开。
 
-## 装到一本书上
+## 安装
 
 ```bash
 # 在本仓库里装依赖、编译 core（插件直接引用 core 的 dist）
@@ -11,17 +11,26 @@ bun install
 bun run --filter @opentomato/core build
 ```
 
-在书的目录里放一份 `opencode.json`：
+在全局配置 `~/.config/opencode/opencode.json` 的 `plugins` 里加上本包（只想给某本书用，就写进那本书目录的 `opencode.json`）：
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
   "plugins": ["/绝对路径/open-tomato/packages/opencode"]
 }
 ```
 
-用 opencode 桌面端打开这个目录。第一次加载时，不是项目的目录会按 App 的结构建好（`.opentomato/`、`简介.md` 和八个材料目录）。
-默认 agent 是「主编」，直接跟它说话。
+装上以后插件平时不出声：不碰磁盘、不改默认 agent，主编和八个角色在选择器、@ 提及里都看不到，别的 agent 也用不了写作工具。
+
+## 使用
+
+在 opencode 里打开书的目录，输入：
+
+```text
+/open-tomato
+/open-tomato 我想写一个退役刑警找失踪妹妹的故事
+```
+
+目录还不是项目，就按 App 的结构建好（`.opentomato/`、`简介.md` 和八个材料目录）；然后当前会话交给主编，命令后面的话原样转给它。之后在这个会话里直接说话就行。新开会话要接着写，再输入一次 `/open-tomato`。
 
 **把这个项目的自动批准关掉。** 写入审批走的是 opencode 的权限请求，开着自动批准，作者这道门就形同虚设。
 
@@ -29,7 +38,7 @@ bun run --filter @opentomato/core build
 
 | App 里                         | 插件里                                                                                                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 主编 + 八个角色                | 同名 agent：主编（primary，默认），策划、编剧、写手、运营、读者、文编、校对、裁决（subagent）                                                                       |
+| 主编 + 八个角色                | 同名的隐藏 agent：主编（primary，由 /open-tomato 切入），策划、编剧、写手、运营、读者、文编、校对、裁决（subagent，主编派）                                         |
 | 角色提示词                     | core 的原文，后面拼一段 opencode 对照（`prompts/host.md`、`prompts/host-lead.md`）                                                                                  |
 | read_doc、run_check 等材料工具 | core 的同一份实现：project_overview、list_docs、read_doc、search_docs、doc_template、run_check、list_open、load_capability、read_review、save_review、volume_rhythm |
 | write_doc / edit_doc + 审批门  | opencode 自带的 write / edit，插件挂钩子把关：只写材料、按角色收边界、只改 frontmatter 不过门、落盘附机检                                                           |

@@ -68,7 +68,10 @@ export function permissionsOf(role: RoleId): Rule[] {
   return rules;
 }
 
-/** 注册主编和八个子角色，主编设为这个目录的默认 agent；别的 agent 看不见写作工具和写作角色 */
+/**
+ * 注册主编和八个子角色，一律隐藏：选择器、@ 提及、别的 agent 的派单清单里都没有它们，
+ * 唯一的入口是 /open-tomato。默认 agent 不动。别的 agent 看不见写作工具，也派不了写作角色。
+ */
 export function registerAgents(editor: AgentEditor): void {
   const others = editor
     .list()
@@ -89,9 +92,20 @@ export function registerAgents(editor: AgentEditor): void {
       agent.name = def.label as unknown as typeof agent.name;
       agent.description = def.description;
       agent.mode = def.canSpawn ? "primary" : "subagent";
+      agent.hidden = true;
       agent.system = systemPromptOf(role);
       agent.permissions.push(...permissionsOf(role));
     });
   }
-  editor.default(agentIdOf("director"));
+}
+
+/**
+ * 子角色隐藏后，opencode 不会把它们列进主编 subagent 工具的说明，这里补上。
+ * 名字和职责取自 core 的角色定义。
+ */
+export function childRoster(): string {
+  return [
+    "可派的写作角色（agent 填名字）：",
+    ...CHILD_ROLES.map((role) => `- ${agentIdOf(role)}：${ROLES[role].description}`),
+  ].join("\n");
 }

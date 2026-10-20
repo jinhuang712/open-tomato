@@ -66,7 +66,7 @@ const finish = async (callId: string, content = "Wrote file successfully") => {
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), "ot-gate-"));
   store = await ProjectStore.create(root, "测试书");
-  gate = createWriteGate(store, new Set(["read_doc"]));
+  gate = createWriteGate(async () => store, new Set(["read_doc"]));
 });
 
 afterEach(async () => {

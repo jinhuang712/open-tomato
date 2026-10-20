@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
 import { ROLES } from "@opentomato/core/headless";
-import { permissionsOf, registerAgents, systemPromptOf } from "../src/agents.ts";
+import { childRoster, permissionsOf, registerAgents, systemPromptOf } from "../src/agents.ts";
 import { agentIdOf, roleOf } from "../src/roles.ts";
 
 type Rule = { action: string; resource: string; effect: string };
@@ -104,15 +104,26 @@ describe("registerAgents", () => {
     return { agents, editor, fallback: () => fallback };
   };
 
-  test("注册主编和八个子角色，主编是默认 agent", () => {
+  test("注册主编和八个子角色，一律隐藏，默认 agent 不动", () => {
     const { agents, editor, fallback } = fakeEditor();
     registerAgents(editor);
-    expect(fallback()).toBe("主编");
+    expect(fallback()).toBeUndefined();
     expect(agents.get("主编")?.mode).toBe("primary");
-    for (const id of ["策划", "编剧", "写手", "运营", "读者", "文编", "校对", "裁决"]) {
-      expect(agents.get(id)?.mode).toBe("subagent");
+    for (const id of ["主编", "策划", "编剧", "写手", "运营", "读者", "文编", "校对", "裁决"]) {
+      expect(agents.get(id)?.hidden).toBe(true);
       expect(agents.get(id)?.system).toContain("## 在 opencode 里");
     }
+    for (const id of ["策划", "编剧", "写手", "运营", "读者", "文编", "校对", "裁决"]) {
+      expect(agents.get(id)?.mode).toBe("subagent");
+    }
+  });
+
+  test("隐藏后主编的派单清单由插件补：八个角色和职责都在", () => {
+    const roster = childRoster();
+    for (const id of ["策划", "编剧", "写手", "运营", "读者", "文编", "校对", "裁决"]) {
+      expect(roster).toContain(`- ${id}：`);
+    }
+    expect(roster).not.toContain("主编");
   });
 
   test("别的 agent 看不见写作工具，也派不了写作角色", () => {
