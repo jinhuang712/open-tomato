@@ -27,7 +27,15 @@ export {
   capabilityRoster,
 } from "./agent/capabilities.js";
 export { Gate } from "./agent/gate.js";
-export { fmtIssue, zhDir, zhPath, type ToolContext } from "./agent/tools/shared.js";
+export {
+  assertWritableKind,
+  bookkeepingOnly,
+  fmtIssue,
+  frontmatterOnly,
+  zhDir,
+  zhPath,
+  type ToolContext,
+} from "./agent/tools/shared.js";
 export { makeDocTemplateTool } from "./agent/tools/doc-template.js";
 export { makeListDocsTool } from "./agent/tools/list-docs.js";
 export { makeListOpenTool } from "./agent/tools/list-open.js";

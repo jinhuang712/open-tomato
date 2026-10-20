@@ -114,12 +114,12 @@ export function assertWritableKind(kind: DocKindId, allowed: readonly DocKindId[
 }
 
 /** 正文相同，改动全在 frontmatter 里 */
-function frontmatterOnly(before: string, after: string): boolean {
+export function frontmatterOnly(before: string, after: string): boolean {
   return parseFrontmatter(before).body === parseFrontmatter(after).body;
 }
 
 /** 正文相同，且 frontmatter 变化全落在这类材料的记账字段上 */
-function bookkeepingOnly(kind: DocKindId, before: string, after: string): boolean {
+export function bookkeepingOnly(kind: DocKindId, before: string, after: string): boolean {
   const b = parseFrontmatter(before);
   const a = parseFrontmatter(after);
   if (b.body !== a.body) return false;
