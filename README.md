@@ -21,6 +21,10 @@ bun run typecheck   # 全部包类型检查
 bun run dist        # 打 macOS .app
 ```
 
+## 在 opencode 里写
+
+同一套方法也做成了 opencode v2 插件：主编与各角色、材料工具、审批门和机检，在 opencode 桌面端里用。装法和与 App 的差别见 [packages/opencode](packages/opencode/README.md)。
+
 ## 许可证
 
 MIT
