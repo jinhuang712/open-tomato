@@ -1,6 +1,7 @@
 import { Plugin } from "@opencode/plugin";
 import { ProjectStore } from "@opentomato/core/headless";
 import { registerAgents } from "./agents.ts";
+import { entryCommand } from "./entry.ts";
 import { createWriteGate } from "./gate.ts";
 import { roleOf } from "./roles.ts";
 import { materialTools } from "./tools.ts";
@@ -23,6 +24,9 @@ export default Plugin.define({
       for (const tool of tools) editor.add(tool);
     });
     await ctx.agent.transform(registerAgents);
+    await ctx.command.transform((editor) => {
+      editor.add(entryCommand(ctx.session, async () => store));
+    });
 
     const gate = createWriteGate(store, new Set(tools.map((tool) => tool.name)));
     await ctx.tool.hook("execute.before", (event) => gate.before(event));
