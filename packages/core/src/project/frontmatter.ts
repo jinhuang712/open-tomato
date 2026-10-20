@@ -30,12 +30,12 @@ export function frontmatterDiffKeys(before: Record<string, unknown>, after: Reco
 }
 
 /**
- * 落盘前的校验：必须以 frontmatter 起始、YAML 能解析且是一个映射。
+ * 落盘前的校验：必须以 frontmatter 开头、YAML 能解析且是一个映射。
  * 返回给用户 / 模型看的原因；合法返回 null。
  */
 export function frontmatterProblem(raw: string): string | null {
   const m = FENCE.exec(raw);
-  if (!m) return "文件必须以 frontmatter（--- 开头的 YAML 头）起始，先用 doc_template 拿模板";
+  if (!m) return "文件必须以 frontmatter（以 --- 开头的 YAML 头）开头，先用 doc_template 拿模板";
   let parsed: unknown;
   try {
     parsed = parseYaml(m[1] ?? "");

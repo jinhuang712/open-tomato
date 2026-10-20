@@ -183,6 +183,6 @@ function applyEdit(before: string, input: EditInput, material: Material): string
   }
   if (input.replaceAll === true) return before.split(oldString).join(newString);
   if (count > 1)
-    throw new Error(`oldString 在 ${material.rel} 里出现了 ${count} 次，多带一两行上下文让它唯一`);
+    throw new Error(`oldString 在 ${material.rel} 里出现了 ${count} 次，多带一两行上下文，确保只能匹配到一处`);
   return before.replace(oldString, () => newString);
 }

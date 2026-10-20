@@ -6,14 +6,14 @@ import { text, type ToolContext } from "./shared.js";
 
 /**
  * 主编自己进场一条能力。作者点按钮走 capability.run，内核以主编身份送进同一份正文；
- * 加载说明不产生创作选择或写入授权。
+ * 加载说明不算选定创作方案，也不算获得写入授权。
  */
 export function makeLoadCapabilityTool(_ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "load_capability",
     label: "进入能力",
     description:
-      "读取一项能力的目标、交付物和边界，按当前对话与已有授权开展工作。加载说明本身不执行创作或写入。清单：\n" +
+      "读取一项能力的说明，了解要做到什么、最后交出什么结果，以及哪些事不在它的范围内。根据当前对话和已有授权安排工作。加载说明本身不会创作或写入文件。清单：\n" +
       capabilityRoster(),
     parameters: Type.Object({
       id: Type.String({ description: `能力 id，可选：${CAPABILITY_IDS.join(" / ")}` }),

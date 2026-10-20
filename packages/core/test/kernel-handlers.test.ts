@@ -564,7 +564,7 @@ describe("capability 全流程", () => {
     ["talk", "聊一张卡：和作者一起探索人物"],
     ["design", "卡片设计：派策划创作"],
     ["outline", "大纲编排：派编剧编排"],
-    ["review", "多路审稿：多路只读评审看一章"],
+    ["review", "多路审稿：让几位评审分别看一章，只评不改"],
     ["recap", "卷末盘点：一卷写完"],
   ])("%s 正文送给主编，范围由主编看盘面定", async (id, phrase) => {
     const { calls } = fakeLead(false);

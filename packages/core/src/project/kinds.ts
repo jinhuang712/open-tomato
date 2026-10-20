@@ -121,7 +121,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "world",
     label: "世界设定",
     dir: "世界",
-    description: "世界观、规则体系、势力、地点。一张卡讲一个设定对象。",
+    description: "世界观、规则体系、势力、地点等设定，一张卡只讲其中一个。",
     normalizeId: slug,
     group: { field: "category" },
     fields: [{ name: "category", required: true, comment: "按这本书的世界分，同类用同一个词。玄幻常见 宗门 / 功法 / 秘境 / 地点，都市常见 公司 / 圈子 / 地点，规则体系一律写 规则" }],
@@ -136,7 +136,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "characters",
     label: "人物",
     dir: "人物",
-    description: "人物卡。语音签名是对白一致性的依据，写对白只取这一段。",
+    description: "人物卡。语音签名用来保持人物说话方式一致，写对白时只取这一段。",
     normalizeId: slug,
     group: { field: "tier", order: CHARACTER_TIERS },
     fields: [
@@ -147,7 +147,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "一句话", required: true },
       { name: "外在", required: true },
       { name: "内在与欲望", required: true },
-      { name: "语音签名", required: speaksMuch, hint: "口头禅、句长、称呼习惯、避讳词" },
+      { name: "语音签名", required: speaksMuch, hint: "口头禅、句子长短、称呼习惯、忌讳说的词" },
       { name: "关系", required: false, hint: "与其他人物的关系" },
       { name: "弧光", required: false, hint: "从哪到哪、因什么而变" },
     ],
@@ -174,7 +174,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "milestones",
     label: "里程碑",
     dir: "里程碑",
-    description: "全书关键帧。只记坐标不复述事件，按 order 排序。",
+    description: "全书的重要转折。只记关键节点，不复述事件经过，按 order 排序。",
     normalizeId: slug,
     fields: [
       { name: "order", required: true, comment: "整数，越小越早" },
@@ -207,7 +207,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "chapters",
     label: "章纲",
     dir: "章纲",
-    description: "一章的施工单。写手照着写不该再翻库。",
+    description: "一章的施工单。写手照着它写，不该还需要翻查材料库。",
     normalizeId: padded(4),
     fields: [
       { name: "volume", required: true },
@@ -217,7 +217,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       {
         name: "beat",
         options: CHAPTER_BEATS,
-        comment: "本章情绪落点：压（主角受压、没有出口）/ 放（有释放、爽点落地，先压后放也算）/ 平（过渡、铺垫）",
+        comment: "本章的情绪安排：压（主角受压、没有出口）/ 放（情绪得到释放、爽点兑现，先压后放也算）/ 平（过渡、铺垫）",
       },
     ],
     sections: [
@@ -231,7 +231,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "manuscript",
     label: "正文",
     dir: "正文",
-    description: "章节正文。frontmatter 只记元信息，正文不分段标题。",
+    description: "章节正文。frontmatter 只记章节基本信息，正文不设段落标题。",
     normalizeId: padded(4),
     fields: [
       { name: "words", value: "0", bookkeeping: true },
@@ -245,7 +245,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     dir: "",
     singleton: true,
     description:
-      "这本书是什么：一句话故事、题材平台、读者画像、书名与文案等立项答案。全书一份，可改写。",
+      "这本书是什么：一句话故事、题材与平台、读者画像、书名与文案等立项时定下的内容。全书一份，可改写。",
     normalizeId: () => "简介",
     templateOverrides: { title: "简介", summary: "书名、一句话故事、题材、平台、读者画像等立项答案", keywords: "[立项]" },
     sections: [
@@ -268,7 +268,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     label: "守则",
     dir: "守则",
     description:
-      "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 是规则完整的一句话，展开 段写边界与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
+      "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 用一句完整的话说清规则，「展开」段写适用范围与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
     normalizeId: padded(3),
     autoId: true,
     group: { field: "level", order: RULE_LEVELS },
@@ -278,8 +278,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "source", required: true, comment: "作者原话或来源" },
     ],
     sections: [
-      { name: "展开", required: true, hint: "规则管到哪、不管哪：边界、例外、容易误伤的情形。两三段" },
-      { name: "例子", required: false, hint: "这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范挂在规则上才知道学的是哪一处" },
+      { name: "展开", required: true, hint: "规则管到哪、不管哪：边界、例外、容易误伤的情形。用两三段说明" },
+      { name: "例子", required: false, hint: "这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范要放在对应的规则下，才能看出该学哪一处" },
     ],
   }),
 };

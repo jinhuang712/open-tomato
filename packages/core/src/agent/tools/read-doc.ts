@@ -11,7 +11,7 @@ export function makeReadDocTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "read_doc",
     label: "读文档",
-    description: "读一篇文档全文（含 frontmatter）。只关心某段就传 section，只取该「## 段名」下的内容，省上下文；section 写错会报错并列出现有段名。edit_doc 前必须先用它拿原文；章号可以直接给数字。",
+    description: "读取一篇文档的全文（含 frontmatter）。只关心某段就传 section，只取该「## 段名」下的内容，减少上下文占用；section 写错会报错并列出现有段名。edit_doc 前必须先用它拿原文；章号可以直接给数字。",
     parameters: Type.Object({
       kind: KIND_SCHEMA,
       id: Type.String({ description: "文档 id，章号可以直接给数字" }),

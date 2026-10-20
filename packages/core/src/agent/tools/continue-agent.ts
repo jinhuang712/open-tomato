@@ -9,7 +9,7 @@ export function makeContinueAgentTool(ctx: ToolContext): ToolDefinition {
     name: "continue_agent",
     label: "续派子 agent",
     description:
-      "接着和一个已经跑完一轮的子 agent 说话，它带着之前的上下文继续干。用于：它给了候选、作者拍板后让它在选中的候选上孵化落盘；或让它按作者意见修改。派出后立刻返回，报告做完后作为新消息送到你这里。agent 填派单名册或报告标题里的名字。不要用它重派一个全新的任务。",
+      "让已经完成一轮任务的子 agent 继续工作。它保留了之前的讨论，可以接着已有结果修改。用于：它给了候选、作者拍板后让它完善选中的候选并写入文件；或让它按作者意见修改。派出后立刻返回，报告做完后作为新消息送到你这里。agent 填派单名册或报告标题里的名字。不要用它重派一个全新的任务。",
     parameters: Type.Object({
       agent: Type.String({ description: "子 agent 的名字，如 策划1：派单名册和它报告的标题里都是这个" }),
       message: Type.String({ description: "发给它的消息：作者拍板了什么、接下来做什么" }),

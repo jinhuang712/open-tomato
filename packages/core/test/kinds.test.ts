@@ -48,7 +48,7 @@ describe("模板附注", () => {
     expect(n).toContain("必填字段（写进 frontmatter，缺了机检报）：title、summary、tier（主角 / 关键对手 / 重要配角 / 一般配角）");
     expect(n).toContain("可选字段（有值再加）：faction（所属势力）");
     expect(n).toContain("必填段（写到了再新增 ## 段，不要预置占位，缺了机检报）：一句话、外在、内在与欲望");
-    expect(n).toContain("可选段（写到了再新增 ## 段，不要预置占位）：语音签名（口头禅、句长、称呼习惯、避讳词）、关系");
+    expect(n).toContain("可选段（写到了再新增 ## 段，不要预置占位）：语音签名（口头禅、句子长短、称呼习惯、忌讳说的词）、关系");
     expect(n).toContain("tier 为 主角 / 关键对手 时必填：语音签名");
     expect(n).toContain("open: [项名]");
   });

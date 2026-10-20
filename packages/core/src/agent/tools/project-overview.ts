@@ -9,7 +9,7 @@ export function makeProjectOverviewTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "project_overview",
     label: "项目盘面",
-    description: "项目盘面：按 kind 分组列出所有文档的 id / title / status / summary。便宜，每轮开工先看这个定方向，再用 read_doc 精读需要的篇。落盘后广播的 docs.changed 已是最新全量，那时不用重调。",
+    description: "项目盘面：按 kind 分组列出所有文档的 id / title / status / summary。读取开销小，每轮开工先看它来定方向，再用 read_doc 细读需要的文档。落盘后广播的 docs.changed 已包含最新的全部文档信息，那时不用重复调用。",
     parameters: Type.Object({}),
     execute: async () => {
       const all = await store.listAll();

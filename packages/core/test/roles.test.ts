@@ -23,10 +23,10 @@ describe("提示词口径", () => {
    * e0da920 那次改口把整节「问作者」删掉了，没人拦住：主编随后连着几十轮拿 open 问
    * 本该摆候选的问题，作者只能手打「给我选择题」。这几条是那节的骨头，钉在这里防再删。
    */
-  test("主编的提问口径：默认摆候选、按形态选 kind、一次一问、没感觉换差异更大的、下一步先看搁置清单", () => {
+  test("主编的提问口径：默认摆候选、按提问方式选 kind、一次一问、没感觉换差异更大的、下一步先看搁置清单", () => {
     const p = ROLES.director.systemPrompt;
     expect(p).toContain("默认摆候选让作者点，不默认开放问答");
-    expect(p).toContain("按形态选 kind");
+    expect(p).toContain("按提问方式选 kind");
     expect(p).toContain("一次只问一件事");
     expect(p).toContain("换一批差异更大的");
     expect(p).toContain("先 list_open");
@@ -37,7 +37,7 @@ describe("提示词口径", () => {
     expect(p).toContain("## 能力");
     expect(p).toContain("- interview（立项访谈）");
     expect(p).toContain("load_capability");
-    expect(p).toContain("加载说明不意味着作者批准");
+    expect(p).toContain("读了能力说明，不等于作者批准了其中的创作方案或同意写入");
   });
 
   test("写手可以补读相关材料，不能将未确认设定当事实", () => {
@@ -73,7 +73,7 @@ describe("评审手册", () => {
     expect(ROLES.ops.systemPrompt).toContain(reviewGuide("运营"));
     expect(ROLES.proofreader.systemPrompt).toContain(reviewGuide("校对"));
     expect(ROLES.reader.systemPrompt).toContain(checkBlock("reader"));
-    expect(ROLES.reader.systemPrompt).not.toContain("## 工艺检查");
+    expect(ROLES.reader.systemPrompt).not.toContain("## 其他检查");
   });
 
   test("手册是编号职责清单，一条一个职责，不带文摘", () => {

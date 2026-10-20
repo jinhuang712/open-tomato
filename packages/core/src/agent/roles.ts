@@ -9,8 +9,8 @@ const GUIDE_ROLE = { 文编: "copyeditor", 运营: "ops", 校对: "proofreader" 
 
 /**
  * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
- * 手册是工艺知识，跟哪本书无关；这本书的偏好走守则。作者不改手册，改手册是改代码仓。
- * 归这一路核对的标准从标准表拼进 {{STANDARDS}}，手册里只写标准表之外的工艺检查。
+ * 手册写通用的审稿方法；每本书的偏好记在守则里。作者不在应用内改手册，修改手册需要改仓库文件。
+ * 归这一路核对的标准从标准表拼进 {{STANDARDS}}，手册里只写标准表之外的其他检查。
  * 读者评审没有手册，只要人设和归它核对的标准。
  */
 export function reviewGuide(name: keyof typeof GUIDE_ROLE): string {
@@ -74,7 +74,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
   director: {
     id: "director",
     label: "主编",
-    description: "统筹全局：判断当前处在哪个阶段、派发子 agent、把候选结果交给用户拍板。",
+    description: "统筹全书：判断当前阶段、派任务，把候选方案交给作者拍板。",
     writableKinds: ["brief", "rules", ...CARDS],
     bookkeepAnyKind: true,
     canSpawn: true,
@@ -85,7 +85,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
   designer: {
     id: "designer",
     label: "策划",
-    description: "创作世界设定、人物、线索卡片。出候选、落卡片。",
+    description: "设计世界设定、人物和线索，提出候选并写入卡片。",
     writableKinds: CARDS,
     canSpawn: false,
     canAsk: false,
@@ -115,7 +115,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
   ops: {
     id: "ops",
     label: "运营",
-    description: "只读。看抓人度、爽点密度、追读动力。",
+    description: "只读。看故事是否吸引人、爽点安排是否合适、读者是否想追下去。",
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
@@ -148,7 +148,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
   proofreader: {
     id: "proofreader",
     label: "校对",
-    description: "只读。对正文与卡片、章纲、前文的一致性。",
+    description: "只读。核对正文与卡片、章纲、前文是否一致。",
     writableKinds: [],
     canSpawn: false,
     canAsk: false,

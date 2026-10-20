@@ -74,7 +74,7 @@ export function makeConversationHistoryTool(history: () => SessionEntry[]) {
   return defineTool({
     name: "conversation_history",
     label: "查对话历史",
-    description: "分批读取当前会话原始历史（含压缩前消息和工具结果）。需要此前讨论依据时使用；query 为字面关键词，message_id 可展开指定消息。不传则从最早记录浏览。每次最多 20 条、8000 正文字符，单条长消息也分页；使用 next_cursor 续读并保持筛选参数不变，是否读够由你判断。无全量读取入口。",
+    description: "分批读取当前会话原始历史（含压缩前消息和工具结果）。需要此前讨论依据时使用；query 按关键词原文匹配，message_id 用来查看指定消息。不传筛选参数时，从最早的记录开始读。每次最多 20 条记录、8000 个正文字符，单条长消息也分页；使用 next_cursor 续读并保持筛选参数不变，是否还要继续读，由你判断。不能一次读取全部历史。",
     parameters: Type.Object({
       query: Type.Optional(Type.String({ maxLength: 200 })),
       message_id: Type.Optional(Type.String()),

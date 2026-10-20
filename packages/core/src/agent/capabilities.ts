@@ -3,8 +3,8 @@ import { loadPrompt } from "./prompt-text.js";
 import { STANDARDS, type StandardId } from "./standards.js";
 
 /**
- * 能力是主编的一份打包工作流：目标、交付物、边界，不写步骤。
- * 作者与主编共用同一份说明，如何开展由对话、材料与授权决定。
+ * 每项能力是一类工作的说明：写清目标、要交出什么、有哪些限制，不规定步骤。
+ * 作者与主编共用同一份说明，具体怎么做，要看对话、材料和已有授权。
  */
 export interface CapabilityDef extends CapabilityInfo {
   /** 什么时候该想到它：给主编的清单看，也给按钮的说明 */
@@ -20,7 +20,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "interview",
     label: "立项访谈",
     kind: "workflow",
-    description: "和作者弄清这本书是什么、给谁看，简介顺手落下。",
+    description: "和作者聊清这本书讲什么、给谁看，再记进简介。",
     when: "简介还缺故事或读者段；作者刚开一本新书",
     load: () => loadPrompt("capabilities/interview"),
   },
@@ -28,7 +28,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "seed",
     label: "种子重建",
     kind: "workflow",
-    description: "作者带着故事种子或现成材料开新书，逐块思考后交作者判断，重写再落盘，不照搬。",
+    description: "作者带着故事种子或现成材料开新书，逐部分分析后交作者判断，再重写保存，不照搬。",
     when: "作者贴来一份导出过的故事种子，或别处写好的设定 / 大纲",
     load: () => loadPrompt("capabilities/seed"),
   },
@@ -36,7 +36,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "talk",
     label: "聊一张卡",
     kind: "workflow",
-    description: "和作者探索人物 / 设定 / 线索，记录已认可且获准写入的内容。",
+    description: "和作者聊人物 / 设定 / 线索，只记录作者认可并允许写入的内容。",
     when: "某张卡关键段空着，派策划前作者想先自己想清楚",
     load: () => loadPrompt("capabilities/talk"),
   },
@@ -53,7 +53,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     label: "大纲编排",
     kind: "workflow",
     description: "派编剧编排里程碑 / 卷纲 / 章纲。",
-    when: "卡够了还没排纲；章纲快写完了要往后排",
+    when: "卡片够了但还没排大纲；现有章纲快用完了，需要往后排",
     load: () => loadPrompt("capabilities/outline"),
   },
   draft: {
@@ -68,15 +68,15 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "review",
     label: "多路审稿",
     kind: "workflow",
-    description: "多路只读评审看一章，冲突时裁决。",
-    when: "一章刚落盘还没审",
+    description: "让几位评审分别看一章，只评不改；意见冲突时交给裁决。",
+    when: "一章刚落盘，还没审稿",
     load: () => loadPrompt("capabilities/review"),
   },
   recap: {
     id: "recap",
     label: "卷末盘点",
     kind: "workflow",
-    description: "一卷写完，派编剧把线索推进到哪、坑填了没回写进线索卡。",
+    description: "一卷写完，派编剧把线索进展和伏笔是否兑现记回线索卡。",
     when: "一卷的最后一章刚写完",
     load: () => loadPrompt("capabilities/recap"),
   },
@@ -92,8 +92,8 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "deeper-needs",
     label: "深层需要",
     kind: "technique",
-    description: "把他想要的和缺的分开，人物扁、行为全靠剧情推着走时用。",
-    when: "人物扁、行为全靠剧情推着走；人物卡内在与欲望段空着或立不住",
+    description: "分清人物想要什么、内心缺什么，人物单薄或行为全靠剧情推动时用。",
+    when: "人物单薄、行为全靠剧情推动；人物卡「内在与欲望」段空着或缺乏说服力",
     load: () => loadPrompt("capabilities/deeper-needs"),
     standard: "motive",
   },
@@ -101,8 +101,8 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "show",
     label: "演出来",
     kind: "technique",
-    description: "把一句判断改成动作和细节，改一处教会一次，不包整章。",
-    when: "审稿报太满 / 说教旁白、改一句就能活时；作者觉得干却说不出怎么改时",
+    description: "把一句判断改成动作和细节，用一处示范讲清改法，不重写整章。",
+    when: "审稿指出信息太满 / 旁白说教，改一句就能改善时；作者觉得干却说不出怎么改时",
     load: () => loadPrompt("capabilities/show"),
     standard: "show",
   },
@@ -110,7 +110,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "fivewhy",
     label: "追问五次",
     kind: "technique",
-    description: "动机模糊时连追为什么，挖到能落卡的因果。",
+    description: "动机模糊时连续追问为什么，理清因果后记进卡片。",
     when: "人物要什么说不清、有结果没原因；设定有个结论没来由",
     load: () => loadPrompt("capabilities/fivewhy"),
     standard: "motive",
@@ -119,8 +119,8 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "logline",
     label: "一句话故事",
     kind: "technique",
-    description: "一句话定住谁要什么、什么挡着他，设定多但没事发生时用。",
-    when: "设定写了很多但没一件事发生；访谈转设卡之前",
+    description: "用一句话说清谁要什么、什么挡着他，设定多但没事发生时用。",
+    when: "设定写了很多但没一件事发生；访谈结束、开始建卡之前",
     load: () => loadPrompt("capabilities/logline"),
     standard: "story",
   },
@@ -129,7 +129,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     label: "但是因此",
     kind: "technique",
     description: "相邻两件事必须用但是 / 因此连上，章纲是流水账时用。",
-    when: "章纲是流水账、被报没有事发生时",
+    when: "章纲是流水账、审稿指出没有事发生时",
     load: () => loadPrompt("capabilities/but-therefore"),
     standard: "scene",
   },
@@ -137,7 +137,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     id: "hook",
     label: "钩子断章",
     kind: "technique",
-    description: "章首建期待、章末落在问题或危机上，一次只弄一章。",
+    description: "章首让读者有所期待，章末留下问题或危机，一次只改一章。",
     when: "开篇留不住、章末只是停了；黄金开头要磨时",
     load: () => loadPrompt("capabilities/hook"),
     standard: "hook",
@@ -175,16 +175,16 @@ export function isCapabilityId(v: unknown): v is CapabilityId {
 export function capabilityRoster(): string {
   const line = (id: CapabilityId) => {
     const c = CAPABILITIES[id];
-    const fixes = c.standard ? ` 修的标准：${STANDARDS[c.standard].label}` : "";
+    const fixes = c.standard ? ` 对应标准：${STANDARDS[c.standard].label}` : "";
     return `- ${id}（${c.label}）：${c.description} 时机：${c.when}${fixes}`;
   };
   const group = (kind: CapabilityKind) => capabilityIdsOf(kind).map(line).join("\n");
   return `工作流：\n${group("workflow")}\n技法：\n${group("technique")}`;
 }
 
-/** 主编进场一条能力时收到的正文：谁触发的写清，正文照原样给 */
+/** 主编加载一项能力时收到的正文：说明由谁发起，正文原样提供 */
 export function capabilityEntry(id: CapabilityId, by: "author" | "lead"): string {
   const c = CAPABILITIES[id];
-  const head = by === "author" ? `作者点了「${c.label}」。` : `你进入「${c.label}」。`;
+  const head = by === "author" ? `作者点了「${c.label}」。` : `你加载了「${c.label}」。`;
   return `${head}\n\n${c.load()}`;
 }

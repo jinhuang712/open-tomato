@@ -7,7 +7,7 @@ import { text, type ToolContext } from "./shared.js";
 /** 每种状态对派它的人意味着什么：一个词说状态，一句话说下一步该怎么办 */
 const MEANING: Record<AgentStatus, { word: string; note: string }> = {
   running: { word: "在跑", note: "报告会自己送到你这儿，不用催" },
-  interrupted: { word: "被打断", note: "上一轮被杀了，报告永远不会来——这条线要接着做就重新 spawn_agents" },
+  interrupted: { word: "被打断", note: "上一轮已被中止，报告不会再交回——这条线要接着做就重新 spawn_agents" },
   done: { word: "已交回", note: "报告交过了" },
   error: { word: "出错", note: "这一轮失败了，报告里是错误原因" },
   archived: { word: "已封存", note: "这条线收了，不能再 continue_agent" },
@@ -39,7 +39,7 @@ export function makeListAgentsTool(ctx: ToolContext): ToolDefinition {
     name: "list_agents",
     label: "在场的人",
     description:
-      "你派出去的人现在各是什么状态：名字 | 角色 | 状态 | 这状态意味着什么 | 任务书。便宜。接回会话后第一件事就查这个：作者按过停止、应用重开过，都会让报告永远送不到你手上，而你的上下文里只留着「已派出」。要停下来等某位交回之前，先用它确认那位真的还在跑。",
+      "你派出去的人现在各是什么状态：名字 | 角色 | 状态 | 这状态意味着什么 | 任务书。读取开销小。恢复会话后第一件事就查这个：作者按过停止、应用重开过，都会让报告永远送不到你手上，而你的上下文里只留着「已派出」。要停下来等某位交回之前，先用它确认那位真的还在跑。",
     parameters: Type.Object({}),
     execute: async () => {
       const all = listAgents();

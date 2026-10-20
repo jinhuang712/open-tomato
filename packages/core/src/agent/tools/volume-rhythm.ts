@@ -13,7 +13,7 @@ export function makeVolumeRhythmTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "volume_rhythm",
     label: "看一卷的节奏",
-    description: "列出一卷每章的字数、推进的线索、章末钩子和压放（章纲 beat），并指出连续只压不放最长的一段，供结合正文判断节奏；相似的结构本身不代表有问题。",
+    description: "列出一卷每章的字数、推进的线索、章末钩子和压放（章纲 beat），并指出连续只压不放最长的一段，帮助你结合正文判断节奏；不能仅凭结构相似就认定有问题。",
     parameters: Type.Object({ volume: Type.String({ description: "卷号，直接给数字" }) }),
     execute: async (_id, params) => {
       const vid = DOC_KINDS.volumes.normalizeId(params.volume);

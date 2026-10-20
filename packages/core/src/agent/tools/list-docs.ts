@@ -8,7 +8,7 @@ export function makeListDocsTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "list_docs",
     label: "列文档",
-    description: "深挖某一类文档：列出该类下全部条目的 id / title / status / summary 和 frontmatter 其他字段。看全书盘面用 project_overview；按关键词捞散落的内容用 search_docs；明确要一类的全量（比如守则一次拿全）用这个。",
+    description: "查看某一类的全部文档：列出这一类每篇文档的 id / title / status / summary 和 frontmatter 其他字段。看全书盘面用 project_overview；按关键词找分散在各篇里的内容用 search_docs；需要某一类的全部文档（比如一次读完所有守则）用这个。",
     parameters: Type.Object({ kind: KIND_SCHEMA }),
     execute: async (_id, params) => {
       const kind = assertKind(params.kind);

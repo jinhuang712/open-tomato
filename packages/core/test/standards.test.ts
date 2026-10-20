@@ -55,7 +55,7 @@ describe("技法挂在标准上", () => {
       const standard = CAPABILITIES[id].standard;
       expect(standard).toBeDefined();
       if (standard)
-        expect(ROLES.director.systemPrompt).toContain(`修的标准：${STANDARDS[standard].label}`);
+        expect(ROLES.director.systemPrompt).toContain(`对应标准：${STANDARDS[standard].label}`);
     }
   });
 });

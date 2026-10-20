@@ -40,7 +40,7 @@ describe("能力正文", () => {
     const byAuthor = capabilityEntry("draft", "author");
     const byLead = capabilityEntry("draft", "lead");
     expect(byAuthor).toContain("作者点了「章节写作」");
-    expect(byLead).toContain("你进入「章节写作」");
+    expect(byLead).toContain("你加载了「章节写作」");
     expect(byAuthor.split("\n\n").slice(1).join("\n\n")).toBe(byLead.split("\n\n").slice(1).join("\n\n"));
   });
 
@@ -92,12 +92,12 @@ describe("load_capability 工具", () => {
     }
   });
 
-  test("参数说明里就是那份分组清单；进场正文以「你进入」开头，与作者按钮那条路正文相同", async () => {
+  test("参数说明里就是那份分组清单；进场正文以「你加载了」开头，与作者按钮那条路正文相同", async () => {
     const tool = toolsFor("director").find((t) => t.name === "load_capability")!;
     expect(tool.description).toContain(capabilityRoster());
     const out = await tool.execute("t", { id: "hook" } as never, undefined as never, undefined as never, undefined as never);
     const textOut = (out as { content: { type: string; text?: string }[] }).content[0]!.text!;
-    expect(textOut).toStartWith("你进入「钩子断章」");
+    expect(textOut).toStartWith("你加载了「钩子断章」");
     expect(textOut).toBe(capabilityEntry("hook", "lead"));
   });
 

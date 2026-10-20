@@ -13,7 +13,7 @@ export function makeListOpenTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "list_open",
     label: "搁置清单",
-    description: "按文档汇总全书 frontmatter open 中的搁置事项，供回顾材料或安排后续工作时参考。",
+    description: "按文档汇总全书的搁置事项。事项来自 frontmatter 的 open 字段，回顾材料或安排后续工作时可参考。",
     parameters: Type.Object({}),
     execute: async () => {
       const all = await store.listAll();

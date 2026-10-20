@@ -88,7 +88,7 @@ describe("materialTools", () => {
   });
 
   test("load_capability 给出能力正文", async () => {
-    expect(await call("load_capability", { id: "interview" })).toContain("你进入「立项访谈」");
+    expect(await call("load_capability", { id: "interview" })).toContain("你加载了「立项访谈」");
   });
 
   test("save_review 以调用它的那一路评审落记录，read_review 读得到；别的角色落不了", async () => {
