@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin";
-import { childRoster, registerAgents } from "./agents.ts";
+import { childRoster, enforcePermission, pruneTools, registerAgents } from "./agents.ts";
 import { createBook } from "./book.ts";
 import { entryCommand } from "./entry.ts";
 import { createWriteGate } from "./gate.ts";
@@ -25,13 +25,19 @@ export default Plugin.define({
       editor.add(entryCommand(ctx.session, book.open));
     });
 
-    const gate = createWriteGate(book.require, new Set(tools.map((tool) => tool.name)));
+    const own = new Set(tools.map((tool) => tool.name));
+    const gate = createWriteGate(book.require, own);
     await ctx.tool.hook("execute.before", (event) => gate.before(event));
-    await ctx.permission.hook("evaluate", (event) => gate.evaluate(event));
+    await ctx.permission.hook("evaluate", (event) => {
+      // 先按插件规则定结果（压过作者全局配置），再让写入钩子放行只改记账字段的那种
+      enforcePermission(event);
+      gate.evaluate(event);
+    });
     await ctx.tool.hook("execute.after", (event) => gate.after(event));
 
     const roster = childRoster();
     await ctx.session.hook("context", (event) => {
+      pruneTools(event.agent, event.tools, own);
       const role = roleOf(event.agent);
       if (!role) return;
       // patch 和 write / edit 共用 edit 权限，规则收不掉，只能从写作角色的工具清单里拿走
