@@ -61,7 +61,7 @@ import { workflowHandlers } from "./kernel/handlers/workflow.js";
 const TAIL_KEEP = 80;
 
 /** 发给模型的控制消息统一收拢在 text/messages/session.yaml 下，这里只留加载，用法点不动 */
-const PROPOSE_NOTICE = textValue("messages/session", "propose-notice");
+const PROPOSE_NOTICE = textValue("app/messages/session", "propose-notice");
 
 /** 上次断在 ask_user 上、且实参修得出一个能问的问题：返回实参，否则 null */
 function revivableQuestion(raws: unknown[]): AskArgs | null {
@@ -74,9 +74,9 @@ function revivableQuestion(raws: unknown[]): AskArgs | null {
     return null;
   }
 }
-const COMMIT_NOTICE = textValue("messages/session", "commit-notice");
-const CHILD_REPORT_NOTICE = textValue("messages/session", "child-report-notice");
-const DISPATCHED_NOTICE = textValue("messages/session", "dispatched-notice");
+const COMMIT_NOTICE = textValue("app/messages/session", "commit-notice");
+const CHILD_REPORT_NOTICE = textValue("app/messages/session", "child-report-notice");
+const DISPATCHED_NOTICE = textValue("app/messages/session", "dispatched-notice");
 
 /** 状态行最多攒这么多字符还没换行就当没有，整段放行 */
 const HEAD_BUFFER_LIMIT = 48;
@@ -188,14 +188,14 @@ export class Kernel {
       ...cloudHandlers(api),
     };
     const handler = handlers[method];
-    if (!handler) throw new Error(textValue("messages/agents", "runtime.message", { v0: String(method) }));
+    if (!handler) throw new Error(textValue("app/messages/agents", "runtime.message", { v0: String(method) }));
     return handler(p);
   }
 
   // ───────────────────────── 项目生命周期 ─────────────────────────
 
   private requireStore(): ProjectStore {
-    if (!this.store) throw new Error(textValue("messages/agents", "runtime.message_2"));
+    if (!this.store) throw new Error(textValue("app/messages/agents", "runtime.message_2"));
     return this.store;
   }
 
@@ -240,7 +240,7 @@ export class Kernel {
    * retire=false 是关项目 / 退出应用：只释放，索引留着，下次打开按索引接回。
    */
   private async disposeAgents(retire: boolean) {
-    this.gate.rejectAll(textValue("messages/agents", "runtime.message_3"));
+    this.gate.rejectAll(textValue("app/messages/agents", "runtime.message_3"));
     const lives = [...this.agents.values()];
     if (retire && this.store) {
       for (const a of lives) if (a.info.agentId !== LEAD_ID) await this.store.dropAgentRecord(a.info.agentId);
@@ -284,7 +284,7 @@ export class Kernel {
 
   private requireModel(): Model<Api> {
     const m = this.models.currentModel();
-    if (!m) throw new Error(textValue("messages/agents", "runtime.message_4"));
+    if (!m) throw new Error(textValue("app/messages/agents", "runtime.message_4"));
     return m;
   }
 
@@ -515,12 +515,12 @@ export class Kernel {
     const hit = children.find((a) => a.info.handle === name) ?? children.find((a) => a.info.agentId === name);
     if (hit) return hit;
     const names = children.map((a) => a.info.handle).join("、");
-    throw new Error(textValue("messages/agents", "runtime.message_7", { v0: name, v1: names ? textValue("messages/agents", "runtime.message_5", { v0: names }) : textValue("messages/agents", "runtime.message_6") }));
+    throw new Error(textValue("app/messages/agents", "runtime.message_7", { v0: name, v1: names ? textValue("app/messages/agents", "runtime.message_5", { v0: names }) : textValue("app/messages/agents", "runtime.message_6") }));
   }
 
   private requireLive(agentId: string): LiveAgent {
     const live = this.agents.get(agentId);
-    if (!live) throw new Error(agentId === LEAD_ID ? textValue("messages/agents", "runtime.message_8") : textValue("messages/agents", "runtime.message_9"));
+    if (!live) throw new Error(agentId === LEAD_ID ? textValue("app/messages/agents", "runtime.message_8") : textValue("app/messages/agents", "runtime.message_9"));
     return live;
   }
 
@@ -607,7 +607,7 @@ export class Kernel {
   private roster(slots: DispatchSlot[], onProgress: DispatchProgress) {
     const snapshot = (): DispatchDetails => ({ slots: slots.map((x) => ({ ...x })) });
     const line = (x: DispatchSlot) =>
-      x.status === "running" ? textValue("messages/agents", "runtime.message_10", { v0: x.label }) : x.status === "done" ? textValue("messages/agents", "runtime.message_11", { v0: x.label }) : x.status === "error" ? textValue("messages/agents", "runtime.message_12", { v0: x.label, v1: x.error ?? "" }) : x.label;
+      x.status === "running" ? textValue("app/messages/agents", "runtime.message_10", { v0: x.label }) : x.status === "done" ? textValue("app/messages/agents", "runtime.message_11", { v0: x.label }) : x.status === "error" ? textValue("app/messages/agents", "runtime.message_12", { v0: x.label, v1: x.error ?? "" }) : x.label;
     return {
       snapshot,
       touch(slot: DispatchSlot, status: DispatchSlot["status"], error: string | null = null) {
@@ -635,7 +635,7 @@ export class Kernel {
     }
     returned = true;
     // slots 与 tasks 同序：runChild 在第一个 await 之前就同步推进名册，见上面注释。tags 认这个顺序。
-    const tags = (i: number) => [tasks[i]?.fork ? textValue("messages/agents", "runtime.message_13") : "", tasks[i]?.ephemeral ? textValue("messages/agents", "runtime.message_14") : ""].filter(Boolean).join("；");
+    const tags = (i: number) => [tasks[i]?.fork ? textValue("app/messages/agents", "runtime.message_13") : "", tasks[i]?.ephemeral ? textValue("app/messages/agents", "runtime.message_14") : ""].filter(Boolean).join("；");
     const lines = slots.map((x, i) => `- ${x.handle}：${x.task}${tags(i) ? `（${tags(i)}）` : ""}`).join("\n");
     return { text: `${DISPATCHED_NOTICE}\n${lines}`, details: roster.snapshot() };
   }
@@ -647,7 +647,7 @@ export class Kernel {
   private deliverReport(parentId: string, handle: string, report: string) {
     const live = this.agents.get(parentId);
     if (!live) return;
-    const label = textValue("messages/agents", "runtime.label", { v0: handle });
+    const label = textValue("app/messages/agents", "runtime.label", { v0: handle });
     const text = stubPrompt(label, report);
     if (agentBusy(live) || live.hold) {
       live.inbox.push({ id: randomUUID(), label, text });
@@ -697,7 +697,7 @@ export class Kernel {
       if (task.fork === true) {
         const parent = this.agents.get(parentId);
         const branch = parent?.session.sessionManager?.getBranch?.();
-        if (!branch) throw new Error(textValue("messages/agents", "runtime.message_15"));
+        if (!branch) throw new Error(textValue("app/messages/agents", "runtime.message_15"));
         first = buildForkPrompt(branch, task.task);
       }
       const report = await this.promptChild(live, mode === "propose" ? modePrompt(mode, PROPOSE_NOTICE, first) : first, slot, roster);
@@ -706,15 +706,15 @@ export class Kernel {
       const msg = e instanceof Error ? e.message : String(e);
       if (live) this.setStatus(live, "error", msg);
       roster.touch(slot, "error", msg);
-      return { handle, report: textValue("messages/agents", "runtime.report", { v0: handle, v1: msg }) };
+      return { handle, report: textValue("app/messages/agents", "runtime.report", { v0: handle, v1: msg }) };
     }
   }
 
   private async continueChild(live: LiveAgent, message: string, mode: SpawnMode | undefined, onProgress: DispatchProgress): Promise<DispatchResult> {
     const childId = live.info.agentId;
-    if (this.ephemeralAgents.has(childId)) throw new Error(textValue("messages/agents", "runtime.message_16", { v0: live.info.handle }));
-    if (live.info.status === "running") throw new Error(textValue("messages/agents", "runtime.message_17", { v0: live.info.handle }));
-    if (live.info.status === "archived") throw new Error(textValue("messages/agents", "runtime.message_18", { v0: live.info.handle }));
+    if (this.ephemeralAgents.has(childId)) throw new Error(textValue("app/messages/agents", "runtime.message_16", { v0: live.info.handle }));
+    if (live.info.status === "running") throw new Error(textValue("app/messages/agents", "runtime.message_17", { v0: live.info.handle }));
+    if (live.info.status === "archived") throw new Error(textValue("app/messages/agents", "runtime.message_18", { v0: live.info.handle }));
     if (mode && mode !== live.mode) {
       this.setMode(live, mode);
       const store = this.requireStore();
@@ -741,11 +741,11 @@ export class Kernel {
    * 封存不删东西（第五条：上下文是资产），删是作者在界面上另一步做的事。
    */
   private async archiveChild(childId: string): Promise<void> {
-    if (childId === LEAD_ID) throw new Error(textValue("messages/agents", "runtime.message_19"));
+    if (childId === LEAD_ID) throw new Error(textValue("app/messages/agents", "runtime.message_19"));
     const live = this.agents.get(childId);
-    if (!live) throw new Error(textValue("messages/agents", "runtime.message_20", { v0: childId }));
-    if (live.info.status === "running") throw new Error(textValue("messages/agents", "runtime.message_21", { v0: live.info.handle }));
-    if (live.info.status === "archived") throw new Error(textValue("messages/agents", "runtime.message_22", { v0: live.info.handle }));
+    if (!live) throw new Error(textValue("app/messages/agents", "runtime.message_20", { v0: childId }));
+    if (live.info.status === "running") throw new Error(textValue("app/messages/agents", "runtime.message_21", { v0: live.info.handle }));
+    if (live.info.status === "archived") throw new Error(textValue("app/messages/agents", "runtime.message_22", { v0: live.info.handle }));
     this.setStatus(live, "archived");
     // 一次性的没有索引可记，状态只活在内存
     if (this.ephemeralAgents.has(childId)) return;
@@ -760,10 +760,10 @@ export class Kernel {
    * 删是不可逆的，所以只做判断后的执行，不做自动清理。
    */
   private async retireChild(childId: string): Promise<void> {
-    if (childId === LEAD_ID) throw new Error(textValue("messages/agents", "runtime.message_23"));
+    if (childId === LEAD_ID) throw new Error(textValue("app/messages/agents", "runtime.message_23"));
     const live = this.agents.get(childId);
-    if (!live) throw new Error(textValue("messages/agents", "runtime.message_20", { v0: childId }));
-    if (live.info.status === "running") throw new Error(textValue("messages/agents", "runtime.message_24", { v0: live.info.handle }));
+    if (!live) throw new Error(textValue("app/messages/agents", "runtime.message_20", { v0: childId }));
+    if (live.info.status === "running") throw new Error(textValue("app/messages/agents", "runtime.message_24", { v0: live.info.handle }));
     this.agents.delete(childId);
     live.unsubscribe();
     live.session.dispose();
@@ -806,14 +806,14 @@ export class Kernel {
       // 一次性的没有索引可记，封存只是内存状态，也不打扰。
       // 要不要封仍是主编的判断，这里只负责让他看见这件事。
       const archiveHint =
-        live.mode === "commit" && !this.ephemeralAgents.has(info.agentId) ? textValue("messages/agents", "runtime.message_25", { v0: info.handle }) : "";
-      return `${header}\n\n${CHILD_REPORT_NOTICE}\n\n${answer || textValue("messages/agents", "runtime.message_26")}${archiveHint}`;
+        live.mode === "commit" && !this.ephemeralAgents.has(info.agentId) ? textValue("app/messages/agents", "runtime.message_25", { v0: info.handle }) : "";
+      return `${header}\n\n${CHILD_REPORT_NOTICE}\n\n${answer || textValue("app/messages/agents", "runtime.message_26")}${archiveHint}`;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.setStatus(live, "error", msg);
       this.gate.rejectAgent(live.info.agentId, msg);
       roster.touch(slot, "error", msg);
-      return textValue("messages/agents", "runtime.message_27", { v0: header, v1: msg });
+      return textValue("app/messages/agents", "runtime.message_27", { v0: header, v1: msg });
     } finally {
       // 出了结论就记一笔：成功、失败都算交回，两种都会送报告给派它的人。
       // 走到这儿之前进程没了的，索引上留着 false，接回来才知道那位是被打断的。
@@ -982,7 +982,7 @@ export class Kernel {
         const raw = ev.message as RawMessage;
         if (raw.role === "assistant" && raw.stopReason === "error") {
           // 不马上标 error：pi 可能自动重试，等 agent_end 的 willRetry 再定
-          live.pendingError = raw.errorMessage ?? textValue("messages/agents", "runtime.message_28");
+          live.pendingError = raw.errorMessage ?? textValue("app/messages/agents", "runtime.message_28");
         }
         return;
       }

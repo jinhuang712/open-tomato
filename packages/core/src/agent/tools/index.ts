@@ -1,3 +1,4 @@
+import { appCapabilityEntry } from "../../text/app.js";
 import { makeConversationHistoryTool } from "./conversation-history.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { makeAskUserTool } from "./ask-user.js";
@@ -57,7 +58,7 @@ export function createTools(ctx: ToolContext, perms: ToolPermissions): ToolDefin
 
   if (perms.canSpawn) {
     tools.push(makeSettleTool(ctx));
-    tools.push(makeLoadCapabilityTool(ctx));
+    tools.push(makeLoadCapabilityTool(ctx, (id) => appCapabilityEntry(id, "lead")));
   }
 
   if (perms.canSpawn && ctx.spawn) {

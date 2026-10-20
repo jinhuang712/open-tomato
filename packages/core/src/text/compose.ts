@@ -1,8 +1,7 @@
 import type { RoleId } from "../protocol.js";
-import { markdown, section } from "./load.js";
-import { renderHost, type HostId } from "./host.js";
+import { fill, markdown, section } from "./load.js";
 
-interface RoleText {
+export interface RoleText {
   id: RoleId;
   canWrite: boolean;
   canSpawn: boolean;
@@ -10,27 +9,29 @@ interface RoleText {
   values: Record<string, unknown>;
 }
 
-/** 共同规则按协作关系维护；这里仅决定各角色需要哪些章节。 */
-export function composeRolePrompt(role: RoleText, host: HostId): string {
-  const raw = markdown(`roles/${role.id}`);
-  const split = raw.indexOf("\n\n");
-  const identity = split < 0 ? raw : raw.slice(0, split);
-  const body = split < 0 ? "" : raw.slice(split + 2);
-  const rules = (key: string) => section("collaboration", key);
-  const parts = [
-    identity,
-    "{{ENVIRONMENT}}",
+/** 只组装写作与协作规则；这里不能读取宿主资源或工具说明。 */
+export function composeRolePrompt(role: RoleText): string {
+  const rules = (key: string) => section("shared/collaboration", key);
+  return fill([
+    markdown(`shared/roles/${role.id}`),
     rules("communication"),
-    ...(role.canSpawn ? [rules("author"), rules("authorization"), rules("progression"), rules("dispatch"), rules("materials")] : []),
+    ...(role.canSpawn ? [rules("author"), rules("authorization"), rules("dispatch"), rules("materials")] : []),
     rules("project-layout"),
-    ...(role.canReview ? [rules("review-intent")] : []),
-    body,
+    ...(role.canReview ? [rules("review-intent"), rules("review-save")] : []),
     ...(role.canWrite ? [rules("write-discipline")] : []),
-    ...(role.canReview ? [rules("review-save")] : []),
     rules("trust-boundary"),
     ...(role.canSpawn ? [] : [rules("report")]),
-    ...(role.canWrite ? ["{{DOCUMENTS}}"] : []),
-    "{{status}}",
-  ];
-  return renderHost(parts.filter(Boolean).join("\n\n"), host, role.values).trim();
+  ].join("\n\n"), role.values);
+}
+
+/** 两端确实复用的工具接口，按代码中的角色权限选择。 */
+export function composeToolPrompt(role: RoleText): string {
+  const tools = (key: string) => section("tools/instructions", key);
+  return fill([
+    tools("materials"),
+    ...(role.canSpawn ? [tools("lead")] : []),
+    ...(role.canWrite ? [tools("write")] : []),
+    ...(role.canReview ? [tools("review")] : []),
+    ...(["writer", "plotter", "proofreader"].includes(role.id) ? [tools(role.id)] : []),
+  ].join("\n\n"), role.values);
 }

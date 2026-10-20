@@ -1,5 +1,6 @@
+import { appCapabilityEntry as capabilityEntry } from "../src/text/app.js";
 import { describe, expect, test } from "bun:test";
-import { CAPABILITIES, CAPABILITY_IDS, capabilityEntry, capabilityIdsOf, capabilityInfos, capabilityRoster } from "../src/agent/capabilities.js";
+import { CAPABILITIES, CAPABILITY_IDS, capabilityIdsOf, capabilityInfos, capabilityRoster } from "../src/agent/capabilities.js";
 import { ROLES } from "../src/agent/roles.js";
 import { createTools, type ToolContext } from "../src/agent/tools/index.js";
 import type { RoleId } from "../src/protocol.js";

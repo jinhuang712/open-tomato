@@ -79,7 +79,7 @@ describe("materialTools", () => {
     const quoted = "ask_user spawn_agents continue_agent write_doc edit_doc web_search {{example}}";
     await store.write("characters", "林尧", CARD + "\n" + quoted + "\n");
     expect(await call("read_doc", { kind: "characters", id: "林尧" })).toContain(quoted);
-    expect(tools.get("read_doc")!.description).toContain("edit 前");
+    expect(tools.get("read_doc")!.description).toContain("局部修改前必须先用它拿原文");
     expect(tools.get("read_doc")!.description).not.toContain("edit_doc");
     const body = await call("load_capability", { id: "design" });
     expect(body).toContain("只出候选，不落盘");

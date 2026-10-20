@@ -7,7 +7,7 @@ import { createTools, type ToolContext } from "../src/agent/tools/index.js";
 import { ProjectStore } from "../src/project/store.js";
 
 const DOCUMENT_NOTICE = resourceText("messages/session", "document-notice");
-const SEARCH_NOTICE = resourceText("messages/session", "search-notice");
+const SEARCH_NOTICE = resourceText("app/messages/session", "search-notice");
 
 let root: string;
 let store: ProjectStore;

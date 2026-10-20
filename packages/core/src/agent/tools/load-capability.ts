@@ -1,16 +1,16 @@
 import { text as textValue } from "../../text/load.js";
-import type { HostId } from "../../text/host.js";
+import type { CapabilityId } from "../../protocol.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
-import { CAPABILITY_IDS, capabilityEntry, capabilityRoster, isCapabilityId } from "../capabilities.js";
+import { CAPABILITY_IDS, capabilityRoster, isCapabilityId } from "../capabilities.js";
 import { text, type ToolContext } from "./shared.js";
 
 /**
- * 主编自己进场一条能力。作者点按钮走 capability.run，内核以主编身份送进同一份正文；
+ * 共用能力工具；调用方必须提供自己的宿主入口，不默认选择 App 或 opencode。
  * 加载说明不算选定创作方案，也不算获得写入授权。
  */
-export function makeLoadCapabilityTool(_ctx: ToolContext, host: HostId = "app"): ToolDefinition {
+export function makeLoadCapabilityTool(_ctx: ToolContext, entry: (id: CapabilityId) => string): ToolDefinition {
   return defineTool({
     name: "load_capability",
     label: textValue("tools/conversation", "load_capability.label"),
@@ -21,7 +21,7 @@ export function makeLoadCapabilityTool(_ctx: ToolContext, host: HostId = "app"):
     }),
     execute: async (_id, params) => {
       if (!isCapabilityId(params.id)) throw new Error(textValue("messages/session", "load_capability.execute", { v0: params.id, v1: CAPABILITY_IDS.join(" / ") }));
-      return text(capabilityEntry(params.id, "lead", host));
+      return text(entry(params.id));
     },
   });
 }

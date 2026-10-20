@@ -21,3 +21,5 @@ tools.approvalRequested: 插件里没有 App 的审批门：落盘走 opencode �
 tools.questionRequested: 插件里没有 App 的提问门：问作者用 opencode 的 question
 agents.message: 可派的写作角色（agent 填名字）：
 entry.description: 进入 OpenTomato：把这个目录当成一本书，和主编一起写
+open: 作者用 /open-tomato 打开了这本书，还没说别的。
+capability.loaded: 你加载了「{{label}}」。

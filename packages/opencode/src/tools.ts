@@ -1,4 +1,4 @@
-import { hostText, text as textValue } from "@opentomato/core/headless";
+import { pluginText as textValue, capabilityPrompt } from "./text.ts";
 import type { Info as ToolInfo } from "@opencode/plugin/promise/tool";
 import {
   Gate,
@@ -41,14 +41,14 @@ export function materialTools(project: () => Promise<ProjectStore>): ToolInfo[] 
     return live.tools;
   };
   const [saveReview] = sample.reviews.values();
-  if (!saveReview) throw new Error(textValue("messages/opencode", "tools.message"));
+  if (!saveReview) throw new Error(textValue("tools.message"));
   return [
     ...[...sample.shared.values()].map((tool) =>
       adapt(tool, async () => (await current()).shared.get(tool.name) ?? tool),
     ),
     adapt(saveReview, async (agent) => {
       const tool = (await current()).reviews.get(agent);
-      if (!tool) throw new Error(textValue("messages/opencode", "tools.message_2"));
+      if (!tool) throw new Error(textValue("tools.message_2"));
       return tool;
     }),
   ];
@@ -78,7 +78,7 @@ function coreTools(store: ProjectStore): CoreTools {
     makeDocTemplateTool(ctx),
     makeRunCheckTool(ctx),
     makeListOpenTool(ctx),
-    makeLoadCapabilityTool(ctx, "opencode"),
+    makeLoadCapabilityTool(ctx, capabilityPrompt),
     makeReadReviewTool(ctx),
     makeVolumeRhythmTool(ctx),
   ];
@@ -97,9 +97,9 @@ function coreTools(store: ProjectStore): CoreTools {
 function adapt(tool: CoreTool, pick: (agent: string) => Promise<CoreTool>): ToolInfo {
   return {
     name: tool.name,
-    description: hostText(tool.description, "opencode"),
+    description: tool.description,
     // typebox 的 schema 就是 JSON Schema，转一道去掉它挂在对象上的 symbol 键
-    input: JSON.parse(JSON.stringify(tool.parameters), (key, value) => key === "description" && typeof value === "string" ? hostText(value, "opencode") : value),
+    input: JSON.parse(JSON.stringify(tool.parameters)),
     options: { codemode: false, permission: `${TOOL_PERMISSION}.${tool.name}` },
     execute: async (input, context) => {
       const result = await (
@@ -115,11 +115,11 @@ function adapt(tool: CoreTool, pick: (agent: string) => Promise<CoreTool>): Tool
 
 const noGate = {
   approvalRequested: () => {
-    throw new Error(textValue("messages/opencode", "tools.approvalRequested"));
+    throw new Error(textValue("tools.approvalRequested"));
   },
   approvalClosed: () => {},
   questionRequested: () => {
-    throw new Error(textValue("messages/opencode", "tools.questionRequested"));
+    throw new Error(textValue("tools.questionRequested"));
   },
   questionClosed: () => {},
 };

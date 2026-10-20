@@ -13,7 +13,7 @@ export class EditError extends Error {
     public readonly index: number,
     message: string,
   ) {
-    super(textValue("messages/materials", "edits.message", { v0: index + 1, v1: message }));
+    super(textValue("app/messages/materials", "edits.message", { v0: index + 1, v1: message }));
   }
 }
 
@@ -38,10 +38,10 @@ function countOccurrences(hay: string, needle: string): number {
  * 匹配严格按字面；找不到时给出提示，帮模型判断是原文已变还是引用不准。
  */
 export function applyEdits(raw: string, edits: TextEdit[]): string {
-  if (edits.length === 0) throw new Error(textValue("messages/materials", "edits.message_2"));
+  if (edits.length === 0) throw new Error(textValue("app/messages/materials", "edits.message_2"));
   let text = raw;
   edits.forEach((e, i) => {
-    if (e.old === e.new) throw new EditError(i, textValue("messages/materials", "edits.message_3"));
+    if (e.old === e.new) throw new EditError(i, textValue("app/messages/materials", "edits.message_3"));
     if (e.old === "") {
       const sep = text.endsWith("\n") || text === "" ? "" : "\n";
       text = `${text}${sep}${e.new}`;
@@ -50,15 +50,15 @@ export function applyEdits(raw: string, edits: TextEdit[]): string {
     const n = countOccurrences(text, e.old);
     if (n === 0) {
       const firstLine = e.old.split("\n")[0]?.trim() ?? "";
-      const hint = firstLine && text.includes(firstLine) ? textValue("messages/materials", "edits.message_4") : textValue("messages/materials", "edits.message_5");
-      throw new EditError(i, textValue("messages/materials", "edits.message_6", { v0: preview(e.old), v1: hint }));
+      const hint = firstLine && text.includes(firstLine) ? textValue("app/messages/materials", "edits.message_4") : textValue("app/messages/materials", "edits.message_5");
+      throw new EditError(i, textValue("app/messages/materials", "edits.message_6", { v0: preview(e.old), v1: hint }));
     }
     if (n > 1) {
       // 模型常拿 frontmatter 的「---」当「正文开头」的坐标，文件里前后各一条必然撞车；直说该怎么办，省一轮往返
       if (/^-{3,}$/.test(e.old.trim())) {
-        throw new EditError(i, textValue("messages/materials", "edits.message_7"));
+        throw new EditError(i, textValue("app/messages/materials", "edits.message_7"));
       }
-      throw new EditError(i, textValue("messages/materials", "edits.message_8", { v0: preview(e.old), v1: n }));
+      throw new EditError(i, textValue("app/messages/materials", "edits.message_8", { v0: preview(e.old), v1: n }));
     }
     text = text.replace(e.old, () => e.new);
   });

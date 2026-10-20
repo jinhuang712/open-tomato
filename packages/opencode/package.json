@@ -19,5 +19,10 @@
   "devDependencies": {
     "@types/bun": "1.4.0",
     "typescript": "5.9.3"
-  }
+  },
+  "files": [
+    "server.ts",
+    "src",
+    "text"
+  ]
 }

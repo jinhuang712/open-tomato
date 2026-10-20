@@ -39,7 +39,7 @@ bun run --filter @opentomato/core build
 | App 里                         | 插件里                                                                                                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 主编 + 八个角色                | 同名的隐藏 agent：主编（primary，由 /open-tomato 切入），策划、编剧、写手、运营、读者、文编、校对、裁决（subagent，主编派）                                         |
-| 角色提示词                     | core 按角色和 `text/hosts/opencode.yaml` 直接组装，不追加 App 规则的覆盖说明                                                                                  |
+| 角色提示词                     | 共用规则与工具说明来自 core，插件在 `src/text.ts` 加入本地 `text/instructions.md`                                                                                  |
 | read_doc、run_check 等材料工具 | core 的同一份实现：project_overview、list_docs、read_doc、search_docs、doc_template、run_check、list_open、load_capability、read_review、save_review、volume_rhythm |
 | write_doc / edit_doc + 审批门  | opencode 自带的 write / edit，插件挂钩子把关：只写材料、按角色限制可写范围、只改 frontmatter 不过门、写入后附上机检结果                                                           |
 | ask_user                       | opencode 的 question                                                                                                                                                |
@@ -51,7 +51,7 @@ bun run --filter @opentomato/core build
 - 没有 App 的界面：侧栏、红黄点、能力按钮、引用批注、⌘E 自己动手改都没有。opencode 桌面端还没有开放界面插件（`./gui` 入口的 PR 未合并），能用的只有它自带的对话、diff 和审批。
 - 审批门上没有「自己改了再放行」。桌面端的审批条只有拒绝、始终允许、允许一次，没有写理由的框：拒绝后这一轮停下，在对话里告诉主编为什么。别点「始终允许」：每次写入都该过作者这道门，而它在插件重算权限之后还起不起作用，没有验证过。
 - 通过 API 回复审批时可以带一句理由（`message`），这句话会原样交给写的那个 agent。
-- 派单没有 propose / commit 两种模式，也没有 fork、list_agents、archive_agent，主编按 `packages/core/text/hosts/opencode.yaml` 的说明，在任务书里写清本轮要求。
+- 派单没有 propose / commit 两种模式，也没有 fork、list_agents、archive_agent，主编按 `packages/opencode/text/instructions.md` 的说明，在任务书里写清本轮要求。
 - 没有 read_marks：作者的放行、退回不记成批。
 
 ## 开发
@@ -75,4 +75,6 @@ bun run preview --host opencode --role writer
 bun run preview --host opencode --role director --capability design
 ```
 
-预览与插件调用同一个组装入口。运行文本统一在 `packages/core/text/`：协作规则在 `collaboration.md`，角色职责在 `roles/`，能力正文在 `capabilities/`，工具说明和反馈模板分别在 `tools/`、`messages/`。工具权限和材料校验仍由代码控制。
+预览与插件调用同一个组装入口。共用纯文本在 `packages/core/text/shared/`，共用工具接口在 `packages/core/text/tools/`；插件专属操作与消息在本包的 `text/`。App 专属内容在 core 的 `text/app/`，不会被插件选入。工具权限和材料校验仍由代码控制。
+
+插件直接注册 `/open-tomato`、角色和工具。当前没有 `SKILL.md`，写作角色的 `skill` 权限仍为禁用；本次文本分离没有改变入口或权限策略。

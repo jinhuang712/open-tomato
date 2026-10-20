@@ -1,0 +1,36 @@
+edit_doc.execute: "{{v0}} 不存在，新建请用 write_doc"
+read_marks.execute: "{{v0}}/{{v1}} 上作者还没批过什么。"
+read_marks.execute_2: |-
+  - {{v0}} 作者亲手改了：
+  {{v1}}
+read_marks.execute_3: "- {{v0}} 作者说不欠：{{v1}}"
+read_marks.execute_4: "- {{v0}} 作者收回了之前的「不欠」：{{v1}}"
+settle.execute: "{{v0}}/{{v1}} 不存在"
+settle.execute_2: 记下了：{{v0}}/{{v1}} 不欠，机检对它的建议改不再报。
+settle.execute_3: 记下了：{{v0}}/{{v1}} 重新算欠账。
+shared.message_5: "{{v0}} 内容没有变化，跳过。"
+shared.message_6: "{{v0}} 的内容不归你写，你对它只能改记账字段（status / open / keywords）。要改的内容写进你的报告，由主编派负责这类材料的角色去改。"
+shared.message_7: |-
+
+  机检对这篇有话说：
+  {{v0}}
+shared.message_8: 已更新 {{v0}}（{{v1}}）的 frontmatter 字段 {{v2}}，正文没动，无需作者审批{{v3}}
+shared.message_9: 文件没有创建
+shared.message_10: 文件保持原样、被拒的稿子没有落盘
+shared.message_11: 用 write_doc 重新提交全文
+shared.message_12: 整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc
+shared.message_13: |
+  用户拒绝写入 {{v0}}{{v1}}。{{v2}}。
+shared.message_14: 理由是作者对你说的话，先判断它是什么：能照着改的，改好后{{v0}}，不要原样重试；
+shared.message_15: 理由是一个问题，先回答它，不要再提一版；理由和任务书或已有材料对不上、或你拿不准该怎么改，把矛盾写清楚停下，你这一停话就交回主编，由主编和作者定，不要自己编一个说法把两头缝上。
+shared.message_16: 已写入 {{v0}}（{{v1}}），但落盘的是作者亲手改过的版本，不是你提的那版。要再动这篇先 read_doc 拿磁盘上的正文，别在你自己那版上接着改。{{v2}}
+shared.message_17: 已写入 {{v0}}（{{v1}}）{{v2}}
+write_doc.execute: content 必须以 frontmatter（首行为 ---）开头，先用 doc_template 拿模板
+edits.message: 第 {{v0}} 处修改：{{v1}}
+edits.message_2: edits 为空，没有要改的内容
+edits.message_3: old 和 new 相同，没有变化
+edits.message_4: 首行能找到但整段对不上，多半是换行或空格不一致；请重新 read_doc 取原文
+edits.message_5: 文件里没有这段文字，可能已被改过；请重新 read_doc 再改
+edits.message_6: 找不到「{{v0}}」。{{v1}}
+edits.message_7: 「---」是 frontmatter 的分隔线，文件里前后各一条，不能当锚点。要在正文里改就逐字照抄正文里的原句；文档还是空模板、要铺全文就用 write_doc
+edits.message_8: 「{{v0}}」出现了 {{v1}} 次，请把 old 多带一两行上下文以唯一定位

@@ -11,9 +11,9 @@ standards.protagonist.planned: 简介「主角优势」
 standards.protagonist.produce.plotter: 排开篇几章时读简介的「主角优势」，让读者早点看到主角凭什么值得追着看。
 standards.protagonist.check.text: 主角在本章是自己在选，还是被剧情推着走；简介写的主角优势有没有派上用场。
 standards.beat.label: 压放
-standards.beat.planned: 章纲 beat
-standards.beat.produce.plotter: 用章纲的 beat 字段标明这一章是压、放还是平。如果是放，就在本章目标里写清爽点类型；类型以简介的读者画像为准，不套统一公式。如果连续几章都是压，要说明准备在哪一章释放情绪。
-standards.beat.check.text: 本章有哪些爽点、安排在哪里，情绪变化清不清楚、读者有没有得到满足，和章纲 beat 标的对不对得上；主角被压了多久，连续多章没有出口标出来。没有爽点就说没有。
+standards.beat.planned: 章纲的情绪安排
+standards.beat.produce.plotter: 在章纲中标明这一章是压、放还是平。如果是放，就在本章目标里写清爽点类型；类型以简介的读者画像为准，不套统一公式。如果连续几章都是压，要说明准备在哪一章释放情绪。
+standards.beat.check.text: 本章有哪些爽点、安排在哪里，情绪变化清不清楚、读者有没有得到满足，和章纲的情绪安排 标的对不对得上；主角被压了多久，连续多章没有出口标出来。没有爽点就说没有。
 standards.hook.label: 开篇与章末
 standards.hook.planned: 章纲「章末钩子」
 standards.hook.produce.plotter: 章末钩子落在问题或危机上，而不只是停了。
@@ -33,9 +33,9 @@ standards.info.produce.designer: 卡片里的设定要比正文详细。正文�
 standards.info.produce.writer: 只写当前冲突需要的那部分设定，其余留在卡片里，等读者需要知道时再交代。
 standards.info.check.text: 哪里看不懂、要回翻才明白；哪里一下子塞进太多设定或背景，哪里又少得跟不上。
 standards.threads.label: 线索推进
-standards.threads.planned: 章纲 threads
-standards.threads.produce.plotter: 章纲的 threads 只写这一章真正推进了的线，不写只是提到的。
-standards.threads.check.text: 检查章纲 threads 指向的每条线索，是否实际朝终点推进了一步。如果只是提到而没有推进，要结合本章目的说明有什么影响。
+standards.threads.planned: 章纲的线索安排
+standards.threads.produce.plotter: 章纲的线索安排只写这一章真正推进了的线，不写只是提到的。
+standards.threads.check.text: 检查章纲的线索安排 指向的每条线索，是否实际朝终点推进了一步。如果只是提到而没有推进，要结合本章目的说明有什么影响。
 standards.show.label: 演出来
 standards.show.planned: 作者守则里文字、叙述类的条目
 standards.show.produce.writer: 人物的判断和情绪尽量靠动作、对白和细节演出来，少用旁白替读者下结论。
@@ -55,6 +55,6 @@ standards.message_2: "{{v0}}. **{{v1}}**：{{v2}}（计划在 {{v3}}）"
 standards.message_3: |-
   ## 归你核对的标准
 
-  用 save_review 保存意见时，如果意见对应下面某条标准，standard 就填这条标准的名字；其他检查不填。
+  评审按下面列出的标准核对，并保留标准名称，便于对应修改。
 
   {{v0}}

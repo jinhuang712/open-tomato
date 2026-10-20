@@ -26,129 +26,129 @@ export type ReviewerRole = "ops" | "reader" | "copyeditor" | "proofreader";
 
 export const STANDARDS = {
   pitch: {
-    label: textValue("standards", "standards.pitch.label"),
-    planned: textValue("standards", "standards.pitch.planned"),
+    label: textValue("shared/standards", "standards.pitch.label"),
+    planned: textValue("shared/standards", "standards.pitch.planned"),
     produce: {},
     check: {
       role: "ops",
-      text: textValue("standards", "standards.pitch.check.text"),
+      text: textValue("shared/standards", "standards.pitch.check.text"),
     },
   },
   story: {
-    label: textValue("standards", "standards.story.label"),
-    planned: textValue("standards", "standards.story.planned"),
+    label: textValue("shared/standards", "standards.story.label"),
+    planned: textValue("shared/standards", "standards.story.planned"),
     produce: {},
   },
   audience: {
-    label: textValue("standards", "standards.audience.label"),
-    planned: textValue("standards", "standards.audience.planned"),
+    label: textValue("shared/standards", "standards.audience.label"),
+    planned: textValue("shared/standards", "standards.audience.planned"),
     produce: {},
     check: {
       role: "ops",
-      text: textValue("standards", "standards.audience.check.text"),
+      text: textValue("shared/standards", "standards.audience.check.text"),
     },
   },
   protagonist: {
-    label: textValue("standards", "standards.protagonist.label"),
-    planned: textValue("standards", "standards.protagonist.planned"),
+    label: textValue("shared/standards", "standards.protagonist.label"),
+    planned: textValue("shared/standards", "standards.protagonist.planned"),
     produce: {
-      plotter: textValue("standards", "standards.protagonist.produce.plotter"),
+      plotter: textValue("shared/standards", "standards.protagonist.produce.plotter"),
     },
     check: {
       role: "ops",
-      text: textValue("standards", "standards.protagonist.check.text"),
+      text: textValue("shared/standards", "standards.protagonist.check.text"),
     },
   },
   beat: {
-    label: textValue("standards", "standards.beat.label"),
-    planned: textValue("standards", "standards.beat.planned"),
+    label: textValue("shared/standards", "standards.beat.label"),
+    planned: textValue("shared/standards", "standards.beat.planned"),
     produce: {
       plotter:
-        textValue("standards", "standards.beat.produce.plotter"),
+        textValue("shared/standards", "standards.beat.produce.plotter"),
     },
     check: {
       role: "ops",
-      text: textValue("standards", "standards.beat.check.text"),
+      text: textValue("shared/standards", "standards.beat.check.text"),
     },
   },
   hook: {
-    label: textValue("standards", "standards.hook.label"),
-    planned: textValue("standards", "standards.hook.planned"),
+    label: textValue("shared/standards", "standards.hook.label"),
+    planned: textValue("shared/standards", "standards.hook.planned"),
     produce: {
-      plotter: textValue("standards", "standards.hook.produce.plotter"),
-      writer: textValue("standards", "standards.hook.produce.writer"),
+      plotter: textValue("shared/standards", "standards.hook.produce.plotter"),
+      writer: textValue("shared/standards", "standards.hook.produce.writer"),
     },
     check: {
       role: "ops",
-      text: textValue("standards", "standards.hook.check.text"),
+      text: textValue("shared/standards", "standards.hook.check.text"),
     },
   },
   motive: {
-    label: textValue("standards", "standards.motive.label"),
-    planned: textValue("standards", "standards.motive.planned"),
+    label: textValue("shared/standards", "standards.motive.label"),
+    planned: textValue("shared/standards", "standards.motive.planned"),
     produce: {
-      designer: textValue("standards", "standards.motive.produce.designer"),
+      designer: textValue("shared/standards", "standards.motive.produce.designer"),
     },
     check: {
       role: "reader",
-      text: textValue("standards", "standards.motive.check.text"),
+      text: textValue("shared/standards", "standards.motive.check.text"),
     },
   },
   scene: {
-    label: textValue("standards", "standards.scene.label"),
-    planned: textValue("standards", "standards.scene.planned"),
+    label: textValue("shared/standards", "standards.scene.label"),
+    planned: textValue("shared/standards", "standards.scene.planned"),
     produce: {
-      plotter: textValue("standards", "standards.scene.produce.plotter"),
+      plotter: textValue("shared/standards", "standards.scene.produce.plotter"),
     },
     check: {
       role: "reader",
-      text: textValue("standards", "standards.scene.check.text"),
+      text: textValue("shared/standards", "standards.scene.check.text"),
     },
   },
   info: {
-    label: textValue("standards", "standards.info.label"),
-    planned: textValue("standards", "standards.info.planned"),
+    label: textValue("shared/standards", "standards.info.label"),
+    planned: textValue("shared/standards", "standards.info.planned"),
     produce: {
-      designer: textValue("standards", "standards.info.produce.designer"),
-      writer: textValue("standards", "standards.info.produce.writer"),
+      designer: textValue("shared/standards", "standards.info.produce.designer"),
+      writer: textValue("shared/standards", "standards.info.produce.writer"),
     },
     check: {
       role: "reader",
-      text: textValue("standards", "standards.info.check.text"),
+      text: textValue("shared/standards", "standards.info.check.text"),
     },
   },
   threads: {
-    label: textValue("standards", "standards.threads.label"),
-    planned: textValue("standards", "standards.threads.planned"),
+    label: textValue("shared/standards", "standards.threads.label"),
+    planned: textValue("shared/standards", "standards.threads.planned"),
     produce: {
-      plotter: textValue("standards", "standards.threads.produce.plotter"),
+      plotter: textValue("shared/standards", "standards.threads.produce.plotter"),
     },
     check: {
       role: "proofreader",
-      text: textValue("standards", "standards.threads.check.text"),
+      text: textValue("shared/standards", "standards.threads.check.text"),
     },
   },
   show: {
-    label: textValue("standards", "standards.show.label"),
-    planned: textValue("standards", "standards.show.planned"),
+    label: textValue("shared/standards", "standards.show.label"),
+    planned: textValue("shared/standards", "standards.show.planned"),
     produce: {
-      writer: textValue("standards", "standards.show.produce.writer"),
+      writer: textValue("shared/standards", "standards.show.produce.writer"),
     },
     check: {
       role: "copyeditor",
-      text: textValue("standards", "standards.show.check.text"),
+      text: textValue("shared/standards", "standards.show.check.text"),
     },
   },
   voice: {
-    label: textValue("standards", "standards.voice.label"),
-    planned: textValue("standards", "standards.voice.planned"),
+    label: textValue("shared/standards", "standards.voice.label"),
+    planned: textValue("shared/standards", "standards.voice.planned"),
     produce: {
-      designer: textValue("standards", "standards.voice.produce.designer"),
-      writer: textValue("standards", "standards.voice.produce.writer"),
+      designer: textValue("shared/standards", "standards.voice.produce.designer"),
+      writer: textValue("shared/standards", "standards.voice.produce.writer"),
     },
     check: {
       role: "copyeditor",
-      text: textValue("standards", "standards.voice.check.text"),
+      text: textValue("shared/standards", "standards.voice.check.text"),
     },
   },
 } satisfies Record<string, Standard>;
@@ -174,7 +174,7 @@ export function produceBlock(role: RoleId): string {
   const ids = producedBy(role);
   if (ids.length === 0) return "";
   const lines = ids.map((id) => `- **${standard(id).label}**：${standard(id).produce[role]}`);
-  return textValue("standards", "standards.message", { v0: lines.join("\n") });
+  return textValue("shared/standards", "standards.message", { v0: lines.join("\n") });
 }
 
 /** 评审手册里的那一节：编号清单，每条带上计划写在哪，好对照着查 */
@@ -183,7 +183,7 @@ export function checkBlock(role: RoleId): string {
   if (ids.length === 0) return "";
   const lines = ids.map((id, i) => {
     const s = standard(id);
-    return textValue("standards", "standards.message_2", { v0: i + 1, v1: s.label, v2: s.check?.text ?? "", v3: s.planned });
+    return textValue("shared/standards", "standards.message_2", { v0: i + 1, v1: s.label, v2: s.check?.text ?? "", v3: s.planned });
   });
-  return textValue("standards", "standards.message_3", { v0: lines.join("\n") });
+  return textValue("shared/standards", "standards.message_3", { v0: lines.join("\n") });
 }

@@ -19,11 +19,10 @@ export {
 export { frontmatterProblem } from "./project/frontmatter-validation.js";
 export { runCheck } from "./project/check.js";
 export { SearchIndex } from "./project/search.js";
-export { ROLES, ROLE_IDS, rolePrompt, type RoleDef } from "./agent/roles.js";
+export { ROLES, ROLE_IDS, sharedRolePrompt, sharedToolPrompt, type RoleDef } from "./agent/roles.js";
 export {
   CAPABILITIES,
   CAPABILITY_IDS,
-  capabilityEntry,
   capabilityRoster,
 } from "./agent/capabilities.js";
 export { Gate } from "./agent/gate.js";
@@ -49,6 +48,4 @@ export { makeSaveReviewTool } from "./agent/tools/save-review.js";
 export { makeSearchDocsTool } from "./agent/tools/search-docs.js";
 export { makeVolumeRhythmTool } from "./agent/tools/volume-rhythm.js";
 
-export { text, markdown } from "./text/load.js";
-
-export { hostText, renderHost, type HostId } from "./text/host.js";
+export { text, markdown, fill, createTextLoader } from "./text/load.js";

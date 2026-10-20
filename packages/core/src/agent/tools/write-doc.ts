@@ -9,18 +9,18 @@ export function makeWriteDocTool(ctx: ToolContext, writableKinds: readonly DocKi
   const approveAndWrite = makeApproveAndWrite(ctx, writableKinds);
   return defineTool({
     name: "write_doc",
-    label: textValue("tools/materials", "write_doc.label"),
+    label: textValue("app/tools/materials", "write_doc.label"),
     description:
-      textValue("tools/materials", "write_doc.description"),
+      textValue("app/tools/materials", "write_doc.description"),
     parameters: Type.Object({
       kind: writableKindSchema(writableKinds),
-      id: Type.String({ description: textValue("tools/materials", "write_doc.parameters.id.description") }),
-      content: Type.String({ description: textValue("tools/materials", "write_doc.parameters.content.description") }),
+      id: Type.String({ description: textValue("app/tools/materials", "write_doc.parameters.id.description") }),
+      content: Type.String({ description: textValue("app/tools/materials", "write_doc.parameters.content.description") }),
     }),
     execute: async (toolCallId, params, signal) => {
       const kind = assertKind(params.kind);
       if (!/^---\r?\n/.test(params.content)) {
-        throw new Error(textValue("messages/materials", "write_doc.execute"));
+        throw new Error(textValue("app/messages/materials", "write_doc.execute"));
       }
       return approveAndWrite(toolCallId, kind, params.id, params.content, signal);
     },

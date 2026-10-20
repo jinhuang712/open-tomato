@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CAPABILITIES } from "../src/agent/capabilities.js";
-import { ROLE_IDS, ROLES, rolePrompt } from "../src/agent/roles.js";
+import { ROLE_IDS, ROLES, rolePrompt, sharedRolePrompt, sharedToolPrompt } from "../src/agent/roles.js";
 import { catalog, fill, markdown, parseCatalog, section, text } from "../src/text/load.js";
-import { HOST_IDS, renderHost } from "../src/text/host.js";
+import { createTools } from "../src/agent/tools/index.js";
 
 const ROOT = new URL("../text/", import.meta.url);
 const files = (root: URL): URL[] => readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -13,94 +13,87 @@ const files = (root: URL): URL[] => readdirSync(root, { withFileTypes: true }).f
 });
 
 describe("运行文本加载", () => {
-  test("所有文本目录都能解析，缺键、缺参数和重复键会报错", () => {
+  test("所有目录都能解析，缺键、缺参数、重复键和非字符串会报错", () => {
     for (const file of files(ROOT).filter((path) => path.pathname.endsWith(".yaml"))) {
       const name = fileURLToPath(file).slice(fileURLToPath(ROOT).length, -5);
       expect(Object.keys(catalog(name)).length).toBeGreaterThan(0);
     }
-    expect(() => text("roles", "missing")).toThrow("Missing text entry");
+    expect(() => text("shared/roles", "missing")).toThrow("Missing text entry");
     expect(() => fill("{{missing}}", {})).toThrow("Missing text parameter");
     expect(() => parseCatalog("key: first\nkey: second")).toThrow("Invalid text catalog");
     expect(() => parseCatalog("key: 42")).toThrow("must be strings");
   });
 
-  test("core 和插件源码中直接引用的文本键都存在", () => {
-    const roots = [new URL("../src/", import.meta.url), new URL("../../opencode/src/", import.meta.url)];
+  test("core 源码直接引用的文本键均存在", () => {
     let references = 0;
-    for (const root of roots) {
-      for (const file of files(root).filter((path) => path.pathname.endsWith(".ts"))) {
-        const source = readFileSync(file, "utf8");
-        for (const [, name, key] of source.matchAll(/\btextValue\("([^"]+)", "([^"]+)"/g)) {
-          expect(() => text(name!, key!)).not.toThrow();
-          references++;
-        }
+    for (const file of files(new URL("../src/", import.meta.url)).filter((path) => path.pathname.endsWith(".ts"))) {
+      const source = readFileSync(file, "utf8");
+      for (const [, name, key] of source.matchAll(/\btextValue\("([^"]+)", "([^"]+)"/g)) {
+        expect(() => text(name!, key!)).not.toThrow();
+        references++;
       }
     }
     expect(references).toBeGreaterThan(300);
   });
 
-  test("插值只处理模板本身，显式传入的 undefined 保持原模板字符串语义", () => {
+  test("插值不重复解析，显式 undefined 保持原模板语义", () => {
     expect(fill("{{value}} / {{other}}", { value: "{{not_a_parameter}}", other: undefined })).toBe("{{not_a_parameter}} / undefined");
     expect(fill("{{value}}", { value: "$&" })).toBe("$&");
   });
 
-  test("资源路径不能越出文本根目录，协作章节必须存在", () => {
-    for (const path of ["../roles", "/etc/passwd", "roles//writer", "roles/../../other"]) {
-      expect(() => markdown(path)).toThrow("Invalid text resource");
-    }
-    expect(() => section("collaboration", "missing")).toThrow("Missing or duplicate text section");
+  test("资源路径不能越界，章节必须存在", () => {
+    for (const path of ["../roles", "/etc/passwd", "roles//writer", "roles/../../other"]) expect(() => markdown(path)).toThrow("Invalid text resource");
+    expect(() => section("shared/collaboration", "missing")).toThrow("Missing or duplicate text section");
   });
 });
 
-describe("按宿主直接组装", () => {
-  const appOnly = /\b(?:ask_user|spawn_agents|continue_agent|write_doc|edit_doc|web_search|read_marks|list_agents|archive_agent)\b|mode=(?:propose|commit)|fork=true/;
-
-  test("所有角色和能力都能在两种宿主中加载，无残留占位符或内部章节标记", () => {
-    for (const host of HOST_IDS) {
-      for (const role of ROLE_IDS) {
-        const prompt = rolePrompt(role, host);
-        expect(prompt).not.toMatch(/{{\w+}}|<!-- (?:section:|endsection)/);
-        expect(prompt.split(section("collaboration", "communication"))).toHaveLength(2);
-        expect(prompt.split(section("collaboration", "trust-boundary"))).toHaveLength(2);
-        if (host === "opencode") expect(prompt).not.toMatch(appOnly);
-      }
-      for (const capability of Object.values(CAPABILITIES)) {
-        const body = capability.load(host);
-        expect(body).not.toMatch(/{{\w+}}/);
-        if (host === "opencode") expect(body).not.toMatch(appOnly);
-      }
+describe("纯文本与工具接口的边界", () => {
+  test("全部共用纯文本不含已注册工具名、宿主机制或接口参数", () => {
+    const tools = createTools({ store: null, agentId: "audit", history: () => [], spawn: () => {}, continueAgent: () => {}, archiveAgent: () => {}, listAgents: () => [] } as never,
+      { writableKinds: ["manuscript"], canSpawn: true, canAsk: true, reviewAs: "copyeditor" });
+    const toolNames = new RegExp(`\\b(?:${tools.map((t) => t.name).join("|")})\\b`);
+    const mechanics = /\b(?:question|subagent|write|edit|websearch|oldString|newString|frontmatter|sessionID)\b|mode=(?:propose|commit)|fork=true|⟦引用|\[批注/;
+    for (const file of files(new URL("shared/", ROOT))) {
+      const content = file.pathname.endsWith(".yaml") ? Object.values(parseCatalog(readFileSync(file, "utf8"))).join("\n") : readFileSync(file, "utf8");
+      expect(content).not.toMatch(toolNames);
+      expect(content.replace(/<!-- (?:section:[\w-]+|endsection) -->/g, "")).not.toMatch(mechanics);
+      expect(content).not.toMatch(/{{(?:MARKS|DOCUMENTS|QUESTION_\w+|DISPATCH|LIFECYCLE|status|ENVIRONMENT|CANDIDATE_PHASE)}}/);
     }
   });
 
-  test("只有 App 带状态行；opencode 明确候选任务书和原会话续派", () => {
-    for (const role of ROLE_IDS) {
-      expect(rolePrompt(role, "app")).toContain("## 状态行");
-      expect(rolePrompt(role, "opencode")).not.toContain("## 状态行");
+  test("全部角色共用规则、App 提示词和能力均可组装", () => {
+    for (const id of ROLE_IDS) {
+      const pure = sharedRolePrompt(id);
+      const app = rolePrompt(id);
+      expect(app).toContain(pure);
+      expect(app).toContain(sharedToolPrompt(id));
+      expect(app).not.toMatch(/{{\w+}}|<!-- (?:section:|endsection)/);
+      for (const key of ["communication", "trust-boundary"]) expect(pure.split(section("shared/collaboration", key))).toHaveLength(2);
+      expect(app.includes("## 给主编的报告")).toBe(id !== "director");
+      expect(app.includes("## 落盘纪律")).toBe(ROLES[id].canWrite);
+      expect(app).toContain("## 状态行");
+      expect(app).not.toMatch(/\b(?:question|subagent|oldString|newString|websearch)\b/);
     }
-    const lead = rolePrompt("director", "opencode");
-    expect(lead).toContain("只出候选，不落盘");
-    expect(lead).toContain("sessionID");
-    expect(lead).toContain("background: true");
-    expect(lead).toContain("question");
-    expect(rolePrompt("writer", "opencode")).not.toContain("## 在 opencode 里提问和派单");
-    expect(rolePrompt("reader", "opencode")).not.toContain("## 文档工具");
-  });
-
-  test("共享章节按角色选择，权限与文档类型仍由代码定义", () => {
+    for (const c of Object.values(CAPABILITIES)) expect(c.load()).not.toMatch(/{{\w+}}/);
     expect(ROLES.writer.writableKinds).toEqual(["manuscript"]);
     expect(ROLES.director.canSpawn).toBe(true);
-    for (const role of ROLE_IDS) {
-      const prompt = rolePrompt(role, "app");
-      expect(prompt.includes("## 给主编的报告")).toBe(role !== "director");
-      expect(prompt.includes("## 落盘纪律")).toBe(ROLES[role].canWrite);
-      expect(prompt.includes("## 先读章纲")).toBe(ROLES[role].canReview ?? false);
-    }
   });
 
-  test("资源打包清单包含编译代码和文本目录", () => {
+  test("操作说明按权限选择，评审不会收到写入、模板或联网调用", () => {
+    expect(sharedToolPrompt("copyeditor")).toContain("save_review");
+    for (const id of ["reader", "copyeditor", "proofreader", "ops", "arbiter"] as const) {
+      const tools = sharedToolPrompt(id);
+      expect(tools).not.toMatch(/\b(?:doc_template|write_doc|edit_doc|web_search)\b/);
+      expect(tools.includes("save_review")).toBe(ROLES[id].canReview ?? false);
+    }
+    expect(rolePrompt("director")).toContain("⟦引用");
+    expect(rolePrompt("writer")).toContain("old / new");
+    expect(rolePrompt("writer")).toContain("read_marks");
+  });
+
+  test("资源包包含编译代码和文本目录", () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     expect(pkg.files).toContain("dist");
     expect(pkg.files).toContain("text");
-    expect(renderHost("write_doc / edit_doc", "opencode")).toBe("write / edit");
   });
 });

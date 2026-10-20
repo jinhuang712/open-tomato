@@ -7,12 +7,12 @@ import { text, type ToolContext } from "./shared.js";
 
 /** 每种状态对派它的人意味着什么：一个词说状态，一句话说下一步该怎么办 */
 const MEANING: Record<AgentStatus, { word: string; note: string }> = {
-  running: { word: "在跑", note: textValue("messages/agents", "list_agents.running.note") },
-  interrupted: { word: textValue("messages/agents", "list_agents.interrupted.word"), note: textValue("messages/agents", "list_agents.interrupted.note") },
-  done: { word: textValue("messages/agents", "list_agents.done.word"), note: textValue("messages/agents", "list_agents.done.note") },
-  error: { word: "出错", note: textValue("messages/agents", "list_agents.error.note") },
-  archived: { word: textValue("messages/agents", "list_agents.archived.word"), note: textValue("messages/agents", "list_agents.archived.note") },
-  idle: { word: "待命", note: textValue("messages/agents", "list_agents.idle.note") },
+  running: { word: "在跑", note: textValue("app/messages/agents", "list_agents.running.note") },
+  interrupted: { word: textValue("app/messages/agents", "list_agents.interrupted.word"), note: textValue("app/messages/agents", "list_agents.interrupted.note") },
+  done: { word: textValue("app/messages/agents", "list_agents.done.word"), note: textValue("app/messages/agents", "list_agents.done.note") },
+  error: { word: "出错", note: textValue("app/messages/agents", "list_agents.error.note") },
+  archived: { word: textValue("app/messages/agents", "list_agents.archived.word"), note: textValue("app/messages/agents", "list_agents.archived.note") },
+  idle: { word: "待命", note: textValue("app/messages/agents", "list_agents.idle.note") },
 };
 
 /** 任务书可能很长，名单上只要认得出是哪一件 */
@@ -38,20 +38,20 @@ export function makeListAgentsTool(ctx: ToolContext): ToolDefinition {
   const listAgents = ctx.listAgents!;
   return defineTool({
     name: "list_agents",
-    label: textValue("tools/agents", "list_agents.label"),
+    label: textValue("app/tools/agents", "list_agents.label"),
     description:
-      textValue("tools/agents", "list_agents.description"),
+      textValue("app/tools/agents", "list_agents.description"),
     parameters: Type.Object({}),
     execute: async () => {
       const all = listAgents();
-      if (all.length === 0) return text(textValue("messages/agents", "list_agents.execute"));
+      if (all.length === 0) return text(textValue("app/messages/agents", "list_agents.execute"));
       const live = all.filter((a) => a.status !== "archived");
       const sealed = all.filter((a) => a.status === "archived");
-      const lines = [textValue("messages/agents", "list_agents.execute_3", { v0: live.length, v1: sealed.length > 0 ? textValue("messages/agents", "list_agents.execute_2", { v0: sealed.length }) : "" })];
+      const lines = [textValue("app/messages/agents", "list_agents.execute_3", { v0: live.length, v1: sealed.length > 0 ? textValue("app/messages/agents", "list_agents.execute_2", { v0: sealed.length }) : "" })];
       for (const a of [...live, ...sealed]) lines.push(line(a));
       const waiting = live.filter((a) => a.status === "interrupted");
       if (waiting.length > 0) {
-        lines.push("", textValue("messages/agents", "list_agents.execute_4", { v0: waiting.map((a) => a.handle || a.label).join("、") }));
+        lines.push("", textValue("app/messages/agents", "list_agents.execute_4", { v0: waiting.map((a) => a.handle || a.label).join("、") }));
       }
       return text(lines.join("\n"));
     },

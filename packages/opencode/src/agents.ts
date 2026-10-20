@@ -1,4 +1,4 @@
-import { rolePrompt, text as textValue } from "@opentomato/core/headless";
+import { pluginText as textValue, rolePrompt } from "./text.ts";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
 import { ROLE_IDS, ROLES, type RoleId } from "@opentomato/core/headless";
 import { agentIdOf, roleOf } from "./roles.ts";
@@ -8,7 +8,7 @@ import { TOOL_PERMISSION } from "./tools.ts";
 const CHILD_ROLES = ROLE_IDS.filter((role) => !ROLES[role].canSpawn);
 
 export function systemPromptOf(role: RoleId): string {
-  return rolePrompt(role, "opencode");
+  return rolePrompt(role);
 }
 
 /**
@@ -100,7 +100,7 @@ export function registerAgents(editor: AgentEditor): void {
  */
 export function childRoster(): string {
   return [
-    textValue("messages/opencode", "agents.message"),
+    textValue("agents.message"),
     ...CHILD_ROLES.map((role) => `- ${agentIdOf(role)}：${ROLES[role].description}`),
   ].join("\n");
 }

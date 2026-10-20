@@ -1,0 +1,19 @@
+edit_doc.label: 改文档
+edit_doc.description: 局部修改一篇已有文档：给若干组 old/new，old 是文件里的原文片段（须唯一匹配，可多带一两行上下文），new 是替换后的文字（空串即删除）。不必复述整篇。不要拿 frontmatter 的「---」当锚点；文档还是空模板、要铺全文请用 write_doc。只改动的部分会以 diff 给用户审批；原文对不上时会报错，请重新 read_doc 取原文再改。
+edit_doc.parameters.id.description: 文档 id，章号可以直接给数字
+edit_doc.parameters.edits.old.description: 原文片段，逐字照抄（含换行）；空串表示追加到文末
+edit_doc.parameters.edits.new.description: 新文字；空串表示删除 old
+read_marks.label: 读作者的批
+read_marks.description: 读一份材料上作者的批：退回时选的词和说的话、放行、亲手改过的地方。写手写第 N 章前读第 N-1 章正文的批，同一句话作者不用说两遍。
+read_marks.parameters.id.description: 文档 id，章号可以直接给数字
+settle.label: 记下作者说不欠
+settle.description: 作者明确说某份材料的账不欠了（「这条线故意沉两卷」「这个坑留白不填」）就记一条；作者改主意说又欠了就 reopen。只在作者明确说了之后用，不要自己判断。记了之后机检对它的建议改不再报，必须修照报。
+settle.parameters.id.description: 文档 id
+settle.parameters.mode.description: defer 不欠 / reopen 又欠了
+settle.parameters.text.description: 作者的原话
+write_doc.label: 写文档
+write_doc.description: 新建文档或整篇重写：写入完整文件文本（含 frontmatter，用 doc_template 拿模板）。改已有文档的局部请用 edit_doc。会先在界面上给用户看 diff，用户批准后才真正写入；被拒时返回原因。
+write_doc.parameters.id.description: 文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字；守则留空自动编号；简介随便填都落到同一份
+write_doc.parameters.content.description: 完整文件文本，必须以 frontmatter 开头，首行为 ---
+shared.writable_kind_description: 文档类型，写英文 kind 或中文名都行。你能写的只有：{{v0}}
+shared.bookkeeping_description: "。其他类型只能改 frontmatter 里的记账字段（status / open / keywords），比如把作废的卡标 status: retired；正文一个字都不能动"

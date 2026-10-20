@@ -6,7 +6,7 @@ import { checkBlock } from "../src/agent/standards.js";
 
 describe("提示词口径", () => {
   test("所有角色恰好注入一次共享信任边界，无未填占位符", () => {
-    const boundary = section("collaboration", "trust-boundary");
+    const boundary = section("shared/collaboration", "trust-boundary");
     for (const role of Object.values(ROLES)) {
       expect(role.systemPrompt.split(boundary)).toHaveLength(2);
       expect(role.systemPrompt).not.toMatch(/\{\{\w+\}\}/);
@@ -45,21 +45,21 @@ describe("提示词口径", () => {
     expect(p).not.toContain("不读别的");
     expect(p).toContain("按需补读相关故事材料");
     expect(p).toContain("不把未经确认的设定当作既定事实");
-    expect(p).toContain("project_overview 查看项目概况");
-    expect(p).toContain("web_search 查证本章涉及的现实知识");
-    expect(p).toContain("返修时 read_review");
+    expect(p).toContain("用 project_overview 定位材料");
+    expect(p).toContain("web_search 用于现实资料查证");
+    expect(p).toContain("返修前用 read_review 读取本章各路最新记录");
   });
 
   test("暂停停止推进并等待输入，不强制开启问卷", () => {
-    const pause = resourceText("messages/session", "pause-lead");
+    const pause = resourceText("app/messages/session", "pause-lead");
     expect(pause).toContain("不再派单或写入");
     expect(pause).toContain("等待作者输入");
     expect(pause).not.toContain("ask_user");
   });
 
   test("所有角色共用一份交流原则，报告规则不限制主编正文", () => {
-    const communication = section("collaboration", "communication");
-    const report = section("collaboration", "report");
+    const communication = section("shared/collaboration", "communication");
+    const report = section("shared/collaboration", "report");
     for (const role of Object.values(ROLES)) {
       expect(role.systemPrompt.split(communication)).toHaveLength(2);
       expect(role.systemPrompt.split(report)).toHaveLength(role.id === "director" ? 1 : 2);
@@ -82,8 +82,8 @@ describe("评审手册", () => {
       expect(g).not.toContain("✗");
       expect(g).not.toContain("✓");
       expect(g).toMatch(/^1\. \*\*.+\*\*：/m);
-      // 分级句只写手册独有的那半句；章纲承诺没做到记 must 在 REVIEW_INTENT 里统一说
-      expect(g).toMatch(/记 (must|suggest)/);
+      // 手册保留本路分级，通用章纲要求由协作规则提供。
+      expect(g).toMatch(/必须修改|作为建议/);
     }
   });
 

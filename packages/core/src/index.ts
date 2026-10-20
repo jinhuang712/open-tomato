@@ -6,8 +6,10 @@ export { runCheck } from "./project/check.js";
 export { buildStorySeed, storySeedFilename, SEED_KIND_ORDER } from "./project/seed.js";
 export { readProjectSettings, writeProjectSettings, type ProjectSettings } from "./project/settings.js";
 export { ROLES, ROLE_IDS, roleInfos, isRoleId } from "./agent/roles.js";
-export { CAPABILITIES, CAPABILITY_IDS, capabilityEntry, capabilityIdsOf, capabilityInfos, capabilityRoster, isCapabilityId } from "./agent/capabilities.js";
+export { CAPABILITIES, CAPABILITY_IDS, capabilityIdsOf, capabilityInfos, capabilityRoster, isCapabilityId } from "./agent/capabilities.js";
 export { Kernel } from "./agent/runtime.js";
 export { normalizeHistory } from "./agent/kernel/history.js";
 export { Gate } from "./agent/gate.js";
 export { ModelsFacade } from "./agent/models.js";
+
+export { appCapabilityEntry as capabilityEntry } from "./text/app.js";

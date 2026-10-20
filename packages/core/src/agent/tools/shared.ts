@@ -106,8 +106,8 @@ export const KIND_SCHEMA = Type.String({
 export const writableKindSchema = (kinds: readonly DocKindId[], bookkeepAnyKind = false) =>
   Type.String({
     description:
-      textValue("tools/materials", "shared.writable_kind_description", { v0: kinds.map((k) => `${k}=${zhDir(k)}`).join("、") }) +
-      (bookkeepAnyKind ? textValue("tools/materials", "shared.bookkeeping_description") : ""),
+      textValue("app/tools/materials", "shared.writable_kind_description", { v0: kinds.map((k) => `${k}=${zhDir(k)}`).join("、") }) +
+      (bookkeepAnyKind ? textValue("app/tools/materials", "shared.bookkeeping_description") : ""),
   });
 
 export const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
@@ -158,21 +158,21 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
     const blocked = ctx.writeBlocked?.();
     if (blocked) throw new Error(blocked);
     const preview = await store.previewWrite(kind, id, after);
-    if (preview.before === preview.after) return text(textValue("messages/materials", "shared.message_5", { v0: preview.path }));
+    if (preview.before === preview.after) return text(textValue("app/messages/materials", "shared.message_5", { v0: preview.path }));
     // 正文一字未改、改动全在 frontmatter 里：不过审批门，直接落盘，改了哪些字段写在回话里让作者看见。
     // 越界写别人的材料是另一码事，那里仍只放行记账字段，跟审批门宽严无关。
     const frontmatterEdit = !preview.isNew && frontmatterOnly(preview.before, preview.after);
     if (!ownKind && !(frontmatterEdit && bookkeepingOnly(kind, preview.before, preview.after))) {
       throw new Error(
-        textValue("messages/materials", "shared.message_6", { v0: zhDir(kind) }),
+        textValue("app/messages/materials", "shared.message_6", { v0: zhDir(kind) }),
       );
     }
     if (frontmatterEdit) {
       const changed = frontmatterDiffKeys(parseFrontmatter(preview.before).frontmatter, parseFrontmatter(preview.after).frontmatter);
       const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
       const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
-      const tail = issues.length === 0 ? "" : textValue("messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
-      return text(textValue("messages/materials", "shared.message_8", { v0: header.path, v1: header.title, v2: changed.join("、"), v3: tail }));
+      const tail = issues.length === 0 ? "" : textValue("app/messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
+      return text(textValue("app/messages/materials", "shared.message_8", { v0: header.path, v1: header.title, v2: changed.join("、"), v3: tail }));
     }
     const outcome = await ctx.gate.requestApproval(
       {
@@ -217,24 +217,24 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
       agentId: ctx.agentId,
     });
     if (outcome.decision === "reject") {
-      const state = preview.isNew ? textValue("messages/materials", "shared.message_9") : textValue("messages/materials", "shared.message_10");
+      const state = preview.isNew ? textValue("app/messages/materials", "shared.message_9") : textValue("app/messages/materials", "shared.message_10");
       const redo = preview.isNew
-        ? textValue("messages/materials", "shared.message_11")
-        : textValue("messages/materials", "shared.message_12");
+        ? textValue("app/messages/materials", "shared.message_11")
+        : textValue("app/messages/materials", "shared.message_12");
       return text(
-        textValue("messages/materials", "shared.message_13", { v0: preview.path, v1: outcome.reason ? `，原因：${outcome.reason}` : "", v2: state }) +
-          textValue("messages/materials", "shared.message_14", { v0: redo }) +
-          textValue("messages/materials", "shared.message_15"),
+        textValue("app/messages/materials", "shared.message_13", { v0: preview.path, v1: outcome.reason ? `，原因：${outcome.reason}` : "", v2: state }) +
+          textValue("app/messages/materials", "shared.message_14", { v0: redo }) +
+          textValue("app/messages/materials", "shared.message_15"),
       );
     }
     const header = await store.write(kind, preview.id, final, { expectBefore: preview.before });
     const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
-    const tail = issues.length === 0 ? "" : textValue("messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
+    const tail = issues.length === 0 ? "" : textValue("app/messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
     // 落的不是你提的那版，必须说出来：不然 agent 会拿自己那份当磁盘上的现状，接着 edit_doc 就把作者的改动盖回去
     if (edited) {
-      return text(textValue("messages/materials", "shared.message_16", { v0: header.path, v1: header.title, v2: tail }));
+      return text(textValue("app/messages/materials", "shared.message_16", { v0: header.path, v1: header.title, v2: tail }));
     }
-    return text(textValue("messages/materials", "shared.message_17", { v0: header.path, v1: header.title, v2: tail }));
+    return text(textValue("app/messages/materials", "shared.message_17", { v0: header.path, v1: header.title, v2: tail }));
   };
 }
 

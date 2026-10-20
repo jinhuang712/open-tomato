@@ -1,4 +1,4 @@
-import { text as textValue } from "@opentomato/core/headless";
+import { pluginText as textValue } from "./text.ts";
 import path from "node:path";
 import {
   DOC_KIND_IDS,
@@ -17,7 +17,7 @@ export interface Material {
 }
 
 const LAYOUT =
-  textValue("messages/opencode", "material.LAYOUT");
+  textValue("material.LAYOUT");
 
 /**
  * 把 write / edit 的 path 认成一份材料，按 core 的规则规范化 id（章纲/1.md → 章纲/0001.md）。
@@ -34,13 +34,13 @@ export async function resolveMaterial(
   const parts = rel.split("/");
   const name = parts.at(-1) ?? "";
   if (rel.startsWith("..") || path.isAbsolute(rel) || parts.length > 2 || !name.endsWith(".md")) {
-    throw new Error(textValue("messages/opencode", "material.message", { v0: LAYOUT, v1: input }));
+    throw new Error(textValue("material.message", { v0: LAYOUT, v1: input }));
   }
   const kind =
     parts.length === 1
       ? DOC_KIND_IDS.find((k) => DOC_KINDS[k].singleton && store.relPath(k, "") === rel)
       : DOC_KIND_IDS.find((k) => !DOC_KINDS[k].singleton && DOC_KINDS[k].dir === parts[0]);
-  if (!kind) throw new Error(textValue("messages/opencode", "material.message", { v0: LAYOUT, v1: input }));
+  if (!kind) throw new Error(textValue("material.message", { v0: LAYOUT, v1: input }));
   const raw = name.slice(0, -".md".length);
   const id =
     DOC_KINDS[kind].autoId && creating && !/\d/.test(raw)
@@ -53,6 +53,6 @@ function normalize(store: ProjectStore, kind: DocKindId, raw: string, input: str
   try {
     return store.normalizeId(kind, raw);
   } catch {
-    throw new Error(textValue("messages/opencode", "material.message_2", { v0: input, v1: zhDir(kind) }));
+    throw new Error(textValue("material.message_2", { v0: input, v1: zhDir(kind) }));
   }
 }

@@ -1,4 +1,4 @@
-import { text as textValue } from "@opentomato/core/headless";
+import { pluginText as textValue } from "./text.ts";
 import { readFile } from "node:fs/promises";
 import type { PermissionEvaluation } from "@opencode/plugin/promise/permission";
 import {
@@ -71,15 +71,15 @@ export function createWriteGate(
     const role = roleOf(event.agent);
     if (!role) {
       if (toolNames.has(event.tool))
-        throw new Error(textValue("messages/opencode", "gate.message", { v0: event.tool }));
+        throw new Error(textValue("gate.message", { v0: event.tool }));
       const target = (event.input as { agent?: unknown } | null)?.agent;
       if (event.tool === "subagent" && typeof target === "string" && roleOf(target)) {
-        throw new Error(textValue("messages/opencode", "gate.message_2", { v0: target }));
+        throw new Error(textValue("gate.message_2", { v0: target }));
       }
       return;
     }
     if (event.tool === "shell" || event.tool === "patch") {
-      throw new Error(textValue("messages/opencode", "gate.message_3", { v0: event.tool }));
+      throw new Error(textValue("gate.message_3", { v0: event.tool }));
     }
     if (event.tool === "subagent") {
       // 和 App 的 spawn_agents 同一套门：没有一句话故事不派编剧写手，没章纲不派写手，没正文不派评审
@@ -108,7 +108,7 @@ export function createWriteGate(
       if (!def.bookkeepAnyKind) assertWritableKind(material.kind, def.writableKinds);
       if (!(fmOnly && bookkeepingOnly(material.kind, current, next))) {
         throw new Error(
-          textValue("messages/opencode", "gate.message_4", { v0: zhDir(material.kind), v1: writersOf(material.kind) }),
+          textValue("gate.message_4", { v0: zhDir(material.kind), v1: writersOf(material.kind) }),
         );
       }
     }
@@ -136,7 +136,7 @@ export function createWriteGate(
     const notes: string[] = [];
     if (material.frontmatterKeys) {
       notes.push(
-        textValue("messages/opencode", "gate.message_5", { v0: material.rel, v1: material.frontmatterKeys.join("、") }),
+        textValue("gate.message_5", { v0: material.rel, v1: material.frontmatterKeys.join("、") }),
       );
     }
     const issues = (await runCheck(await project())).filter(
@@ -144,7 +144,7 @@ export function createWriteGate(
     );
     if (issues.length > 0) {
       notes.push(
-        textValue("messages/opencode", "gate.message_6", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") }),
+        textValue("gate.message_6", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") }),
       );
     }
     if (notes.length === 0) return;
@@ -168,22 +168,22 @@ export function createWriteGate(
 const writersOf = (kind: DocKindId): string =>
   ROLE_IDS.filter((role) => !ROLES[role].canSpawn && ROLES[role].writableKinds.includes(kind))
     .map((role) => ROLES[role].label)
-    .join(textValue("messages/opencode", "gate.message_7"));
+    .join(textValue("gate.message_7"));
 
 /** 照 edit 的语义算出改完的全文：oldString 须逐字唯一匹配（replaceAll 时全部替换），对不上就让 agent 重读原文 */
 function applyEdit(before: string, input: EditInput, material: Material): string {
-  if (before === "") throw new Error(textValue("messages/opencode", "gate.message_8", { v0: material.rel }));
+  if (before === "") throw new Error(textValue("gate.message_8", { v0: material.rel }));
   const oldString = String(input.oldString ?? "");
   const newString = String(input.newString ?? "");
-  if (oldString === "") throw new Error(textValue("messages/opencode", "gate.message_9"));
+  if (oldString === "") throw new Error(textValue("gate.message_9"));
   const count = before.split(oldString).length - 1;
   if (count === 0) {
     throw new Error(
-      textValue("messages/opencode", "gate.message_10", { v0: material.rel }),
+      textValue("gate.message_10", { v0: material.rel }),
     );
   }
   if (input.replaceAll === true) return before.split(oldString).join(newString);
   if (count > 1)
-    throw new Error(textValue("messages/opencode", "gate.message_11", { v0: material.rel, v1: count }));
+    throw new Error(textValue("gate.message_11", { v0: material.rel, v1: count }));
   return before.replace(oldString, () => newString);
 }

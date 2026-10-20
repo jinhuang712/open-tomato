@@ -1,4 +1,4 @@
-import { text as textValue } from "@opentomato/core/headless";
+import { pluginText as textValue } from "./text.ts";
 import { ProjectStore } from "@opentomato/core/headless";
 import { ENTRY } from "./entry.ts";
 
@@ -18,7 +18,7 @@ export function createBook(root: string): Book {
     if (ready) return ready;
     if (await ProjectStore.exists(root)) pending ??= ProjectStore.open(root);
     else if (create) pending ??= ProjectStore.create(root, "");
-    else throw new Error(textValue("messages/opencode", "book.message", { v0: ENTRY }));
+    else throw new Error(textValue("book.message", { v0: ENTRY }));
     try {
       ready = await pending;
       return ready;

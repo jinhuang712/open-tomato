@@ -2,7 +2,7 @@ import { text as textValue } from "../../text/load.js";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { systemStubLabel } from "../../protocol.js";
 
-const FORK_NOTICE = textValue("messages/session", "fork-notice");
+const FORK_NOTICE = textValue("app/messages/session", "fork-notice");
 
 /**
  * fork 进场上限：分页管的是孩子事后「再查」，这里管的是进场那一下。
@@ -64,5 +64,5 @@ export function buildForkPrompt(entries: SessionEntry[], task: string): string {
   const kept = sections.slice(start);
   if (kept.length === 0) return task;
   const body = kept.map((s) => `【${s.who}】\n${s.text}`).join("\n\n");
-  return textValue("messages/session", "fork.message_2", { v0: FORK_NOTICE, v1: start > 0 ? textValue("messages/session", "fork.message") : "", v2: body, v3: task });
+  return textValue("app/messages/session", "fork.message_2", { v0: FORK_NOTICE, v1: start > 0 ? textValue("app/messages/session", "fork.message") : "", v2: body, v3: task });
 }

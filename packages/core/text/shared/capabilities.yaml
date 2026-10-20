@@ -53,5 +53,3 @@ capabilities.message_3: |-
   {{v0}}
   技法：
   {{v1}}
-capabilities.message_4: 作者点了「{{v0}}」。
-capabilities.message_5: 你加载了「{{v0}}」。

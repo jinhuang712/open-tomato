@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
-import { ROLES, rolePrompt } from "@opentomato/core/headless";
+import { ROLES } from "@opentomato/core/headless";
+import { rolePrompt } from "../src/text.ts";
 import { childRoster, permissionsOf, registerAgents, systemPromptOf } from "../src/agents.ts";
 import { agentIdOf, roleOf } from "../src/roles.ts";
 
@@ -26,7 +27,7 @@ describe("角色 → agent", () => {
 
   test("按 opencode 宿主直接组装系统提示；只有主编有派单规则", () => {
     const lead = systemPromptOf("director");
-    expect(lead).toBe(rolePrompt("director", "opencode"));
+    expect(lead).toBe(rolePrompt("director"));
     expect(lead).not.toBe(ROLES.director.systemPrompt);
     expect(lead).not.toMatch(/\b(?:ask_user|spawn_agents|continue_agent|write_doc|edit_doc|web_search|read_marks|list_agents|archive_agent)\b/);
     expect(lead).not.toContain("mode=propose");
