@@ -3,6 +3,7 @@ import type { PermissionEvaluation } from "@opencode/plugin/promise/permission";
 import {
   assertWritableKind,
   bookkeepingOnly,
+  dispatchProblem,
   frontmatterDiffKeys,
   frontmatterOnly,
   frontmatterProblem,
@@ -78,6 +79,13 @@ export function createWriteGate(
     }
     if (event.tool === "shell" || event.tool === "patch") {
       throw new Error(`写作角色不能用 ${event.tool}：写文档用 write，改文档用 edit`);
+    }
+    if (event.tool === "subagent") {
+      // 和 App 的 spawn_agents 同一套门：没有一句话故事不派编剧写手，没章纲不派写手，没正文不派评审
+      const target = roleOf(String((event.input as { agent?: unknown } | null)?.agent ?? ""));
+      const problem = target ? await dispatchProblem(await project(), [target]) : null;
+      if (problem) throw new Error(problem);
+      return;
     }
     if (event.tool !== "write" && event.tool !== "edit") return;
 

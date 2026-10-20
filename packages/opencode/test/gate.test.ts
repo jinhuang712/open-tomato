@@ -187,6 +187,25 @@ describe("写入把关", () => {
     await expect(before("写手", "patch", { patch: "" })).rejects.toThrow("不能用 patch");
   });
 
+  test("主编派单过 App 同一套门：没一句话故事不派编剧，没章纲不派写手，没正文不派评审", async () => {
+    await expect(before("主编", "subagent", { agent: "编剧", prompt: "排" })).rejects.toThrow(
+      "一句话故事",
+    );
+    await expect(before("主编", "subagent", { agent: "校对", prompt: "看" })).rejects.toThrow(
+      "还没有正文可审",
+    );
+    await before("主编", "subagent", { agent: "策划", prompt: "设卡" });
+    await store.write(
+      "brief",
+      "简介",
+      "---\ntitle: 简介\nsummary: 测试\n---\n\n## 一句话故事\n\n退役刑警找失踪的妹妹。\n",
+    );
+    await before("主编", "subagent", { agent: "编剧", prompt: "排" });
+    await expect(before("主编", "subagent", { agent: "写手", prompt: "写" })).rejects.toThrow(
+      "还没有章纲",
+    );
+  });
+
   test("别的 agent：用不了写作工具、派不了写作角色，自己的写入不管", async () => {
     await expect(before("build", "read_doc", { kind: "人物", id: "林尧" })).rejects.toThrow(
       "切到主编",
