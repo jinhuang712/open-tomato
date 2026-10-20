@@ -42,5 +42,8 @@ export { makeListOpenTool } from "./agent/tools/list-open.js";
 export { makeLoadCapabilityTool } from "./agent/tools/load-capability.js";
 export { makeProjectOverviewTool } from "./agent/tools/project-overview.js";
 export { makeReadDocTool } from "./agent/tools/read-doc.js";
+export { makeReadReviewTool } from "./agent/tools/read-review.js";
 export { makeRunCheckTool } from "./agent/tools/run-check.js";
+export { makeSaveReviewTool } from "./agent/tools/save-review.js";
 export { makeSearchDocsTool } from "./agent/tools/search-docs.js";
+export { makeVolumeRhythmTool } from "./agent/tools/volume-rhythm.js";
