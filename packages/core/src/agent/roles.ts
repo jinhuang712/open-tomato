@@ -3,7 +3,7 @@ import type { DocKindId, RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
 import { capabilityRoster } from "./capabilities.js";
 import { fill, loadPrompt } from "./prompt-text.js";
-import { checkBlock } from "./standards.js";
+import { checkBlock, produceBlock } from "./standards.js";
 
 const GUIDE_ROLE = { 文编: "copyeditor", 运营: "ops", 校对: "proofreader" } as const;
 
@@ -89,7 +89,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     writableKinds: CARDS,
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("designer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
+    systemPrompt: fill(loadPrompt("designer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("designer") }),
   },
 
   plotter: {
@@ -99,7 +99,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     writableKinds: [...OUTLINES, "threads"],
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("plotter"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
+    systemPrompt: fill(loadPrompt("plotter"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("plotter") }),
   },
 
   writer: {
@@ -109,7 +109,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     writableKinds: ["manuscript"],
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("writer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE }),
+    systemPrompt: fill(loadPrompt("writer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("writer") }),
   },
 
   ops: {

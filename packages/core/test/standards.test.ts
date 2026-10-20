@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ROLES, ROLE_IDS, reviewGuide } from "../src/agent/roles.js";
-import { checkedBy, STANDARD_IDS, STANDARDS, type Standard } from "../src/agent/standards.js";
+import type { RoleId } from "../src/protocol.js";
+import { checkedBy, producedBy, STANDARD_IDS, STANDARDS, type Standard } from "../src/agent/standards.js";
 
 const all = (): [string, Standard][] => STANDARD_IDS.map((id) => [id, STANDARDS[id]]);
 const occurrences = (haystack: string, needle: string) => haystack.split(needle).length - 1;
@@ -18,6 +19,32 @@ describe("标准表", () => {
 
   test("核对的一路必须是评审角色", () => {
     for (const [, s] of all()) if (s.check) expect(ROLES[s.check.role].canReview).toBe(true);
+  });
+});
+
+describe("产出句只进产出它的角色", () => {
+  test("每条产出句在归它的角色提示里恰好一次，别的角色都没有", () => {
+    for (const [, s] of all()) {
+      for (const [role, sentence] of Object.entries(s.produce)) {
+        for (const other of ROLE_IDS) {
+          expect(occurrences(ROLES[other].systemPrompt, sentence)).toBe(other === role ? 1 : 0);
+        }
+      }
+    }
+  });
+
+  test("产出方都能落盘，且不是主编：主编产出的简介几段由能力承担，不在角色提示里再写一遍", () => {
+    for (const [, s] of all()) {
+      for (const role of Object.keys(s.produce) as RoleId[]) {
+        expect(role).not.toBe("director");
+        expect(ROLES[role].canWrite).toBe(true);
+      }
+    }
+  });
+
+  test("压放这条，编剧排章纲时就要标，写手不管", () => {
+    expect(producedBy("plotter")).toContain("beat");
+    expect(producedBy("writer")).not.toContain("beat");
   });
 });
 
