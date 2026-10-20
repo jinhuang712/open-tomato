@@ -7,13 +7,19 @@ import {
   makeLoadCapabilityTool,
   makeProjectOverviewTool,
   makeReadDocTool,
+  makeReadReviewTool,
   makeRunCheckTool,
+  makeSaveReviewTool,
   makeSearchDocsTool,
+  makeVolumeRhythmTool,
+  ROLE_IDS,
+  ROLES,
   runCheck,
   SearchIndex,
   type ProjectStore,
   type ToolContext,
 } from "@opentomato/core/headless";
+import { agentIdOf } from "./roles.ts";
 
 /** 插件工具的权限动作前缀：每个工具的动作是 opentomato.<工具名>，deny「opentomato.*」就整组看不见 */
 export const TOOL_PERMISSION = "opentomato";
@@ -34,19 +40,38 @@ export function materialTools(store: ProjectStore): ToolInfo[] {
     // 作者随时可能在编辑器里直接改文件，索引不缓存，每次现建
     search: async (query, limit) => (await SearchIndex.build(store)).query(query, limit),
   };
+  // save_review 以哪一路评审的身份落记录，看是哪个 agent 在调
+  const reviews = new Map(
+    ROLE_IDS.filter((role) => ROLES[role].canReview).map((role) => [
+      agentIdOf(role),
+      makeSaveReviewTool(ctx, role),
+    ]),
+  );
+  const [saveReview] = reviews.values();
+  if (!saveReview) throw new Error("core 里没有评审角色");
   return [
-    makeProjectOverviewTool(ctx),
-    makeListDocsTool(ctx),
-    makeReadDocTool(ctx),
-    makeSearchDocsTool(ctx),
-    makeDocTemplateTool(ctx),
-    makeRunCheckTool(ctx),
-    makeListOpenTool(ctx),
-    makeLoadCapabilityTool(ctx),
-  ].map(adapt);
+    ...[
+      makeProjectOverviewTool(ctx),
+      makeListDocsTool(ctx),
+      makeReadDocTool(ctx),
+      makeSearchDocsTool(ctx),
+      makeDocTemplateTool(ctx),
+      makeRunCheckTool(ctx),
+      makeListOpenTool(ctx),
+      makeLoadCapabilityTool(ctx),
+      makeReadReviewTool(ctx),
+      makeVolumeRhythmTool(ctx),
+    ].map((tool) => adapt(tool, () => tool)),
+    adapt(saveReview, (agent) => {
+      const tool = reviews.get(agent);
+      if (!tool) throw new Error("只有评审（运营、读者、文编、校对）能落审稿记录");
+      return tool;
+    }),
+  ];
 }
 
-function adapt(tool: CoreTool): ToolInfo {
+/** pick：按调用的 agent 选用哪一份 core 工具；绝大多数工具只有一份 */
+function adapt(tool: CoreTool, pick: (agent: string) => CoreTool): ToolInfo {
   return {
     name: tool.name,
     description: tool.description,
@@ -54,7 +79,7 @@ function adapt(tool: CoreTool): ToolInfo {
     input: JSON.parse(JSON.stringify(tool.parameters)),
     options: { codemode: false, permission: `${TOOL_PERMISSION}.${tool.name}` },
     execute: async (input, context) => {
-      const result = await tool.execute(
+      const result = await pick(context.agent).execute(
         context.id,
         input,
         context.signal,

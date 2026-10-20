@@ -10,10 +10,14 @@ let root: string;
 let store: ProjectStore;
 let tools: Map<string, ToolInfo>;
 
-const call = async (name: string, input: Record<string, unknown> = {}) => {
+const call = async (name: string, input: Record<string, unknown> = {}, agent = "主编") => {
   const tool = tools.get(name);
   if (!tool) throw new Error(`没有工具 ${name}`);
-  const context = { id: "call-1", signal: new AbortController().signal } as unknown as ToolContext;
+  const context = {
+    id: "call-1",
+    agent,
+    signal: new AbortController().signal,
+  } as unknown as ToolContext;
   const result = await tool.execute(input as never, context);
   return String(result.content);
 };
@@ -49,8 +53,11 @@ describe("materialTools", () => {
         "load_capability",
         "project_overview",
         "read_doc",
+        "read_review",
         "run_check",
+        "save_review",
         "search_docs",
+        "volume_rhythm",
       ].toSorted(),
     );
     for (const tool of tools.values()) {
@@ -82,5 +89,21 @@ describe("materialTools", () => {
 
   test("load_capability 给出能力正文", async () => {
     expect(await call("load_capability", { id: "interview" })).toContain("你进入「立项访谈」");
+  });
+
+  test("save_review 以调用它的那一路评审落记录，read_review 读得到；别的角色落不了", async () => {
+    await store.write(
+      "manuscript",
+      "0001",
+      "---\ntitle: 雨夜\nsummary: 回城\n---\n\n雨下了一夜。\n",
+    );
+    const review = {
+      chapter: "1",
+      verdict: "节奏偏慢",
+      items: [{ level: "must", where: "雨下了一夜", issue: "开头没有钩子" }],
+    };
+    expect(await call("save_review", review, "文编")).toContain("文编评审：必须改 1 条");
+    expect(await call("read_review", { chapter: "1" }, "写手")).toContain("## 文编：节奏偏慢");
+    await expect(call("save_review", review, "写手")).rejects.toThrow("只有评审");
   });
 });

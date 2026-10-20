@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
 import { ROLES } from "@opentomato/core/headless";
-import { agentIdOf, permissionsOf, registerAgents, roleOf, systemPromptOf } from "../src/agents.ts";
+import { permissionsOf, registerAgents, systemPromptOf } from "../src/agents.ts";
+import { agentIdOf, roleOf } from "../src/roles.ts";
 
 type Rule = { action: string; resource: string; effect: string };
 
@@ -48,6 +49,16 @@ describe("能力集", () => {
       expect(decide(rules, "question")).toBe("deny");
       expect(decide(rules, "subagent", "写手")).toBe("deny");
       expect(decide(rules, "opentomato.load_capability")).toBe("deny");
+    }
+  });
+
+  test("审稿记录只有四路评审能落，谁都能读", () => {
+    for (const role of ["ops", "reader", "copyeditor", "proofreader"] as const) {
+      expect(decide(permissionsOf(role), "opentomato.save_review")).toBe("allow");
+    }
+    for (const role of ["director", "writer", "arbiter"] as const) {
+      expect(decide(permissionsOf(role), "opentomato.save_review")).toBe("deny");
+      expect(decide(permissionsOf(role), "opentomato.read_review")).toBe("allow");
     }
   });
 

@@ -1,7 +1,8 @@
 import { Plugin } from "@opencode/plugin";
 import { ProjectStore } from "@opentomato/core/headless";
-import { registerAgents, roleOf } from "./agents.ts";
+import { registerAgents } from "./agents.ts";
 import { createWriteGate } from "./gate.ts";
+import { roleOf } from "./roles.ts";
 import { materialTools } from "./tools.ts";
 
 /**

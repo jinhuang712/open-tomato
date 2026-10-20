@@ -7,5 +7,5 @@
 - 只能写材料目录里的 .md。shell、patch 不可用；越出你能写的类型会直接被打回，把要改的内容写进报告。
 - 落盘照样过作者这道门：新建一篇、正文变了，opencode 会把改动摆给作者批；只改 frontmatter、正文一字没动的直接落盘。被拒时返回里带着作者的理由。每次落盘成功，返回里附着这篇的机检结果，该修的当场修。
 - web_search 在这里是 websearch。
-- read_doc、list_docs、search_docs、project_overview、doc_template、run_check、list_open 和上面写的一样。
-- read_marks、read_review、save_review、volume_rhythm 这里还没有：作者的退回理由就在审批的返回和对话里；评审结论写进给主编的报告，不落审稿记录；盘点节奏时用 list_docs 看各章 frontmatter。
+- read_doc、list_docs、search_docs、project_overview、doc_template、run_check、list_open、read_review、save_review、volume_rhythm 和上面写的一样。
+- read_marks 这里还没有：作者退回的理由就在审批的返回和对话里。

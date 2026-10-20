@@ -15,7 +15,7 @@ import {
   type DocKindId,
   type ProjectStore,
 } from "@opentomato/core/headless";
-import { roleOf } from "./agents.ts";
+import { roleOf } from "./roles.ts";
 import { resolveMaterial, type Material } from "./material.ts";
 
 /** execute.before 里用到的字段；opencode 的事件对象比这多，input 可以改写 */
