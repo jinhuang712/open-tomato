@@ -244,7 +244,8 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     label: "简介",
     dir: "",
     singleton: true,
-    description: "这本书是什么：一句话故事、题材平台、读者画像、书名等立项答案。全书一份，可改写。",
+    description:
+      "这本书是什么：一句话故事、题材平台、读者画像、书名与文案等立项答案。全书一份，可改写。",
     normalizeId: () => "简介",
     templateOverrides: { title: "简介", summary: "书名、一句话故事、题材、平台、读者画像等立项答案", keywords: "[立项]" },
     sections: [
@@ -255,6 +256,11 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "总规模", required: true },
       { name: "人称与视角", required: true },
       { name: "书名", required: false, hint: "故事和读者清楚了再定" },
+      {
+        name: "文案",
+        required: false,
+        hint: "给读者看的作品简介，书架上书名下面那几行；故事和读者清楚了再写",
+      },
     ],
   }),
   rules: defineKind({

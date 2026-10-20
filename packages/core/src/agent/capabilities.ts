@@ -80,6 +80,14 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     when: "一卷的最后一章刚写完",
     load: () => loadPrompt("capabilities/recap"),
   },
+  pitch: {
+    id: "pitch",
+    label: "包装",
+    kind: "workflow",
+    description: "和作者定书名和文案：读者在书架上最先看到的那几行。",
+    when: "简介的故事和读者画像定了，书名或文案还空着；准备上架发书之前",
+    load: () => loadPrompt("capabilities/pitch"),
+  },
   "deeper-needs": {
     id: "deeper-needs",
     label: "深层需要",

@@ -79,7 +79,18 @@ export function stagePlan(docs: DocHeader[]): StagePlan {
       steps: [
         { title: "大纲编排", desc: "先排全书里程碑，再到卷纲、章纲", kind: "capability", cap: "outline", primary: true },
         { title: "继续设卡", desc: "补人物 / 世界设定 / 线索", kind: "capability", cap: "design" },
-        { title: "聊一张卡", desc: "先和主编把一个人物 / 设定聊清楚，边聊边落卡", kind: "capability", cap: "talk" },
+        {
+          title: "聊一张卡",
+          desc: "先和主编把一个人物 / 设定聊清楚，边聊边落卡",
+          kind: "capability",
+          cap: "talk",
+        },
+        {
+          title: "定书名和文案",
+          desc: "读者在书架上最先看到的那几行，主编出几版候选给你挑",
+          kind: "capability",
+          cap: "pitch",
+        },
         TALK,
       ],
     };

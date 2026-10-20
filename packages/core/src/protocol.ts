@@ -233,6 +233,7 @@ export type CapabilityId =
   | "draft"
   | "review"
   | "recap"
+  | "pitch"
   | "deeper-needs"
   | "show"
   | "fivewhy"

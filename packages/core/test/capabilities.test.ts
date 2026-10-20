@@ -5,8 +5,8 @@ import { createTools, type ToolContext } from "../src/agent/tools/index.js";
 import type { RoleId } from "../src/protocol.js";
 
 describe("能力正文", () => {
-  test("15 条都能加载，无占位符，写的是目标 / 交付物 / 边界而不是步骤", () => {
-    expect(CAPABILITY_IDS).toHaveLength(15);
+  test("16 条都能加载，无占位符，写的是目标 / 交付物 / 边界而不是步骤", () => {
+    expect(CAPABILITY_IDS).toHaveLength(16);
     for (const id of CAPABILITY_IDS) {
       const body = CAPABILITIES[id].load();
       expect(body).not.toMatch(/{{\w+}}/);
@@ -23,6 +23,7 @@ describe("能力正文", () => {
       "draft",
       "review",
       "recap",
+      "pitch",
       "deeper-needs",
       "show",
       "fivewhy",
@@ -59,8 +60,20 @@ describe("能力正文", () => {
     expect(workflowPart).toStartWith("工作流：\n");
     for (const id of capabilityIdsOf("workflow")) expect(workflowPart).toContain(`- ${id}（`);
     for (const id of capabilityIdsOf("technique")) expect(techniquePart).toContain(`- ${id}（`);
-    expect([...capabilityIdsOf("workflow"), ...capabilityIdsOf("technique")].sort()).toEqual([...CAPABILITY_IDS].sort());
-    expect(capabilityIdsOf("workflow")).toEqual(["interview", "seed", "talk", "design", "outline", "draft", "review", "recap"]);
+    expect([...capabilityIdsOf("workflow"), ...capabilityIdsOf("technique")].toSorted()).toEqual(
+      CAPABILITY_IDS.toSorted(),
+    );
+    expect(capabilityIdsOf("workflow")).toEqual([
+      "interview",
+      "seed",
+      "talk",
+      "design",
+      "outline",
+      "draft",
+      "review",
+      "recap",
+      "pitch",
+    ]);
   });
 });
 

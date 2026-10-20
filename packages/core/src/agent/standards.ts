@@ -24,6 +24,15 @@ export interface Standard {
 export type ReviewerRole = "ops" | "reader" | "copyeditor" | "proofreader";
 
 export const STANDARDS = {
+  pitch: {
+    label: "书名与文案",
+    planned: "简介「书名」「文案」",
+    produce: {},
+    check: {
+      role: "ops",
+      text: "本章给的是不是书名和文案许给读者的那类东西，对不上的标出来；简介还没有文案就跳过这条。",
+    },
+  },
   story: {
     label: "故事内核",
     planned: "简介「一句话故事」",
