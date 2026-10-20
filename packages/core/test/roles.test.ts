@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ROLES, reviewGuide } from "../src/agent/roles.js";
 import { CAPABILITIES } from "../src/agent/capabilities.js";
 import { loadPrompt } from "../src/agent/prompt-text.js";
+import { checkBlock } from "../src/agent/standards.js";
 
 describe("提示词口径", () => {
   test("所有角色恰好注入一次共享信任边界，无未填占位符", () => {
@@ -67,11 +68,12 @@ describe("提示词口径", () => {
 });
 
 describe("评审手册", () => {
-  test("三路评审各拼进自己那份手册，读者只有人设", () => {
+  test("三路评审各拼进自己那份手册，读者只有人设和归它核对的标准", () => {
     expect(ROLES.copyeditor.systemPrompt).toContain(reviewGuide("文编"));
     expect(ROLES.ops.systemPrompt).toContain(reviewGuide("运营"));
     expect(ROLES.proofreader.systemPrompt).toContain(reviewGuide("校对"));
-    expect(ROLES.reader.systemPrompt).not.toMatch(/^1\. \*\*.+\*\*：/m);
+    expect(ROLES.reader.systemPrompt).toContain(checkBlock("reader"));
+    expect(ROLES.reader.systemPrompt).not.toContain("## 工艺检查");
   });
 
   test("手册是编号职责清单，一条一个职责，不带文摘", () => {

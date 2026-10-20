@@ -3,14 +3,19 @@ import type { DocKindId, RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
 import { capabilityRoster } from "./capabilities.js";
 import { fill, loadPrompt } from "./prompt-text.js";
+import { checkBlock } from "./standards.js";
+
+const GUIDE_ROLE = { 文编: "copyeditor", 运营: "ops", 校对: "proofreader" } as const;
 
 /**
  * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
  * 手册是工艺知识，跟哪本书无关；这本书的偏好走守则。作者不改手册，改手册是改代码仓。
- * 读者评审没有手册，只要人设。
+ * 归这一路核对的标准从标准表拼进 {{STANDARDS}}，手册里只写标准表之外的工艺检查。
+ * 读者评审没有手册，只要人设和归它核对的标准。
  */
-export function reviewGuide(name: "文编" | "运营" | "校对"): string {
-  return readFileSync(new URL(`../../guides/评审-${name}.md`, import.meta.url), "utf8").trim();
+export function reviewGuide(name: keyof typeof GUIDE_ROLE): string {
+  const raw = readFileSync(new URL(`../../guides/评审-${name}.md`, import.meta.url), "utf8").trim();
+  return fill(raw, { STANDARDS: checkBlock(GUIDE_ROLE[name]) });
 }
 
 // 角色正文在 prompts/ 下、共享片段在 prompts/shared/ 下，占位符约定见 prompt-text.ts。
@@ -126,7 +131,7 @@ const SPECS: Record<RoleId, RoleSpec> = {
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: fill(loadPrompt("reader"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE }),
+    systemPrompt: fill(loadPrompt("reader"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE, STANDARDS: checkBlock("reader") }),
   },
 
   copyeditor: {
