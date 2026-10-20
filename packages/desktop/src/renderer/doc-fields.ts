@@ -28,6 +28,7 @@ export const FIELD_LABEL: Record<string, string> = {
   characters: "出场人物",
   words: "字数",
   revision: "修订次数",
+  beat: "压放",
 };
 
 /** 一个 extra 字段在头部怎么读：等级 / 类型这类定性的做强调胶囊，引用别的卡的做可点的胶囊，数字加上量词；source 单独当引文 */
@@ -40,7 +41,7 @@ export const FIELD_VIEWS: Partial<Record<DocKindId, Record<string, FieldView>>> 
   threads: { type: { accent: true }, stage: { label: "推进到" } },
   milestones: { order: { fmt: (v) => `第 ${v} 帧` }, threads: { ref: "threads" } },
   volumes: { chapters: { fmt: (v) => `第 ${v} 章` }, milestones: { ref: "milestones" } },
-  chapters: { volume: { ref: "volumes", fmt: (v) => `卷 ${v}` }, characters: { ref: "characters" }, threads: { ref: "threads" }, words: { fmt: (v) => `${v} 字` } },
+  chapters: { volume: { ref: "volumes", fmt: (v) => `卷 ${v}` }, characters: { ref: "characters" }, threads: { ref: "threads" }, words: { fmt: (v) => `${v} 字` }, beat: { accent: true } },
   manuscript: { words: { fmt: (v) => `${v} 字` }, revision: { hide: true } },
 };
 
