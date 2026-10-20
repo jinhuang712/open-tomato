@@ -1,3 +1,4 @@
+import { text as textValue } from "@opentomato/core/headless";
 import path from "node:path";
 import {
   DOC_KIND_IDS,
@@ -16,7 +17,7 @@ export interface Material {
 }
 
 const LAYOUT =
-  "目录/名字.md（人物/林尧.md、卷纲/01.md、章纲/0001.md、正文/0001.md），简介是 简介.md";
+  textValue("messages/opencode", "material.LAYOUT");
 
 /**
  * 把 write / edit 的 path 认成一份材料，按 core 的规则规范化 id（章纲/1.md → 章纲/0001.md）。
@@ -33,13 +34,13 @@ export async function resolveMaterial(
   const parts = rel.split("/");
   const name = parts.at(-1) ?? "";
   if (rel.startsWith("..") || path.isAbsolute(rel) || parts.length > 2 || !name.endsWith(".md")) {
-    throw new Error(`只能写本项目的材料：${LAYOUT}。${input} 不是。`);
+    throw new Error(textValue("messages/opencode", "material.message", { v0: LAYOUT, v1: input }));
   }
   const kind =
     parts.length === 1
       ? DOC_KIND_IDS.find((k) => DOC_KINDS[k].singleton && store.relPath(k, "") === rel)
       : DOC_KIND_IDS.find((k) => !DOC_KINDS[k].singleton && DOC_KINDS[k].dir === parts[0]);
-  if (!kind) throw new Error(`只能写本项目的材料：${LAYOUT}。${input} 不是。`);
+  if (!kind) throw new Error(textValue("messages/opencode", "material.message", { v0: LAYOUT, v1: input }));
   const raw = name.slice(0, -".md".length);
   const id =
     DOC_KINDS[kind].autoId && creating && !/\d/.test(raw)
@@ -52,6 +53,6 @@ function normalize(store: ProjectStore, kind: DocKindId, raw: string, input: str
   try {
     return store.normalizeId(kind, raw);
   } catch {
-    throw new Error(`${input} 的文件名不是合法的${zhDir(kind)} id`);
+    throw new Error(textValue("messages/opencode", "material.message_2", { v0: input, v1: zhDir(kind) }));
   }
 }

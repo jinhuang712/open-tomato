@@ -1,12 +1,12 @@
+import { section, text as resourceText } from "../src/text/load.js";
 import { describe, expect, test } from "bun:test";
 import { ROLES, reviewGuide } from "../src/agent/roles.js";
 import { CAPABILITIES } from "../src/agent/capabilities.js";
-import { loadPrompt } from "../src/agent/prompt-text.js";
 import { checkBlock } from "../src/agent/standards.js";
 
 describe("提示词口径", () => {
   test("所有角色恰好注入一次共享信任边界，无未填占位符", () => {
-    const boundary = loadPrompt("shared/trust-boundary");
+    const boundary = section("collaboration", "trust-boundary");
     for (const role of Object.values(ROLES)) {
       expect(role.systemPrompt.split(boundary)).toHaveLength(2);
       expect(role.systemPrompt).not.toMatch(/\{\{\w+\}\}/);
@@ -51,15 +51,15 @@ describe("提示词口径", () => {
   });
 
   test("暂停停止推进并等待输入，不强制开启问卷", () => {
-    const pause = loadPrompt("kernel/pause-lead");
+    const pause = resourceText("messages/session", "pause-lead");
     expect(pause).toContain("不再派单或写入");
     expect(pause).toContain("等待作者输入");
     expect(pause).not.toContain("ask_user");
   });
 
   test("所有角色共用一份交流原则，报告规则不限制主编正文", () => {
-    const communication = loadPrompt("shared/communication");
-    const report = loadPrompt("shared/child-report");
+    const communication = section("collaboration", "communication");
+    const report = section("collaboration", "report");
     for (const role of Object.values(ROLES)) {
       expect(role.systemPrompt.split(communication)).toHaveLength(2);
       expect(role.systemPrompt.split(report)).toHaveLength(role.id === "director" ? 1 : 2);

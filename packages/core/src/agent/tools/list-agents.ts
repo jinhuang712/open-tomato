@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -6,12 +7,12 @@ import { text, type ToolContext } from "./shared.js";
 
 /** 每种状态对派它的人意味着什么：一个词说状态，一句话说下一步该怎么办 */
 const MEANING: Record<AgentStatus, { word: string; note: string }> = {
-  running: { word: "在跑", note: "报告会自己送到你这儿，不用催" },
-  interrupted: { word: "被打断", note: "上一轮已被中止，报告不会再交回——这条线要接着做就重新 spawn_agents" },
-  done: { word: "已交回", note: "报告交过了" },
-  error: { word: "出错", note: "这一轮失败了，报告里是错误原因" },
-  archived: { word: "已封存", note: "这条线收了，不能再 continue_agent" },
-  idle: { word: "待命", note: "还没派过活" },
+  running: { word: "在跑", note: textValue("messages/agents", "list_agents.running.note") },
+  interrupted: { word: textValue("messages/agents", "list_agents.interrupted.word"), note: textValue("messages/agents", "list_agents.interrupted.note") },
+  done: { word: textValue("messages/agents", "list_agents.done.word"), note: textValue("messages/agents", "list_agents.done.note") },
+  error: { word: "出错", note: textValue("messages/agents", "list_agents.error.note") },
+  archived: { word: textValue("messages/agents", "list_agents.archived.word"), note: textValue("messages/agents", "list_agents.archived.note") },
+  idle: { word: "待命", note: textValue("messages/agents", "list_agents.idle.note") },
 };
 
 /** 任务书可能很长，名单上只要认得出是哪一件 */
@@ -37,20 +38,20 @@ export function makeListAgentsTool(ctx: ToolContext): ToolDefinition {
   const listAgents = ctx.listAgents!;
   return defineTool({
     name: "list_agents",
-    label: "在场的人",
+    label: textValue("tools/agents", "list_agents.label"),
     description:
-      "你派出去的人现在各是什么状态：名字 | 角色 | 状态 | 这状态意味着什么 | 任务书。读取开销小。恢复会话后第一件事就查这个：作者按过停止、应用重开过，都会让报告永远送不到你手上，而你的上下文里只留着「已派出」。要停下来等某位交回之前，先用它确认那位真的还在跑。",
+      textValue("tools/agents", "list_agents.description"),
     parameters: Type.Object({}),
     execute: async () => {
       const all = listAgents();
-      if (all.length === 0) return text("你还没派过人。");
+      if (all.length === 0) return text(textValue("messages/agents", "list_agents.execute"));
       const live = all.filter((a) => a.status !== "archived");
       const sealed = all.filter((a) => a.status === "archived");
-      const lines = [`派出去的人：${live.length} 位在场${sealed.length > 0 ? `，${sealed.length} 位已封存` : ""}`];
+      const lines = [textValue("messages/agents", "list_agents.execute_3", { v0: live.length, v1: sealed.length > 0 ? textValue("messages/agents", "list_agents.execute_2", { v0: sealed.length }) : "" })];
       for (const a of [...live, ...sealed]) lines.push(line(a));
       const waiting = live.filter((a) => a.status === "interrupted");
       if (waiting.length > 0) {
-        lines.push("", `注意：${waiting.map((a) => a.handle || a.label).join("、")} 的报告不会来了。别再等，要么重派，要么把这条线的活自己接过来。`);
+        lines.push("", textValue("messages/agents", "list_agents.execute_4", { v0: waiting.map((a) => a.handle || a.label).join("、") }));
       }
       return text(lines.join("\n"));
     },

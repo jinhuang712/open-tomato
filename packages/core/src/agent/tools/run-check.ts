@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -7,17 +8,17 @@ import { fmtIssue, text, type ToolContext } from "./shared.js";
 export function makeRunCheckTool(ctx: ToolContext): ToolDefinition {
   return defineTool({
     name: "run_check",
-    label: "一致性机检",
-    description: "机械对账：缺必填字段、缺必填段、残留「待填」、段落只写「待定」、章纲引用不存在的卡、章号断档、里程碑 order 重复。error 必须修（落盘返回里标了就当场修）；warning 是欠账提醒。每次落盘后内核自动跑并把这篇的结果附在返回里，全书对账才手动调它。",
+    label: textValue("tools/materials", "run_check.label"),
+    description: textValue("tools/materials", "run_check.description"),
     parameters: Type.Object({}),
     execute: async () => {
       const issues = await ctx.runCheck();
-      if (issues.length === 0) return text("机检通过，没有问题。");
+      if (issues.length === 0) return text(textValue("messages/materials", "run_check.execute"));
       const errors = issues.filter((i) => i.level === "error");
       const warnings = issues.filter((i) => i.level === "warning");
       return text(
         [
-          `机检：${ISSUE_LEVEL_LABEL.error} ${errors.length} 处，${ISSUE_LEVEL_LABEL.warning} ${warnings.length} 处`,
+          textValue("messages/materials", "run_check.execute_2", { v0: ISSUE_LEVEL_LABEL.error, v1: errors.length, v2: ISSUE_LEVEL_LABEL.warning, v3: warnings.length }),
           ...(errors.length ? ["", `## ${ISSUE_LEVEL_LABEL.error}`, ...errors.map(fmtIssue)] : []),
           ...(warnings.length ? ["", `## ${ISSUE_LEVEL_LABEL.warning}`, ...warnings.map(fmtIssue)] : []),
         ].join("\n"),

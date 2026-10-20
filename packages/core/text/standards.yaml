@@ -1,0 +1,60 @@
+standards.pitch.label: 书名与文案
+standards.pitch.planned: 简介「书名」「文案」
+standards.pitch.check.text: 本章内容有没有兑现书名和文案给读者的期待，对不上的标出来；简介还没有文案就跳过这条。
+standards.story.label: 故事内核
+standards.story.planned: 简介「一句话故事」
+standards.audience.label: 赛道与读者
+standards.audience.planned: 简介「题材与平台」「读者画像」
+standards.audience.check.text: 本章合不合这个赛道读者的期待与套路，内容和读者画像对不对得上；受众过窄或偏离题材的地方标出来。
+standards.protagonist.label: 主角
+standards.protagonist.planned: 简介「主角优势」
+standards.protagonist.produce.plotter: 排开篇几章时读简介的「主角优势」，让读者早点看到主角凭什么值得追着看。
+standards.protagonist.check.text: 主角在本章是自己在选，还是被剧情推着走；简介写的主角优势有没有派上用场。
+standards.beat.label: 压放
+standards.beat.planned: 章纲 beat
+standards.beat.produce.plotter: 用章纲的 beat 字段标明这一章是压、放还是平。如果是放，就在本章目标里写清爽点类型；类型以简介的读者画像为准，不套统一公式。如果连续几章都是压，要说明准备在哪一章释放情绪。
+standards.beat.check.text: 本章有哪些爽点、安排在哪里，情绪变化清不清楚、读者有没有得到满足，和章纲 beat 标的对不对得上；主角被压了多久，连续多章没有出口标出来。没有爽点就说没有。
+standards.hook.label: 开篇与章末
+standards.hook.planned: 章纲「章末钩子」
+standards.hook.produce.plotter: 章末钩子落在问题或危机上，而不只是停了。
+standards.hook.produce.writer: 章首先接住上一章的钩子，让读者很快知道这一章要等什么；章末落在章纲写的钩子上。
+standards.hook.check.text: 开头有没有让读者知道要等什么（结合本章目的判断，不能仅凭开头在交代背景就认定有问题）；章末有没有追读欲，落点是问题、危机还是只是停了；上一章的钩子本章兑现没有，假钩子标出来。
+standards.motive.label: 动机
+standards.motive.planned: 人物卡「内在与欲望」
+standards.motive.produce.designer: 人物卡的「内在与欲望」写清他要什么、缺什么，要能解释他关键时刻为什么这么选。
+standards.motive.check.text: 哪些地方人物突然不像他自己，或者为了推动剧情，做出了让你难以相信的选择。
+standards.scene.label: 因果推进
+standards.scene.planned: 章纲「场景序列」
+standards.scene.produce.plotter: 相邻两个场景、相邻两章之间，要能用「但是」或「因此」连接，不能只是「然后」；接不上的地方就是缺戏。
+standards.scene.check.text: 哪里想跳过、哪一段什么都没发生；哪里逻辑跳了，前后接不上。
+standards.info.label: 信息量
+standards.info.planned: 章纲「信息控制」，设定留在卡里
+standards.info.produce.designer: 卡片里的设定要比正文详细。正文只交代当前冲突需要的部分，不要一次讲完所有设定。
+standards.info.produce.writer: 只写当前冲突需要的那部分设定，其余留在卡片里，等读者需要知道时再交代。
+standards.info.check.text: 哪里看不懂、要回翻才明白；哪里一下子塞进太多设定或背景，哪里又少得跟不上。
+standards.threads.label: 线索推进
+standards.threads.planned: 章纲 threads
+standards.threads.produce.plotter: 章纲的 threads 只写这一章真正推进了的线，不写只是提到的。
+standards.threads.check.text: 检查章纲 threads 指向的每条线索，是否实际朝终点推进了一步。如果只是提到而没有推进，要结合本章目的说明有什么影响。
+standards.show.label: 演出来
+standards.show.planned: 作者守则里文字、叙述类的条目
+standards.show.produce.writer: 人物的判断和情绪尽量靠动作、对白和细节演出来，少用旁白替读者下结论。
+standards.show.check.text: 信息和情绪靠对话、动作传递了没有；替读者下结论的说教式旁白标出来。
+standards.voice.label: 人物口吻
+standards.voice.planned: 人物卡「语音签名」
+standards.voice.produce.designer: 人物卡的「语音签名」要写清说话特点，让人能从对白分辨出人物。可以从措辞、句式、称呼等方面说明，不要为了凑齐，给每个人都配一句口头禅。
+standards.voice.produce.writer: 对白按语音签名来写，让每个人物都有自己的说话方式。
+standards.voice.check.text: 对话贴不贴人物身份与语音签名，口语化但没有口水话；谁说话都一个味道的标出来。
+standards.message: |-
+  ## 由你负责的写作标准
+
+  评审按同样的名字核对；作者守则另有说法的，照守则。
+
+  {{v0}}
+standards.message_2: "{{v0}}. **{{v1}}**：{{v2}}（计划在 {{v3}}）"
+standards.message_3: |-
+  ## 归你核对的标准
+
+  用 save_review 保存意见时，如果意见对应下面某条标准，standard 就填这条标准的名字；其他检查不填。
+
+  {{v0}}

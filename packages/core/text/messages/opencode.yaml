@@ -1,0 +1,23 @@
+gate.message: "{{v0}} 是 OpenTomato 写作角色的工具，切到主编再用"
+gate.message_2: "{{v0}} 是 OpenTomato 的写作角色，只有主编能派"
+gate.message_3: 写作角色不能用 {{v0}}：写文档用 write，改文档用 edit
+gate.message_4: "{{v0}} 的内容不归你写：要改就派{{v1}}。你自己对它只能改记账字段（status / open / keywords），比如把作废的标 status: retired。"
+gate.message_5: 只改了 {{v0}} 的 frontmatter 字段 {{v1}}，正文没动，无需作者审批。
+gate.message_6: |-
+  机检对这篇有话说：
+  {{v0}}
+gate.message_7: 或
+gate.message_8: "{{v0}} 不存在，新建用 write"
+gate.message_9: oldString 不能为空：要追加就带上文末最后一段一起替换
+gate.message_10: "{{v0}} 里找不到 oldString，要逐字照抄原文（含标点和换行）。先 read_doc 拿磁盘上的原文再改。"
+gate.message_11: oldString 在 {{v0}} 里出现了 {{v1}} 次，多带一两行上下文，确保只能匹配到一处
+material.LAYOUT: 目录/名字.md（人物/林尧.md、卷纲/01.md、章纲/0001.md、正文/0001.md），简介是 简介.md
+material.message: 只能写本项目的材料：{{v0}}。{{v1}} 不是。
+material.message_2: "{{v0}} 的文件名不是合法的{{v1}} id"
+book.message: 这个目录还不是 OpenTomato 项目，先输入 /{{v0}}
+tools.message: core 里没有评审角色
+tools.message_2: 只有评审（运营、读者、文编、校对）能落审稿记录
+tools.approvalRequested: 插件里没有 App 的审批门：落盘走 opencode 的 write / edit
+tools.questionRequested: 插件里没有 App 的提问门：问作者用 opencode 的 question
+agents.message: 可派的写作角色（agent 填名字）：
+entry.description: 进入 OpenTomato：把这个目录当成一本书，和主编一起写

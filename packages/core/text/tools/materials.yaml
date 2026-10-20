@@ -1,0 +1,41 @@
+doc_template.label: 文档模板
+doc_template.description: 拿某一类文档的空白模板（完整文件文本），后面附上必填 / 可选的字段和段落清单。用 write_doc 新建时，在模板基础上填写：只填已定的字段和段，不预置「待填」占位；作者说先放一放的项记进 frontmatter open。
+edit_doc.label: 改文档
+edit_doc.description: 局部修改一篇已有文档：给若干组 old/new，old 是文件里的原文片段（须唯一匹配，可多带一两行上下文），new 是替换后的文字（空串即删除）。不必复述整篇。不要拿 frontmatter 的「---」当锚点；文档还是空模板、要铺全文请用 write_doc。只改动的部分会以 diff 给用户审批；原文对不上时会报错，请重新 read_doc 取原文再改。
+edit_doc.parameters.id.description: 文档 id，章号可以直接给数字
+edit_doc.parameters.edits.old.description: 原文片段，逐字照抄（含换行）；空串表示追加到文末
+edit_doc.parameters.edits.new.description: 新文字；空串表示删除 old
+list_docs.label: 列文档
+list_docs.description: 查看某一类的全部文档：列出这一类每篇文档的 id / title / status / summary 和 frontmatter 其他字段。看全书盘面用 project_overview；按关键词找分散在各篇里的内容用 search_docs；需要某一类的全部文档（比如一次读完所有守则）用这个。
+list_open.label: 搁置清单
+list_open.description: 按文档汇总全书的搁置事项。事项来自 frontmatter 的 open 字段，回顾材料或安排后续工作时可参考。
+project_overview.label: 项目盘面
+project_overview.description: 项目盘面：按 kind 分组列出所有文档的 id / title / status / summary。读取开销小，每轮开工先看它来定方向，再用 read_doc 细读需要的文档。落盘后广播的 docs.changed 已包含最新的全部文档信息，那时不用重复调用。
+read_doc.label: 读文档
+read_doc.description: 读取一篇文档的全文（含 frontmatter）。只关心某段就传 section，只取该「## 段名」下的内容，减少上下文占用；section 写错会报错并列出现有段名。edit_doc 前必须先用它拿原文；章号可以直接给数字。
+read_doc.parameters.id.description: 文档 id，章号可以直接给数字
+read_doc.parameters.section.description: 段名，例如「语音签名」
+read_marks.label: 读作者的批
+read_marks.description: 读一份材料上作者的批：退回时选的词和说的话、放行、亲手改过的地方。写手写第 N 章前读第 N-1 章正文的批，同一句话作者不用说两遍。
+read_marks.parameters.id.description: 文档 id，章号可以直接给数字
+run_check.label: 一致性机检
+run_check.description: 机械对账：缺必填字段、缺必填段、残留「待填」、段落只写「待定」、章纲引用不存在的卡、章号断档、里程碑 order 重复。error 必须修（落盘返回里标了就当场修）；warning 是欠账提醒。每次落盘后内核自动跑并把这篇的结果附在返回里，全书对账才手动调它。
+search_docs.label: 搜文档
+search_docs.description: 按关键词全文检索（BM25，中英文都行）所有文档的标题 / 关键词 / 摘要 / 正文，返回命中文档的路径、标题、所在段和命中片段。找散落在各篇里的东西用它；明确知道 kind/id 的直接 read_doc，要看某一类的全部文档，用 list_docs。
+search_docs.parameters.query.description: 关键词，如人名、术语、钩子
+search_docs.parameters.limit.description: 最多返回多少条，默认 20
+settle.label: 记下作者说不欠
+settle.description: 作者明确说某份材料的账不欠了（「这条线故意沉两卷」「这个坑留白不填」）就记一条；作者改主意说又欠了就 reopen。只在作者明确说了之后用，不要自己判断。记了之后机检对它的建议改不再报，必须修照报。
+settle.parameters.id.description: 文档 id
+settle.parameters.mode.description: defer 不欠 / reopen 又欠了
+settle.parameters.text.description: 作者的原话
+shared.description: 文档类型，写英文 kind 或中文名都行：{{v0}}
+volume_rhythm.label: 看一卷的节奏
+volume_rhythm.description: 列出一卷每章的字数、推进的线索、章末钩子和压放（章纲 beat），并指出连续只压不放最长的一段，帮助你结合正文判断节奏；不能仅凭结构相似就认定有问题。
+volume_rhythm.parameters.volume.description: 卷号，直接给数字
+write_doc.label: 写文档
+write_doc.description: 新建文档或整篇重写：写入完整文件文本（含 frontmatter，用 doc_template 拿模板）。改已有文档的局部请用 edit_doc。会先在界面上给用户看 diff，用户批准后才真正写入；被拒时返回原因。
+write_doc.parameters.id.description: 文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字；守则留空自动编号；简介随便填都落到同一份
+write_doc.parameters.content.description: 完整文件文本，必须以 frontmatter 开头，首行为 ---
+shared.writable_kind_description: 文档类型，写英文 kind 或中文名都行。你能写的只有：{{v0}}
+shared.bookkeeping_description: "。其他类型只能改 frontmatter 里的记账字段（status / open / keywords），比如把作废的卡标 status: retired；正文一个字都不能动"

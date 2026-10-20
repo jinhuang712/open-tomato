@@ -1,3 +1,4 @@
+import { text as textValue } from "@opentomato/core/headless";
 import { ProjectStore } from "@opentomato/core/headless";
 import { ENTRY } from "./entry.ts";
 
@@ -17,7 +18,7 @@ export function createBook(root: string): Book {
     if (ready) return ready;
     if (await ProjectStore.exists(root)) pending ??= ProjectStore.open(root);
     else if (create) pending ??= ProjectStore.create(root, "");
-    else throw new Error(`这个目录还不是 OpenTomato 项目，先输入 /${ENTRY}`);
+    else throw new Error(textValue("messages/opencode", "book.message", { v0: ENTRY }));
     try {
       ready = await pending;
       return ready;

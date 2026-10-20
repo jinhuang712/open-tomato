@@ -1,0 +1,54 @@
+archive_agent.execute: "{{v0}} 已封存。"
+list_agents.running.note: 报告会自己送到你这儿，不用催
+list_agents.interrupted.word: 被打断
+list_agents.interrupted.note: 上一轮已被中止，报告不会再交回——这条线要接着做就重新 spawn_agents
+list_agents.done.word: 已交回
+list_agents.done.note: 报告交过了
+list_agents.error.note: 这一轮失败了，报告里是错误原因
+list_agents.archived.word: 已封存
+list_agents.archived.note: 这条线收了，不能再 continue_agent
+list_agents.idle.note: 还没派过活
+list_agents.execute: 你还没派过人。
+list_agents.execute_2: ，{{v0}} 位已封存
+list_agents.execute_3: 派出去的人：{{v0}} 位在场{{v1}}
+list_agents.execute_4: 注意：{{v0}} 的报告不会来了。别再等，要么重派，要么把这条线的活自己接过来。
+spawn_agents.execute: 不能派这个角色：{{v0}}
+runtime.message: 未知方法：{{v0}}
+runtime.message_2: 还没有打开项目
+runtime.message_3: 会话已重建
+runtime.message_4: 没有可用模型：先在模型选择器里给某个提供方填 API key
+runtime.message_5: 在场的是 {{v0}}
+runtime.message_6: 现在一位都没有
+runtime.message_7: 没有这个子 agent：{{v0}}。{{v1}}；它可能已随项目关闭回收，需要重新 spawn_agents
+runtime.message_8: 主编还没就位：先打开项目，并在模型选择器里选一个模型
+runtime.message_9: 这个子 agent 不存在或已随项目关闭回收
+runtime.message_10: "{{v0}} 开始"
+runtime.message_11: "{{v0}} 完成"
+runtime.message_12: "{{v0}} 失败：{{v1}}"
+runtime.message_13: 带讨论全文
+runtime.message_14: 一次性，交回即焚
+runtime.label: "{{v0}}交回"
+runtime.message_15: 派单人会话不在，fork 无从取来；去掉 fork 重派
+runtime.report: |-
+  ## {{v0}}
+
+  派单失败：{{v1}}
+runtime.message_16: "{{v0}}是一次性任务，会话没有保留、报告交回即焚；这条线要接着做就重新 spawn_agents"
+runtime.message_17: "{{v0}}还在跑，等它这一轮回来再续"
+runtime.message_18: "{{v0}}已封存，不能再续派；这条线要接着做就重新 spawn_agents"
+runtime.message_19: 主编不能封存
+runtime.message_20: 没有这个子 agent：{{v0}}
+runtime.message_21: "{{v0}}还在跑，等它这一轮回来再封"
+runtime.message_22: "{{v0}}已经封存了"
+runtime.message_23: 主编不能删除
+runtime.message_24: "{{v0}}还在跑，等它这一轮回来再删"
+runtime.message_25: |-
+
+
+  （已交回：这条线了了就 archive_agent 封存{{v0}}，还有活就续派。）
+runtime.message_26: （没有文字结论）
+runtime.message_27: |-
+  {{v0}}
+
+  执行失败：{{v1}}
+runtime.message_28: 模型调用失败（没有错误详情）

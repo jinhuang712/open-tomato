@@ -1,3 +1,4 @@
+import { text as textValue } from "../text/load.js";
 import type { CheckIssue, DocHeader, DocKindId } from "../protocol.js";
 import { isSettled } from "../protocol.js";
 import { asStringArray, splitSections } from "./frontmatter.js";
@@ -42,51 +43,51 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     for (const h of headers) {
       const fm = { title: h.title, summary: h.summary, status: h.status, ...h.extra };
       const required = requiredFieldsOf(kind, fm);
-      if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填", kind, `${DOC_KINDS[kind].label}「${h.id}」还没起名，帮我定一个 title`);
-      if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填", kind, `${ref(kind, h)}的 summary 还没写，帮我补一句`);
+      if (h.title === PLACEHOLDER || h.title.trim() === "") push("error", h, "title 未填", kind, textValue("messages/materials", "check.message", { v0: DOC_KINDS[kind].label, v1: h.id }));
+      if (h.summary === PLACEHOLDER) push("warning", h, "summary 未填", kind, textValue("messages/materials", "check.message_2", { v0: ref(kind, h) }));
       const missingFields = required.filter((f) => {
         const v = h.extra[f];
         return v === undefined || v === null || v === "" || v === PLACEHOLDER;
       });
-      for (const f of missingFields) push("error", h, `缺必填字段 ${f}`, kind, `${ref(kind, h)}缺字段 ${f}，帮我补上`);
+      for (const f of missingFields) push("error", h, textValue("messages/materials", "check.message_3", { v0: f }), kind, textValue("messages/materials", "check.message_4", { v0: ref(kind, h), v1: f }));
       for (const { name, options } of enumFieldsOf(kind)) {
         const v = h.extra[name];
         if (v === undefined || v === null || v === "" || v === PLACEHOLDER) continue;
         if (!options.includes(String(v))) {
           const range = options.join(" / ");
-          push("error", h, `${name}=${String(v)} 不在取值范围内（${range}）`, kind, `${ref(kind, h)}的 ${name} 填成了「${String(v)}」，只能是 ${range} 之一，帮我改成对的`);
+          push("error", h, textValue("messages/materials", "check.message_5", { v0: name, v1: String(v), v2: range }), kind, textValue("messages/materials", "check.message_6", { v0: ref(kind, h), v1: name, v2: String(v), v3: range }));
         }
       }
       const doc = await store.read(kind, h.id);
       if (!doc) continue;
       if (doc.body.includes(PLACEHOLDER)) {
         const count = doc.body.split(PLACEHOLDER).length - 1;
-        push(kind === "manuscript" ? "error" : "warning", h, `正文残留 ${count} 处「${PLACEHOLDER}」`, kind, `${ref(kind, h)}正文里还有 ${count} 处「${PLACEHOLDER}」，帮我逐处补成正式内容`);
+        push(kind === "manuscript" ? "error" : "warning", h, textValue("messages/materials", "check.message_7", { v0: count, v1: PLACEHOLDER }), kind, textValue("messages/materials", "check.message_8", { v0: ref(kind, h), v1: count, v2: PLACEHOLDER }));
       }
       // 「待定」不是内容：没想好的段不该出现，先放一放的决定记在 frontmatter open 里
       const deferred = splitSections(doc.body).filter((s) => s.heading !== "" && s.content.startsWith(DEFERRED));
       if (deferred.length > 0) {
         const names = deferred.map((s) => s.heading).join("、");
-        push("warning", h, `段落只写了「${DEFERRED}」：${names}，没想好就删掉这一段`, kind, `${ref(kind, h)}的「${names}」段只写了「${DEFERRED}」，我们把它定下来`);
+        push("warning", h, textValue("messages/materials", "check.message_9", { v0: DEFERRED, v1: names }), kind, textValue("messages/materials", "check.message_10", { v0: ref(kind, h), v1: names, v2: DEFERRED }));
       }
       // 正文说了「先放一放」却没记进 open：欠账只写在正文里，没人会回头看
       const openList = asStringArray(h.extra.open);
       if (openList.length === 0) {
         const hit = DEFER_PHRASES.find((w) => doc.body.includes(w));
-        if (hit) push("warning", h, `正文写了「${hit}」，但 open 里没有记这笔搁置`, kind, `${ref(kind, h)}正文里说了「${hit}」，帮我把搁置的项记进 open`);
+        if (hit) push("warning", h, textValue("messages/materials", "check.message_11", { v0: hit }), kind, textValue("messages/materials", "check.message_12", { v0: ref(kind, h), v1: hit }));
       }
       // 正文写了里程碑的排序键：作者读到的是黑话，编号重排之后还会对不上
       const orderHit = ORDER_MENTION.exec(doc.body);
       if (orderHit) {
         const at = orderHit.index;
         const snippet = doc.body.slice(Math.max(0, at - 8), at + orderHit[0].length + 8).replace(/\s+/g, " ").trim();
-        push("warning", h, `正文里写了里程碑排序键「${orderHit[0]}」`, kind, `${ref(kind, h)}正文里的「…${snippet}…」用了里程碑的排序键 order，帮我改成里程碑名字（如 里程碑/系统上线）`);
+        push("warning", h, textValue("messages/materials", "check.message_13", { v0: orderHit[0] }), kind, textValue("messages/materials", "check.message_14", { v0: ref(kind, h), v1: snippet }));
       }
       const present = new Set(doc.sections);
       const missing = requiredSectionsOf(kind, fm).filter((s) => !present.has(s.name));
       if (missing.length > 0) {
         const names = missing.map((s) => s.name).join("、");
-        push("warning", h, `缺必填段：${names}`, kind, `${ref(kind, h)}还缺「${names}」段，帮我补上`);
+        push("warning", h, textValue("messages/materials", "check.message_15", { v0: names }), kind, textValue("messages/materials", "check.message_16", { v0: ref(kind, h), v1: names }));
       }
     }
   }
@@ -97,30 +98,30 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
   for (const h of byKind.get("chapters") ?? []) {
     for (const c of asStringArray(h.extra.characters)) {
       const nid = DOC_KINDS.characters.normalizeId(c);
-      if (!characters.has(nid)) push("error", h, `引用了不存在的人物卡「${c}」`);
+      if (!characters.has(nid)) push("error", h, textValue("messages/materials", "check.message_17", { v0: c }));
     }
     for (const t of asStringArray(h.extra.threads)) {
       const nid = DOC_KINDS.threads.normalizeId(t);
-      if (!threads.has(nid)) push("error", h, `引用了不存在的线索卡「${t}」`);
+      if (!threads.has(nid)) push("error", h, textValue("messages/materials", "check.message_18", { v0: t }));
     }
     const v = h.extra.volume;
     if (v !== undefined && v !== null && v !== "" && v !== PLACEHOLDER) {
       const nid = DOC_KINDS.volumes.normalizeId(String(v));
-      if (!volumes.has(nid)) push("error", h, `引用了不存在的卷纲「${String(v)}」`);
+      if (!volumes.has(nid)) push("error", h, textValue("messages/materials", "check.message_19", { v0: String(v) }));
     }
   }
 
   for (const h of byKind.get("milestones") ?? []) {
     for (const t of asStringArray(h.extra.threads)) {
       const nid = DOC_KINDS.threads.normalizeId(t);
-      if (!threads.has(nid)) push("error", h, `引用了不存在的线索卡「${t}」`);
+      if (!threads.has(nid)) push("error", h, textValue("messages/materials", "check.message_18", { v0: t }));
     }
   }
 
   for (const h of byKind.get("volumes") ?? []) {
     for (const m of asStringArray(h.extra.milestones)) {
       const nid = DOC_KINDS.milestones.normalizeId(m);
-      if (!ids("milestones").has(nid)) push("error", h, `引用了不存在的里程碑「${m}」`);
+      if (!ids("milestones").has(nid)) push("error", h, textValue("messages/materials", "check.message_20", { v0: m }));
     }
   }
 
@@ -134,14 +135,14 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     const used = referenced(["chapters", "milestones"], "threads", "threads");
     for (const h of byKind.get("threads") ?? []) {
       if (isSettled(h.status)) continue; // 已收束的线本来就不该再被章纲指向
-      if (!used.has(h.id)) push("warning", h, "没有任何章纲或里程碑指向这条线索", "threads", `${ref("threads", h)}还没排进任何章纲，帮我看看它该在哪几章推进`);
+      if (!used.has(h.id)) push("warning", h, textValue("messages/materials", "check.message_21"), "threads", textValue("messages/materials", "check.message_22", { v0: ref("threads", h) }));
     }
   }
   if ((byKind.get("volumes") ?? []).length > 0) {
     const covered = referenced(["volumes"], "milestones", "milestones");
     for (const h of byKind.get("milestones") ?? []) {
       if (isSettled(h.status)) continue; // 退场的帧不用排进任何一卷
-      if (!covered.has(h.id)) push("warning", h, "没有任何卷纲覆盖这个里程碑", "milestones", `${ref("milestones", h)}还没分到任何一卷，帮我排进卷纲`);
+      if (!covered.has(h.id)) push("warning", h, textValue("messages/materials", "check.message_23"), "milestones", textValue("messages/materials", "check.message_24", { v0: ref("milestones", h) }));
     }
   }
 
@@ -163,13 +164,13 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
       const last = lastTouched.get(h.id);
       if (last === undefined) continue; // 从没排进章纲的归孤儿那条报
       const idle = written - last;
-      if (idle > 0) push("info", h, `最后一次推进在第 ${last} 章，之后正文写了 ${idle} 章`, "threads", `${ref("threads", h)}最后在第 ${last} 章推进过，之后写了 ${idle} 章，看看是该推一步、该收束，还是有意沉着`);
+      if (idle > 0) push("info", h, textValue("messages/materials", "check.message_25", { v0: last, v1: idle }), "threads", textValue("messages/materials", "check.message_26", { v0: ref("threads", h), v1: last, v2: idle }));
     }
   }
 
   const chapterIds = ids("chapters");
   for (const h of byKind.get("manuscript") ?? []) {
-    if (!chapterIds.has(h.id)) push("warning", h, "没有对应的章纲");
+    if (!chapterIds.has(h.id)) push("warning", h, textValue("messages/materials", "check.message_27"));
   }
 
   checkSequence(
@@ -192,7 +193,7 @@ export async function runCheck(store: ProjectStore): Promise<CheckIssue[]> {
     orders.set(o, [...(orders.get(o) ?? []), h]);
   }
   for (const [o, hs] of orders) {
-    if (hs.length > 1) push("error", null, `里程碑 order=${o} 重复：${hs.map((h) => h.id).join("、")}`, "milestones");
+    if (hs.length > 1) push("error", null, textValue("messages/materials", "check.message_28", { v0: o, v1: hs.map((h) => h.id).join("、") }), "milestones");
   }
 
   // 作者说过「这笔账不欠」的材料（有 defer 批且没被推翻），建议改和事实一律闭嘴；必须修照报，那是坏掉不是欠账
@@ -210,5 +211,5 @@ function checkSequence(nums: number[], report: (msg: string) => void, label: str
     // 单缺口只写一个数字（缺第 2 章报「2」不报「2-2」）
     if (cur - prev > 1) gaps.push(prev + 2 === cur ? String(prev + 1) : `${prev + 1}-${cur - 1}`);
   }
-  if (gaps.length > 0) report(`${label}断档：${gaps.join("、")}`);
+  if (gaps.length > 0) report(textValue("messages/materials", "check.message_29", { v0: label, v1: gaps.join("、") }));
 }

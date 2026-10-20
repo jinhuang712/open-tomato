@@ -1,5 +1,6 @@
+import { frontmatterProblem } from "../src/project/frontmatter-validation.js";
 import { describe, expect, test } from "bun:test";
-import { frontmatterProblem, parseFrontmatter, patchFrontmatter, pickSection, replaceBody, splitSections, stringifyFrontmatter } from "../src/project/frontmatter.js";
+import { parseFrontmatter, patchFrontmatter, pickSection, replaceBody, splitSections, stringifyFrontmatter } from "../src/project/frontmatter.js";
 
 describe("frontmatter", () => {
   test("拆头和正文", () => {

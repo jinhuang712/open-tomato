@@ -1,3 +1,4 @@
+import { text as textValue } from "../text/load.js";
 /** 对文件文本做 old → new 的局部替换；原文片段即坐标，必须在文件里唯一匹配 */
 
 export interface TextEdit {
@@ -12,7 +13,7 @@ export class EditError extends Error {
     public readonly index: number,
     message: string,
   ) {
-    super(`第 ${index + 1} 处修改：${message}`);
+    super(textValue("messages/materials", "edits.message", { v0: index + 1, v1: message }));
   }
 }
 
@@ -37,10 +38,10 @@ function countOccurrences(hay: string, needle: string): number {
  * 匹配严格按字面；找不到时给出提示，帮模型判断是原文已变还是引用不准。
  */
 export function applyEdits(raw: string, edits: TextEdit[]): string {
-  if (edits.length === 0) throw new Error("edits 为空，没有要改的内容");
+  if (edits.length === 0) throw new Error(textValue("messages/materials", "edits.message_2"));
   let text = raw;
   edits.forEach((e, i) => {
-    if (e.old === e.new) throw new EditError(i, "old 和 new 相同，没有变化");
+    if (e.old === e.new) throw new EditError(i, textValue("messages/materials", "edits.message_3"));
     if (e.old === "") {
       const sep = text.endsWith("\n") || text === "" ? "" : "\n";
       text = `${text}${sep}${e.new}`;
@@ -49,15 +50,15 @@ export function applyEdits(raw: string, edits: TextEdit[]): string {
     const n = countOccurrences(text, e.old);
     if (n === 0) {
       const firstLine = e.old.split("\n")[0]?.trim() ?? "";
-      const hint = firstLine && text.includes(firstLine) ? "首行能找到但整段对不上，多半是换行或空格不一致；请重新 read_doc 取原文" : "文件里没有这段文字，可能已被改过；请重新 read_doc 再改";
-      throw new EditError(i, `找不到「${preview(e.old)}」。${hint}`);
+      const hint = firstLine && text.includes(firstLine) ? textValue("messages/materials", "edits.message_4") : textValue("messages/materials", "edits.message_5");
+      throw new EditError(i, textValue("messages/materials", "edits.message_6", { v0: preview(e.old), v1: hint }));
     }
     if (n > 1) {
       // 模型常拿 frontmatter 的「---」当「正文开头」的坐标，文件里前后各一条必然撞车；直说该怎么办，省一轮往返
       if (/^-{3,}$/.test(e.old.trim())) {
-        throw new EditError(i, "「---」是 frontmatter 的分隔线，文件里前后各一条，不能当锚点。要在正文里改就逐字照抄正文里的原句；文档还是空模板、要铺全文就用 write_doc");
+        throw new EditError(i, textValue("messages/materials", "edits.message_7"));
       }
-      throw new EditError(i, `「${preview(e.old)}」出现了 ${n} 次，请把 old 多带一两行上下文以唯一定位`);
+      throw new EditError(i, textValue("messages/materials", "edits.message_8", { v0: preview(e.old), v1: n }));
     }
     text = text.replace(e.old, () => e.new);
   });

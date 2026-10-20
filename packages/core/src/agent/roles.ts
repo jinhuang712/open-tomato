@@ -1,24 +1,25 @@
-import { readFileSync } from "node:fs";
+import { fill, markdown, text as textValue } from "../text/load.js";
 import type { DocKindId, RoleId, RoleInfo } from "../protocol.js";
 import { kindInfos } from "../project/kinds.js";
 import { capabilityRoster } from "./capabilities.js";
-import { fill, loadPrompt } from "./prompt-text.js";
+import { composeRolePrompt } from "../text/compose.js";
+import type { HostId } from "../text/host.js";
 import { checkBlock, produceBlock } from "./standards.js";
 
 const GUIDE_ROLE = { 文编: "copyeditor", 运营: "ops", 校对: "proofreader" } as const;
 
 /**
- * 评审手册随应用发布，在 packages/core/guides/ 下，一路一份 markdown。
+ * 评审手册随应用发布，在 packages/core/text/reviews/ 下，一路一份 markdown。
  * 手册写通用的审稿方法；每本书的偏好记在守则里。作者不在应用内改手册，修改手册需要改仓库文件。
  * 归这一路核对的标准从标准表拼进 {{STANDARDS}}，手册里只写标准表之外的其他检查。
  * 读者评审没有手册，只要人设和归它核对的标准。
  */
 export function reviewGuide(name: keyof typeof GUIDE_ROLE): string {
-  const raw = readFileSync(new URL(`../../guides/评审-${name}.md`, import.meta.url), "utf8").trim();
+  const raw = markdown(`reviews/${GUIDE_ROLE[name]}`);
   return fill(raw, { STANDARDS: checkBlock(GUIDE_ROLE[name]) });
 }
 
-// 角色正文在 prompts/ 下、共享片段在 prompts/shared/ 下，占位符约定见 prompt-text.ts。
+// 角色正文在 text/roles/，共享规则在 text/collaboration.md；组装入口在 text/compose.ts。
 
 export interface RoleDef extends RoleInfo {
   /**
@@ -38,28 +39,16 @@ export interface RoleDef extends RoleInfo {
   systemPrompt: string;
 }
 
-/** 评审对照意图，不对照通用标准：先读章纲，第一项检查是章纲承诺的做到了没有 */
-const REVIEW_INTENT = loadPrompt("shared/review-intent");
-
-/** 正式评审落记录，分析报告交主编整理；写手返修直接读记录 */
-const REVIEW_SAVE = loadPrompt("shared/review-save");
-const CHILD_REPORT = loadPrompt("shared/child-report");
-const COMMUNICATION = loadPrompt("shared/communication");
-
-/** 类型表从 schema 生成：schema 是唯一来源，提示词里不再手抄一份 */
+/** 材料类型表由 schema 生成，正文由 text/ 的组装器加入。 */
 const KIND_TABLE = kindInfos()
   .map((k) => `| ${k.id} | ${k.singleton ? `${k.label}.md` : `${k.dir}/`} | ${k.description} |`)
   .join("\n");
-
-const PROJECT_LAYOUT = fill(loadPrompt("shared/project-layout"), { KIND_TABLE });
-
-const WRITE_DISCIPLINE = loadPrompt("shared/write-discipline");
 
 /**
  * 所有角色共用的状态行约定。界面隐藏思考过程，靠这一行告诉作者你在干什么。
  * 内核会把它从正文里摘出来单独显示。
  */
-export const STATUS_LINE_RULE = loadPrompt("shared/status-line");
+export const STATUS_LINE_RULE = textValue("hosts/app", "status");
 
 export const STATUS_LINE_PATTERN = /^\s*[»›>]\s*(正在[^\n]{1,40}?)\s*(?:\r?\n|$)/;
 
@@ -68,113 +57,118 @@ const CARDS: readonly DocKindId[] = ["world", "characters", "threads"];
 /** 三层大纲 */
 const OUTLINES: readonly DocKindId[] = ["milestones", "volumes", "chapters"];
 
-type RoleSpec = Omit<RoleDef, "canWrite">;
+type RoleSpec = Omit<RoleDef, "canWrite" | "systemPrompt">;
 
 const SPECS: Record<RoleId, RoleSpec> = {
   director: {
     id: "director",
-    label: "主编",
-    description: "统筹全书：判断当前阶段、派任务，把候选方案交给作者拍板。",
+    label: textValue("roles", "roles.director.label"),
+    description: textValue("roles", "roles.director.description"),
     writableKinds: ["brief", "rules", ...CARDS],
     bookkeepAnyKind: true,
     canSpawn: true,
     canAsk: true,
-    systemPrompt: fill(loadPrompt("director"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, CAPABILITIES: capabilityRoster() }),
   },
 
   designer: {
     id: "designer",
-    label: "策划",
-    description: "设计世界设定、人物和线索，提出候选并写入卡片。",
+    label: textValue("roles", "roles.designer.label"),
+    description: textValue("roles", "roles.designer.description"),
     writableKinds: CARDS,
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("designer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("designer") }),
   },
 
   plotter: {
     id: "plotter",
-    label: "编剧",
-    description: "编排里程碑、卷纲、章纲三层结构。",
+    label: textValue("roles", "roles.plotter.label"),
+    description: textValue("roles", "roles.plotter.description"),
     writableKinds: [...OUTLINES, "threads"],
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("plotter"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("plotter") }),
   },
 
   writer: {
     id: "writer",
-    label: "写手",
-    description: "按章纲写正文。",
+    label: textValue("roles", "roles.writer.label"),
+    description: textValue("roles", "roles.writer.description"),
     writableKinds: ["manuscript"],
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("writer"), { PROJECT_LAYOUT, WRITE_DISCIPLINE, STANDARDS: produceBlock("writer") }),
   },
 
   ops: {
     id: "ops",
-    label: "运营",
-    description: "只读。看故事是否吸引人、爽点安排是否合适、读者是否想追下去。",
+    label: textValue("roles", "roles.ops.label"),
+    description: textValue("roles", "roles.ops.description"),
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: fill(loadPrompt("ops"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE, GUIDE: reviewGuide("运营") }),
   },
 
   reader: {
     id: "reader",
-    label: "读者",
-    description: "只读。以目标读者身份看阅读体验。",
+    label: textValue("roles", "roles.reader.label"),
+    description: textValue("roles", "roles.reader.description"),
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: fill(loadPrompt("reader"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE, STANDARDS: checkBlock("reader") }),
   },
 
   copyeditor: {
     id: "copyeditor",
-    label: "文编",
-    description: "只读。抓机器味和文风偏差。",
+    label: textValue("roles", "roles.copyeditor.label"),
+    description: textValue("roles", "roles.copyeditor.description"),
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: fill(loadPrompt("copyeditor"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE, GUIDE: reviewGuide("文编") }),
   },
 
   proofreader: {
     id: "proofreader",
-    label: "校对",
-    description: "只读。核对正文与卡片、章纲、前文是否一致。",
+    label: textValue("roles", "roles.proofreader.label"),
+    description: textValue("roles", "roles.proofreader.description"),
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
     canReview: true,
-    systemPrompt: fill(loadPrompt("proofreader"), { PROJECT_LAYOUT, REVIEW_INTENT, REVIEW_SAVE, GUIDE: reviewGuide("校对") }),
   },
 
   arbiter: {
     id: "arbiter",
-    label: "裁决",
-    description: "只读。评审意见冲突时给出取舍。",
+    label: textValue("roles", "roles.arbiter.label"),
+    description: textValue("roles", "roles.arbiter.description"),
     writableKinds: [],
     canSpawn: false,
     canAsk: false,
-    systemPrompt: fill(loadPrompt("arbiter"), { PROJECT_LAYOUT }),
   },
 };
 
-// 所有角色（包括只读评审与裁决）共用同一条材料信任边界。
-const TRUST_BOUNDARY = loadPrompt("shared/trust-boundary");
+/** 入口供宿主和预览命令共用，不在插件里追加一套覆盖规则。 */
+export function rolePrompt(id: RoleId, host: HostId = "app"): string {
+  const spec = SPECS[id];
+  const guide = Object.entries(GUIDE_ROLE).find(([, role]) => role === id)?.[0] as keyof typeof GUIDE_ROLE | undefined;
+  return composeRolePrompt({
+    ...spec,
+    canWrite: spec.writableKinds.length > 0,
+    values: {
+      KIND_TABLE,
+      CAPABILITIES: capabilityRoster(),
+      STANDARDS: spec.canReview ? checkBlock(id) : produceBlock(id),
+      GUIDE: guide ? reviewGuide(guide) : "",
+    },
+  }, host);
+}
 
 export const ROLES: Record<RoleId, RoleDef> = Object.fromEntries(
-  Object.entries(SPECS).map(([id, spec]) => [
-    id,
-    { ...spec, canWrite: spec.writableKinds.length > 0, systemPrompt: `${spec.systemPrompt}\n\n${COMMUNICATION}\n\n${TRUST_BOUNDARY}${id === "director" ? "" : `\n\n${CHILD_REPORT}`}` },
-  ]),
+  Object.entries(SPECS).map(([id, spec]) => [id, {
+    ...spec,
+    canWrite: spec.writableKinds.length > 0,
+    systemPrompt: rolePrompt(id as RoleId),
+  }]),
 ) as Record<RoleId, RoleDef>;
 
 export const ROLE_IDS = Object.keys(ROLES) as RoleId[];

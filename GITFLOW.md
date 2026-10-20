@@ -34,7 +34,7 @@
 | `style` | 纯样式，无逻辑变化 | 颜色、间距、字阶 |
 | `chore` | 构建、依赖、脚本、CI | 锁版本、install.sh、Actions |
 
-- 提示词（`packages/core/prompts/**`）改的是 agent 行为，按 `feat` / `fix` / `refactor` 算，不算 `docs`。
+- 提示词（`packages/core/text/**`）改的是 agent 行为，按 `feat` / `fix` / `refactor` 算，不算 `docs`。
 - `docs` 只留给真正的手册文档。
 
 ## scope

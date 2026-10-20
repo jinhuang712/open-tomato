@@ -1,14 +1,14 @@
+import { fill, text as textValue } from "../../../text/load.js";
 import { DOC_KIND_IDS, DOC_KINDS, resolveKind } from "../../../project/kinds.js";
 import { contentHash } from "../../../project/records.js";
 import { stubPrompt } from "../../../protocol.js";
 import type { DocKindId } from "../../../protocol.js";
-import { fill, loadPrompt } from "../../prompt-text.js";
 import { zhPath } from "../../tools/shared.js";
 import { LEAD_ID } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 
 /** 作者手改完，交主编复核改动范围与一致性 */
-const AUTHOR_EDIT_CHECK = loadPrompt("kernel/author-edit-check");
+const AUTHOR_EDIT_CHECK = textValue("messages/session", "author-edit-check");
 
 /** 送给主编的 diff 上限：整章重写的 patch 能有上千行，超了就截断，够它判断范围就行 */
 const PATCH_LIMIT = 8000;
@@ -16,16 +16,16 @@ const PATCH_LIMIT = 8000;
 /** 界面 / 外部调用传来的 kind 先过一遍校验，别让 undefined 一路漏到 DOC_KINDS[kind] 上炸出 TypeError */
 function kindOf(v: unknown): DocKindId {
   const k = resolveKind(v);
-  if (!k) throw new Error(`未知的 kind：${String(v)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ")}`);
+  if (!k) throw new Error(textValue("messages/session", "docs.message", { v0: String(v), v1: DOC_KIND_IDS.map((x) => `${x}（${DOC_KINDS[x].dir}）`).join(" / ") }));
   return k;
 }
 
-const clip = (patch: string) => (patch.length <= PATCH_LIMIT ? patch : `${patch.slice(0, PATCH_LIMIT)}\n…（diff 太长，后面截断了，要看全文自己 read_doc）`);
+const clip = (patch: string) => (patch.length <= PATCH_LIMIT ? patch : textValue("messages/session", "docs.message_2", { v0: patch.slice(0, PATCH_LIMIT) }));
 
 /** 把作者这次手改的 diff 送给主编复核；排在它当前这一轮之后，不打断正在做的事 */
 async function requestDoubleCheck(api: KernelApi, kind: DocKindId, id: string, patch: string): Promise<void> {
   if (!(await api.ensureLead())) return;
-  api.sendTo(LEAD_ID, stubPrompt("作者手改", fill(AUTHOR_EDIT_CHECK, { PATH: zhPath(kind, id), PATCH: clip(patch) })), "followUp");
+  api.sendTo(LEAD_ID, stubPrompt(textValue("messages/session", "docs.message_3"), fill(AUTHOR_EDIT_CHECK, { PATH: zhPath(kind, id), PATCH: clip(patch) })), "followUp");
 }
 
 export function docHandlers(api: KernelApi): Pick<HandlerMap, "doc.read" | "doc.write" | "doc.template" | "search.query"> {

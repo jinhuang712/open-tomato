@@ -5,11 +5,11 @@ export interface ParsedDoc {
   body: string;
 }
 
-const FENCE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+export const FRONTMATTER_FENCE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
 /** 拆 `---` 包裹的 YAML 头和正文。没有头就当全是正文。 */
 export function parseFrontmatter(raw: string): ParsedDoc {
-  const m = FENCE.exec(raw);
+  const m = FRONTMATTER_FENCE.exec(raw);
   if (!m) return { frontmatter: {}, body: raw };
   let frontmatter: unknown;
   try {
@@ -29,23 +29,6 @@ export function frontmatterDiffKeys(before: Record<string, unknown>, after: Reco
   return [...keys].filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
 }
 
-/**
- * 落盘前的校验：必须以 frontmatter 开头、YAML 能解析且是一个映射。
- * 返回给用户 / 模型看的原因；合法返回 null。
- */
-export function frontmatterProblem(raw: string): string | null {
-  const m = FENCE.exec(raw);
-  if (!m) return "文件必须以 frontmatter（以 --- 开头的 YAML 头）开头，先用 doc_template 拿模板";
-  let parsed: unknown;
-  try {
-    parsed = parseYaml(m[1] ?? "");
-  } catch (e) {
-    return `frontmatter 不是合法 YAML：${e instanceof Error ? e.message.split("\n")[0] : String(e)}`;
-  }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return "frontmatter 必须是 key: value 形式的映射";
-  return null;
-}
-
 export function stringifyFrontmatter(frontmatter: Record<string, unknown>, body: string): string {
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
   const trimmedBody = body.replace(/^\r?\n+/, "");
@@ -62,7 +45,7 @@ const withHead = (yaml: string, body: string) => `---\n${yaml}\n---\n${body === 
  * 作者在界面上编辑正文走这条：头没碰，diff 里就只有正文那几行。
  */
 export function replaceBody(raw: string, body: string): string {
-  const m = FENCE.exec(raw);
+  const m = FRONTMATTER_FENCE.exec(raw);
   const next = trimBody(body);
   if (!m) return next === "" ? "" : `${next}\n`;
   return withHead(m[1] ?? "", next);
@@ -73,7 +56,7 @@ export function replaceBody(raw: string, body: string): string {
  * 用 YAML 文档模型改，不整份重新序列化——否则作者改一个标题，整个头的排版都会跟着变。
  */
 export function patchFrontmatter(raw: string, patch: Record<string, unknown>): string {
-  const m = FENCE.exec(raw);
+  const m = FRONTMATTER_FENCE.exec(raw);
   const doc = parseDocument(m ? (m[1] ?? "") : "");
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) {

@@ -1,3 +1,4 @@
+import { text as textValue } from "../text/load.js";
 import type { RoleId } from "../protocol.js";
 
 /**
@@ -25,129 +26,129 @@ export type ReviewerRole = "ops" | "reader" | "copyeditor" | "proofreader";
 
 export const STANDARDS = {
   pitch: {
-    label: "书名与文案",
-    planned: "简介「书名」「文案」",
+    label: textValue("standards", "standards.pitch.label"),
+    planned: textValue("standards", "standards.pitch.planned"),
     produce: {},
     check: {
       role: "ops",
-      text: "本章内容有没有兑现书名和文案给读者的期待，对不上的标出来；简介还没有文案就跳过这条。",
+      text: textValue("standards", "standards.pitch.check.text"),
     },
   },
   story: {
-    label: "故事内核",
-    planned: "简介「一句话故事」",
+    label: textValue("standards", "standards.story.label"),
+    planned: textValue("standards", "standards.story.planned"),
     produce: {},
   },
   audience: {
-    label: "赛道与读者",
-    planned: "简介「题材与平台」「读者画像」",
+    label: textValue("standards", "standards.audience.label"),
+    planned: textValue("standards", "standards.audience.planned"),
     produce: {},
     check: {
       role: "ops",
-      text: "本章合不合这个赛道读者的期待与套路，内容和读者画像对不对得上；受众过窄或偏离题材的地方标出来。",
+      text: textValue("standards", "standards.audience.check.text"),
     },
   },
   protagonist: {
-    label: "主角",
-    planned: "简介「主角优势」",
+    label: textValue("standards", "standards.protagonist.label"),
+    planned: textValue("standards", "standards.protagonist.planned"),
     produce: {
-      plotter: "排开篇几章时读简介的「主角优势」，让读者早点看到主角凭什么值得追着看。",
+      plotter: textValue("standards", "standards.protagonist.produce.plotter"),
     },
     check: {
       role: "ops",
-      text: "主角在本章是自己在选，还是被剧情推着走；简介写的主角优势有没有派上用场。",
+      text: textValue("standards", "standards.protagonist.check.text"),
     },
   },
   beat: {
-    label: "压放",
-    planned: "章纲 beat",
+    label: textValue("standards", "standards.beat.label"),
+    planned: textValue("standards", "standards.beat.planned"),
     produce: {
       plotter:
-        "用章纲的 beat 字段标明这一章是压、放还是平。如果是放，就在本章目标里写清爽点类型；类型以简介的读者画像为准，不套统一公式。如果连续几章都是压，要说明准备在哪一章释放情绪。",
+        textValue("standards", "standards.beat.produce.plotter"),
     },
     check: {
       role: "ops",
-      text: "本章有哪些爽点、安排在哪里，情绪变化清不清楚、读者有没有得到满足，和章纲 beat 标的对不对得上；主角被压了多久，连续多章没有出口标出来。没有爽点就说没有。",
+      text: textValue("standards", "standards.beat.check.text"),
     },
   },
   hook: {
-    label: "开篇与章末",
-    planned: "章纲「章末钩子」",
+    label: textValue("standards", "standards.hook.label"),
+    planned: textValue("standards", "standards.hook.planned"),
     produce: {
-      plotter: "章末钩子落在问题或危机上，而不只是停了。",
-      writer: "章首先接住上一章的钩子，让读者很快知道这一章要等什么；章末落在章纲写的钩子上。",
+      plotter: textValue("standards", "standards.hook.produce.plotter"),
+      writer: textValue("standards", "standards.hook.produce.writer"),
     },
     check: {
       role: "ops",
-      text: "开头有没有让读者知道要等什么（结合本章目的判断，不能仅凭开头在交代背景就认定有问题）；章末有没有追读欲，落点是问题、危机还是只是停了；上一章的钩子本章兑现没有，假钩子标出来。",
+      text: textValue("standards", "standards.hook.check.text"),
     },
   },
   motive: {
-    label: "动机",
-    planned: "人物卡「内在与欲望」",
+    label: textValue("standards", "standards.motive.label"),
+    planned: textValue("standards", "standards.motive.planned"),
     produce: {
-      designer: "人物卡的「内在与欲望」写清他要什么、缺什么，要能解释他关键时刻为什么这么选。",
+      designer: textValue("standards", "standards.motive.produce.designer"),
     },
     check: {
       role: "reader",
-      text: "哪些地方人物突然不像他自己，或者为了推动剧情，做出了让你难以相信的选择。",
+      text: textValue("standards", "standards.motive.check.text"),
     },
   },
   scene: {
-    label: "因果推进",
-    planned: "章纲「场景序列」",
+    label: textValue("standards", "standards.scene.label"),
+    planned: textValue("standards", "standards.scene.planned"),
     produce: {
-      plotter: "相邻两个场景、相邻两章之间，要能用「但是」或「因此」连接，不能只是「然后」；接不上的地方就是缺戏。",
+      plotter: textValue("standards", "standards.scene.produce.plotter"),
     },
     check: {
       role: "reader",
-      text: "哪里想跳过、哪一段什么都没发生；哪里逻辑跳了，前后接不上。",
+      text: textValue("standards", "standards.scene.check.text"),
     },
   },
   info: {
-    label: "信息量",
-    planned: "章纲「信息控制」，设定留在卡里",
+    label: textValue("standards", "standards.info.label"),
+    planned: textValue("standards", "standards.info.planned"),
     produce: {
-      designer: "卡片里的设定要比正文详细。正文只交代当前冲突需要的部分，不要一次讲完所有设定。",
-      writer: "只写当前冲突需要的那部分设定，其余留在卡片里，等读者需要知道时再交代。",
+      designer: textValue("standards", "standards.info.produce.designer"),
+      writer: textValue("standards", "standards.info.produce.writer"),
     },
     check: {
       role: "reader",
-      text: "哪里看不懂、要回翻才明白；哪里一下子塞进太多设定或背景，哪里又少得跟不上。",
+      text: textValue("standards", "standards.info.check.text"),
     },
   },
   threads: {
-    label: "线索推进",
-    planned: "章纲 threads",
+    label: textValue("standards", "standards.threads.label"),
+    planned: textValue("standards", "standards.threads.planned"),
     produce: {
-      plotter: "章纲的 threads 只写这一章真正推进了的线，不写只是提到的。",
+      plotter: textValue("standards", "standards.threads.produce.plotter"),
     },
     check: {
       role: "proofreader",
-      text: "检查章纲 threads 指向的每条线索，是否实际朝终点推进了一步。如果只是提到而没有推进，要结合本章目的说明有什么影响。",
+      text: textValue("standards", "standards.threads.check.text"),
     },
   },
   show: {
-    label: "演出来",
-    planned: "作者守则里文字、叙述类的条目",
+    label: textValue("standards", "standards.show.label"),
+    planned: textValue("standards", "standards.show.planned"),
     produce: {
-      writer: "人物的判断和情绪尽量靠动作、对白和细节演出来，少用旁白替读者下结论。",
+      writer: textValue("standards", "standards.show.produce.writer"),
     },
     check: {
       role: "copyeditor",
-      text: "信息和情绪靠对话、动作传递了没有；替读者下结论的说教式旁白标出来。",
+      text: textValue("standards", "standards.show.check.text"),
     },
   },
   voice: {
-    label: "人物口吻",
-    planned: "人物卡「语音签名」",
+    label: textValue("standards", "standards.voice.label"),
+    planned: textValue("standards", "standards.voice.planned"),
     produce: {
-      designer: "人物卡的「语音签名」要写清说话特点，让人能从对白分辨出人物。可以从措辞、句式、称呼等方面说明，不要为了凑齐，给每个人都配一句口头禅。",
-      writer: "对白按语音签名来写，让每个人物都有自己的说话方式。",
+      designer: textValue("standards", "standards.voice.produce.designer"),
+      writer: textValue("standards", "standards.voice.produce.writer"),
     },
     check: {
       role: "copyeditor",
-      text: "对话贴不贴人物身份与语音签名，口语化但没有口水话；谁说话都一个味道的标出来。",
+      text: textValue("standards", "standards.voice.check.text"),
     },
   },
 } satisfies Record<string, Standard>;
@@ -173,7 +174,7 @@ export function produceBlock(role: RoleId): string {
   const ids = producedBy(role);
   if (ids.length === 0) return "";
   const lines = ids.map((id) => `- **${standard(id).label}**：${standard(id).produce[role]}`);
-  return `## 由你负责的写作标准\n\n评审按同样的名字核对；作者守则另有说法的，照守则。\n\n${lines.join("\n")}`;
+  return textValue("standards", "standards.message", { v0: lines.join("\n") });
 }
 
 /** 评审手册里的那一节：编号清单，每条带上计划写在哪，好对照着查 */
@@ -182,7 +183,7 @@ export function checkBlock(role: RoleId): string {
   if (ids.length === 0) return "";
   const lines = ids.map((id, i) => {
     const s = standard(id);
-    return `${i + 1}. **${s.label}**：${s.check?.text ?? ""}（计划在 ${s.planned}）`;
+    return textValue("standards", "standards.message_2", { v0: i + 1, v1: s.label, v2: s.check?.text ?? "", v3: s.planned });
   });
-  return `## 归你核对的标准\n\n用 save_review 保存意见时，如果意见对应下面某条标准，standard 就填这条标准的名字；其他检查不填。\n\n${lines.join("\n")}`;
+  return textValue("standards", "standards.message_3", { v0: lines.join("\n") });
 }

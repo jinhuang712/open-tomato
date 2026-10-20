@@ -1,3 +1,4 @@
+import { text as textValue } from "../text/load.js";
 import { PLACEHOLDER } from "./check.js";
 import type { ProjectStore } from "./store.js";
 
@@ -6,10 +7,10 @@ import type { ProjectStore } from "./store.js";
  * 没有它就排大纲、写正文，产出的是一批要推翻的卡，所以用代码拦，不靠提示词。
  */
 export async function hasOneLineStory(store: ProjectStore): Promise<boolean> {
-  const section = await store.readSection("brief", "简介", "一句话故事");
+  const section = await store.readSection("brief", "简介", textValue("messages/materials", "gates.message"));
   if (section === null) return false;
   const body = section.trim();
   return body !== "" && !body.includes(PLACEHOLDER);
 }
 
-export const ONE_LINE_STORY_GATE_MESSAGE = "简介 还没有「一句话故事」这一段，先和作者聊清故事并落盘，再排大纲 / 写正文";
+export const ONE_LINE_STORY_GATE_MESSAGE = textValue("messages/materials", "gates.ONE_LINE_STORY_GATE_MESSAGE");

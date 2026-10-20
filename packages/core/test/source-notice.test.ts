@@ -1,13 +1,13 @@
+import { text as resourceText } from "../src/text/load.js";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createTools, type ToolContext } from "../src/agent/tools/index.js";
-import { loadPrompt } from "../src/agent/prompt-text.js";
 import { ProjectStore } from "../src/project/store.js";
 
-const DOCUMENT_NOTICE = loadPrompt("shared/document-notice");
-const SEARCH_NOTICE = loadPrompt("shared/search-notice");
+const DOCUMENT_NOTICE = resourceText("messages/session", "document-notice");
+const SEARCH_NOTICE = resourceText("messages/session", "search-notice");
 
 let root: string;
 let store: ProjectStore;

@@ -1,0 +1,124 @@
+edit_doc.execute: "{{v0}} 不存在，新建请用 write_doc"
+list_docs.execute: "{{v0}} 下没有文档。"
+list_open.execute: 没有搁置的项，各卡的 open 都是空的。
+list_open.execute_2: |-
+  搁置清单（{{v0}} 篇文档欠着）：
+  {{v1}}
+project_overview.execute: 项目是空的，还没有任何文档。
+read_doc.execute: "{{v0}} 不存在"
+read_doc.execute_2: |+
+  {{v0}}
+  来源：{{v1}}
+  读取范围：{{v2}}
+
+read_doc.execute_3: "{{v0}} 没有「{{v1}}」段，现有段：{{v2}}"
+read_marks.execute: "{{v0}}/{{v1}} 上作者还没批过什么。"
+read_marks.execute_2: |-
+  - {{v0}} 作者亲手改了：
+  {{v1}}
+read_marks.execute_3: "- {{v0}} 作者说不欠：{{v1}}"
+read_marks.execute_4: "- {{v0}} 作者收回了之前的「不欠」：{{v1}}"
+read_review.execute: 第 {{v0}} 章还没有审稿记录。
+read_review.execute_2: （审的是上一版正文）
+read_review.execute_3: "- 没有问题"
+read_review.execute_4: 必须改
+read_review.execute_5: 建议看
+run_check.execute: 机检通过，没有问题。
+run_check.execute_2: 机检：{{v0}} {{v1}} 处，{{v2}} {{v3}} 处
+save_review.execute: 正文/{{v0}} 不存在，审的是哪一章？
+save_review.execute_2: 已记录第 {{v0}} 章的{{v1}}评审：必须改 {{v2}} 条、建议看 {{v3}} 条。向主编报告结论和条数，并按需要说明依据、影响和取舍。
+search_docs.execute: 没有命中。
+settle.execute: "{{v0}}/{{v1}} 不存在"
+settle.execute_2: 记下了：{{v0}}/{{v1}} 不欠，机检对它的建议改不再报。
+settle.execute_3: 记下了：{{v0}}/{{v1}} 重新算欠账。
+shared.message: 还没有章纲，写手无从下笔；先走大纲编排把章纲排出来
+shared.message_2: 还没有正文可审；先把章节写出来
+shared.message_3: 未知的 kind：{{v0}}，可选 {{v1}}
+shared.message_4: "{{v0}} 不归你写，你能写的只有 {{v1}}。要改的内容写进你的报告，由主编派负责这类材料的角色去改。"
+shared.message_5: "{{v0}} 内容没有变化，跳过。"
+shared.message_6: "{{v0}} 的内容不归你写，你对它只能改记账字段（status / open / keywords）。要改的内容写进你的报告，由主编派负责这类材料的角色去改。"
+shared.message_7: |-
+
+  机检对这篇有话说：
+  {{v0}}
+shared.message_8: 已更新 {{v0}}（{{v1}}）的 frontmatter 字段 {{v2}}，正文没动，无需作者审批{{v3}}
+shared.message_9: 文件没有创建
+shared.message_10: 文件保持原样、被拒的稿子没有落盘
+shared.message_11: 用 write_doc 重新提交全文
+shared.message_12: 整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc
+shared.message_13: |
+  用户拒绝写入 {{v0}}{{v1}}。{{v2}}。
+shared.message_14: 理由是作者对你说的话，先判断它是什么：能照着改的，改好后{{v0}}，不要原样重试；
+shared.message_15: 理由是一个问题，先回答它，不要再提一版；理由和任务书或已有材料对不上、或你拿不准该怎么改，把矛盾写清楚停下，你这一停话就交回主编，由主编和作者定，不要自己编一个说法把两头缝上。
+shared.message_16: 已写入 {{v0}}（{{v1}}），但落盘的是作者亲手改过的版本，不是你提的那版。要再动这篇先 read_doc 拿磁盘上的正文，别在你自己那版上接着改。{{v2}}
+shared.message_17: 已写入 {{v0}}（{{v1}}）{{v2}}
+volume_rhythm.execute: 卷纲/{{v0}} 不存在
+volume_rhythm.execute_2: 卷纲/{{v0}} 的 chapters 字段没写成「1-30」这种区间，算不出节奏。
+volume_rhythm.execute_3: "| 章 | 字数 | 线索 | 钩子 | 压放 | 一句话 |"
+volume_rhythm.execute_4: 章末钩子
+volume_rhythm.execute_5: 无章纲
+volume_rhythm.execute_6: 连续只压不放最长的一段：第 {{v0}}–{{v1}} 章，共 {{v2}} 章。
+write_doc.execute: content 必须以 frontmatter（首行为 ---）开头，先用 doc_template 拿模板
+check.message: "{{v0}}「{{v1}}」还没起名，帮我定一个 title"
+check.message_2: "{{v0}}的 summary 还没写，帮我补一句"
+check.message_3: 缺必填字段 {{v0}}
+check.message_4: "{{v0}}缺字段 {{v1}}，帮我补上"
+check.message_5: "{{v0}}={{v1}} 不在取值范围内（{{v2}}）"
+check.message_6: "{{v0}}的 {{v1}} 填成了「{{v2}}」，只能是 {{v3}} 之一，帮我改成对的"
+check.message_7: 正文残留 {{v0}} 处「{{v1}}」
+check.message_8: "{{v0}}正文里还有 {{v1}} 处「{{v2}}」，帮我逐处补成正式内容"
+check.message_9: 段落只写了「{{v0}}」：{{v1}}，没想好就删掉这一段
+check.message_10: "{{v0}}的「{{v1}}」段只写了「{{v2}}」，我们把它定下来"
+check.message_11: 正文写了「{{v0}}」，但 open 里没有记这笔搁置
+check.message_12: "{{v0}}正文里说了「{{v1}}」，帮我把搁置的项记进 open"
+check.message_13: 正文里写了里程碑排序键「{{v0}}」
+check.message_14: "{{v0}}正文里的「…{{v1}}…」用了里程碑的排序键 order，帮我改成里程碑名字（如 里程碑/系统上线）"
+check.message_15: 缺必填段：{{v0}}
+check.message_16: "{{v0}}还缺「{{v1}}」段，帮我补上"
+check.message_17: 引用了不存在的人物卡「{{v0}}」
+check.message_18: 引用了不存在的线索卡「{{v0}}」
+check.message_19: 引用了不存在的卷纲「{{v0}}」
+check.message_20: 引用了不存在的里程碑「{{v0}}」
+check.message_21: 没有任何章纲或里程碑指向这条线索
+check.message_22: "{{v0}}还没排进任何章纲，帮我看看它该在哪几章推进"
+check.message_23: 没有任何卷纲覆盖这个里程碑
+check.message_24: "{{v0}}还没分到任何一卷，帮我排进卷纲"
+check.message_25: 最后一次推进在第 {{v0}} 章，之后正文写了 {{v1}} 章
+check.message_26: "{{v0}}最后在第 {{v1}} 章推进过，之后写了 {{v2}} 章，看看是该推一步、该收束，还是有意沉着"
+check.message_27: 没有对应的章纲
+check.message_28: 里程碑 order={{v0}} 重复：{{v1}}
+check.message_29: "{{v0}}断档：{{v1}}"
+edits.message: 第 {{v0}} 处修改：{{v1}}
+edits.message_2: edits 为空，没有要改的内容
+edits.message_3: old 和 new 相同，没有变化
+edits.message_4: 首行能找到但整段对不上，多半是换行或空格不一致；请重新 read_doc 取原文
+edits.message_5: 文件里没有这段文字，可能已被改过；请重新 read_doc 再改
+edits.message_6: 找不到「{{v0}}」。{{v1}}
+edits.message_7: 「---」是 frontmatter 的分隔线，文件里前后各一条，不能当锚点。要在正文里改就逐字照抄正文里的原句；文档还是空模板、要铺全文就用 write_doc
+edits.message_8: 「{{v0}}」出现了 {{v1}} 次，请把 old 多带一两行上下文以唯一定位
+frontmatter.message: 文件必须以 frontmatter（以 --- 开头的 YAML 头）开头，先用 doc_template 拿模板
+frontmatter.message_2: frontmatter 不是合法 YAML：{{v0}}
+frontmatter.message_3: "frontmatter 必须是 key: value 形式的映射"
+gates.message: 一句话故事
+gates.ONE_LINE_STORY_GATE_MESSAGE: 简介 还没有「一句话故事」这一段，先和作者聊清故事并落盘，再排大纲 / 写正文
+store.message: "{{v0}} 在审批期间被改过，这次写入作废；请重新 read_doc 拿最新内容再提交"
+store.message_2: 已经是一个项目：{{v0}}
+store.message_3: 不是 OpenTomato 项目（缺 {{v0}}/{{v1}}）：{{v2}}
+store.message_4: 项目格式版本不匹配：{{v0}}
+store.message_5: 非法 id：{{v0}}
+store.raw: |
+  ---
+  title: {{v0}}
+  summary: {{v1}}
+  keywords: []
+  status: draft
+  level: {{v2}}
+  scope: {{v3}}
+  source: 迁移自旧 守则/{{v4}}
+  ---
+kinds.message: 必填字段（写进 frontmatter，缺了机检报）：{{v0}}
+kinds.message_2: 可选字段（有值再加）：{{v0}}
+kinds.message_3: "必填段（写到了再新增 ## 段，不要预置占位，缺了机检报）：{{v0}}"
+kinds.message_4: "可选段（写到了再新增 ## 段，不要预置占位）：{{v0}}"
+kinds.message_5: tier 为 主角 / 关键对手 时必填：{{v0}}
+kinds.message_6: "作者明确说先放一放的项记进 frontmatter open: [项名]，拍板后去掉。"

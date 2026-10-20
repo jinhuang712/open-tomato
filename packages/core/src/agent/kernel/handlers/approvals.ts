@@ -1,4 +1,4 @@
-import { frontmatterProblem } from "../../../project/frontmatter.js";
+import { frontmatterProblem } from "../../../project/frontmatter-validation.js";
 import { LEAD_ID } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 

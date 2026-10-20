@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -8,18 +9,18 @@ export function makeWriteDocTool(ctx: ToolContext, writableKinds: readonly DocKi
   const approveAndWrite = makeApproveAndWrite(ctx, writableKinds);
   return defineTool({
     name: "write_doc",
-    label: "写文档",
+    label: textValue("tools/materials", "write_doc.label"),
     description:
-      "新建文档或整篇重写：写入完整文件文本（含 frontmatter，用 doc_template 拿模板）。改已有文档的局部请用 edit_doc。会先在界面上给用户看 diff，用户批准后才真正写入；被拒时返回原因。",
+      textValue("tools/materials", "write_doc.description"),
     parameters: Type.Object({
       kind: writableKindSchema(writableKinds),
-      id: Type.String({ description: "文档 id：卡片用中文名（如 林尧），章号 / 卷号给数字；守则留空自动编号；简介随便填都落到同一份" }),
-      content: Type.String({ description: "完整文件文本，必须以 frontmatter 开头，首行为 ---" }),
+      id: Type.String({ description: textValue("tools/materials", "write_doc.parameters.id.description") }),
+      content: Type.String({ description: textValue("tools/materials", "write_doc.parameters.content.description") }),
     }),
     execute: async (toolCallId, params, signal) => {
       const kind = assertKind(params.kind);
       if (!/^---\r?\n/.test(params.content)) {
-        throw new Error("content 必须以 frontmatter（首行为 ---）开头，先用 doc_template 拿模板");
+        throw new Error(textValue("messages/materials", "write_doc.execute"));
       }
       return approveAndWrite(toolCallId, kind, params.id, params.content, signal);
     },

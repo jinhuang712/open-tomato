@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -11,24 +12,24 @@ export function makeReadReviewTool(ctx: ToolContext): ToolDefinition {
   const { store } = ctx;
   return defineTool({
     name: "read_review",
-    label: "读审稿记录",
-    description: "读一章的审稿记录：每一路评审最近一轮的结论与清单。写手返修前、主编汇总前先读这个，不要让别人复述。",
-    parameters: Type.Object({ chapter: Type.String({ description: "章号，直接给数字" }) }),
+    label: textValue("tools/reviews", "read_review.label"),
+    description: textValue("tools/reviews", "read_review.description"),
+    parameters: Type.Object({ chapter: Type.String({ description: textValue("tools/reviews", "read_review.parameters.chapter.description") }) }),
     execute: async (_id, params) => {
       const chapter = DOC_KINDS.manuscript.normalizeId(params.chapter);
       const rounds = await store.records.latestReviews(chapter);
-      if (rounds.length === 0) return text(`第 ${chapter} 章还没有审稿记录。`);
+      if (rounds.length === 0) return text(textValue("messages/materials", "read_review.execute", { v0: chapter }));
       const doc = await store.read("manuscript", chapter).catch(() => null);
       const current = doc ? contentHash(doc.raw) : null;
       const lines: string[] = [];
       for (const r of rounds) {
-        const stale = current && r.version !== current ? "（审的是上一版正文）" : "";
+        const stale = current && r.version !== current ? textValue("messages/materials", "read_review.execute_2") : "";
         lines.push(`## ${ROLES[r.role].label}${stale}：${r.verdict}`);
-        if (r.items.length === 0) lines.push("- 没有问题");
+        if (r.items.length === 0) lines.push(textValue("messages/materials", "read_review.execute_3"));
         for (const it of r.items) {
           const tag = it.standard ? `${it.standard}｜` : "";
           lines.push(
-            `- ${it.level === "must" ? "必须改" : "建议看"}｜${tag}${it.where} → ${it.issue}${it.fix ? ` → ${it.fix}` : ""}`,
+            `- ${it.level === "must" ? textValue("messages/materials", "read_review.execute_4") : textValue("messages/materials", "read_review.execute_5")}｜${tag}${it.where} → ${it.issue}${it.fix ? ` → ${it.fix}` : ""}`,
           );
         }
       }

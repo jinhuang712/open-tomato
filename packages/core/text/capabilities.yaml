@@ -1,0 +1,57 @@
+capabilities.interview.label: 立项访谈
+capabilities.interview.description: 和作者聊清这本书讲什么、给谁看，再记进简介。
+capabilities.interview.when: 简介还缺故事或读者段；作者刚开一本新书
+capabilities.seed.label: 种子重建
+capabilities.seed.description: 作者带着故事种子或现成材料开新书，逐部分分析后交作者判断，再重写保存，不照搬。
+capabilities.seed.when: 作者贴来一份导出过的故事种子，或别处写好的设定 / 大纲
+capabilities.talk.label: 聊一张卡
+capabilities.talk.description: 和作者聊人物 / 设定 / 线索，只记录作者认可并允许写入的内容。
+capabilities.talk.when: 某张卡关键段空着，派策划前作者想先自己想清楚
+capabilities.design.label: 卡片设计
+capabilities.design.description: 派策划创作世界设定 / 人物 / 线索卡片。
+capabilities.design.when: 故事需要的人物 / 设定 / 线索还没有卡，或大纲提到了没卡的人
+capabilities.outline.label: 大纲编排
+capabilities.outline.description: 派编剧编排里程碑 / 卷纲 / 章纲。
+capabilities.outline.when: 卡片够了但还没排大纲；现有章纲快用完了，需要往后排
+capabilities.draft.label: 章节写作
+capabilities.draft.description: 派写手按章纲写一章正文。
+capabilities.draft.when: 有章纲还没写的章
+capabilities.review.label: 多路审稿
+capabilities.review.description: 让几位评审分别看一章，只评不改；意见冲突时交给裁决。
+capabilities.review.when: 一章刚落盘，还没审稿
+capabilities.recap.label: 卷末盘点
+capabilities.recap.description: 一卷写完，派编剧把线索进展和伏笔是否兑现记回线索卡。
+capabilities.recap.when: 一卷的最后一章刚写完
+capabilities.pitch.label: 包装
+capabilities.pitch.description: 和作者定书名和文案：读者在书架上最先看到的那几行。
+capabilities.pitch.when: 简介的故事和读者画像定了，书名或文案还空着；准备上架发书之前
+capabilities.deeper-needs.label: 深层需要
+capabilities.deeper-needs.description: 分清人物想要什么、内心缺什么，人物单薄或行为全靠剧情推动时用。
+capabilities.deeper-needs.when: 人物单薄、行为全靠剧情推动；人物卡「内在与欲望」段空着或缺乏说服力
+capabilities.show.label: 演出来
+capabilities.show.description: 把一句判断改成动作和细节，用一处示范讲清改法，不重写整章。
+capabilities.show.when: 审稿指出信息太满 / 旁白说教，改一句就能改善时；作者觉得干却说不出怎么改时
+capabilities.fivewhy.label: 追问五次
+capabilities.fivewhy.description: 动机模糊时连续追问为什么，理清因果后记进卡片。
+capabilities.fivewhy.when: 人物要什么说不清、有结果没原因；设定有个结论没来由
+capabilities.logline.label: 一句话故事
+capabilities.logline.description: 用一句话说清谁要什么、什么挡着他，设定多但没事发生时用。
+capabilities.logline.when: 设定写了很多但没一件事发生；访谈结束、开始建卡之前
+capabilities.but-therefore.label: 但是因此
+capabilities.but-therefore.description: 相邻两件事必须用但是 / 因此连上，章纲是流水账时用。
+capabilities.but-therefore.when: 章纲是流水账、审稿指出没有事发生时
+capabilities.hook.label: 钩子断章
+capabilities.hook.description: 章首让读者有所期待，章末留下问题或危机，一次只改一章。
+capabilities.hook.when: 开篇留不住、章末只是停了；黄金开头要磨时
+capabilities.cool.label: 爽点节拍
+capabilities.cool.description: 捋清压制多久、何处释放，连续憋屈没出口时用。
+capabilities.cool.when: 连续几章憋屈没释放；爽了但读者没感觉时
+capabilities.message: " 对应标准：{{v0}}"
+capabilities.message_2: "- {{v0}}（{{v1}}）：{{v2}} 时机：{{v3}}{{v4}}"
+capabilities.message_3: |-
+  工作流：
+  {{v0}}
+  技法：
+  {{v1}}
+capabilities.message_4: 作者点了「{{v0}}」。
+capabilities.message_5: 你加载了「{{v0}}」。

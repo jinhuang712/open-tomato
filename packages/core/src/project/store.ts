@@ -1,9 +1,11 @@
+import { frontmatterProblem } from "./frontmatter-validation.js";
+import { text as textValue } from "../text/load.js";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { DocContent, DocHeader, DocKindId, ProjectInfo, RoleId } from "../protocol.js";
-import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, stringifyFrontmatter, frontmatterProblem } from "./frontmatter.js";
+import { asString, asStringArray, parseFrontmatter, pickSection, splitSections, stringifyFrontmatter } from "./frontmatter.js";
 import { PLACEHOLDER } from "./check.js";
 import { BRIEF_SEED_BODY, DOC_KIND_IDS, DOC_KINDS, isDocKindId, LEGACY_DIRS, LEGACY_GUIDE_IDS } from "./kinds.js";
 import { ProjectRecords } from "./records.js";
@@ -32,7 +34,7 @@ async function writeAtomic(abs: string, content: string) {
 
 export class StaleWriteError extends Error {
   constructor(public readonly path: string) {
-    super(`${path} 在审批期间被改过，这次写入作废；请重新 read_doc 拿最新内容再提交`);
+    super(textValue("messages/materials", "store.message", { v0: path }));
     this.name = "StaleWriteError";
   }
 }
@@ -164,7 +166,7 @@ export class ProjectStore {
   }
 
   static async create(root: string, name: string): Promise<ProjectStore> {
-    if (await ProjectStore.exists(root)) throw new Error(`已经是一个项目：${root}`);
+    if (await ProjectStore.exists(root)) throw new Error(textValue("messages/materials", "store.message_2", { v0: root }));
     const info: ProjectInfo = { root, name: name.trim() || path.basename(root), createdAt: new Date().toISOString() };
     await fs.mkdir(path.join(root, MARKER_DIR), { recursive: true });
     await ensureKindDirs(root);
@@ -180,10 +182,10 @@ export class ProjectStore {
 
   static async open(root: string): Promise<ProjectStore> {
     const raw = await fs.readFile(ProjectStore.markerPath(root), "utf8").catch(() => {
-      throw new Error(`不是 OpenTomato 项目（缺 ${MARKER_DIR}/${MARKER_FILE}）：${root}`);
+      throw new Error(textValue("messages/materials", "store.message_3", { v0: MARKER_DIR, v1: MARKER_FILE, v2: root }));
     });
     const parsed = JSON.parse(raw) as Partial<ProjectInfo> & { format?: number };
-    if (parsed.format !== PROJECT_FORMAT) throw new Error(`项目格式版本不匹配：${String(parsed.format)}`);
+    if (parsed.format !== PROJECT_FORMAT) throw new Error(textValue("messages/materials", "store.message_4", { v0: String(parsed.format) }));
     await migrateLegacyLayout(root);
     await ensureKindDirs(root);
     await ensureMarkerDir(root);
@@ -207,7 +209,7 @@ export class ProjectStore {
 
   normalizeId(kind: DocKindId, id: string): string {
     const n = DOC_KINDS[kind].normalizeId(id);
-    if (n === "") throw new Error(`非法 id：${JSON.stringify(id)}`);
+    if (n === "") throw new Error(textValue("messages/materials", "store.message_5", { v0: JSON.stringify(id) }));
     return n;
   }
 
@@ -456,7 +458,7 @@ async function migrateGuide(root: string) {
     const { body } = parseFrontmatter(await fs.readFile(file, "utf8"));
     for (const item of legacyGuideItems(body)) {
       const id = DOC_KINDS.rules.normalizeId(String(next++));
-      const raw = `---\ntitle: ${yamlScalar(item)}\nsummary: ${yamlScalar(item)}\nkeywords: []\nstatus: draft\nlevel: ${meta.level}\nscope: ${meta.scope}\nsource: 迁移自旧 守则/${name}\n---\n`;
+      const raw = textValue("messages/materials", "store.raw", { v0: yamlScalar(item), v1: yamlScalar(item), v2: meta.level, v3: meta.scope, v4: name });
       await fs.writeFile(path.join(rulesDir, `${id}.md`), raw, "utf8");
     }
     await fs.unlink(file);

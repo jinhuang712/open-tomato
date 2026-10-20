@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -8,12 +9,12 @@ export function makeProjectOverviewTool(ctx: ToolContext): ToolDefinition {
   const { store } = ctx;
   return defineTool({
     name: "project_overview",
-    label: "项目盘面",
-    description: "项目盘面：按 kind 分组列出所有文档的 id / title / status / summary。读取开销小，每轮开工先看它来定方向，再用 read_doc 细读需要的文档。落盘后广播的 docs.changed 已包含最新的全部文档信息，那时不用重复调用。",
+    label: textValue("tools/materials", "project_overview.label"),
+    description: textValue("tools/materials", "project_overview.description"),
     parameters: Type.Object({}),
     execute: async () => {
       const all = await store.listAll();
-      if (all.length === 0) return text("项目是空的，还没有任何文档。");
+      if (all.length === 0) return text(textValue("messages/materials", "project_overview.execute"));
       const lines: string[] = [`项目：${store.info.name}`];
       for (const k of DOC_KIND_IDS) {
         const docs = all.filter((d) => d.kind === k);

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { rolePrompt, text as textValue } from "@opentomato/core/headless";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
 import { ROLE_IDS, ROLES, type RoleId } from "@opentomato/core/headless";
 import { agentIdOf, roleOf } from "./roles.ts";
@@ -7,16 +7,8 @@ import { TOOL_PERMISSION } from "./tools.ts";
 
 const CHILD_ROLES = ROLE_IDS.filter((role) => !ROLES[role].canSpawn);
 
-const loadHostPrompt = (name: string) =>
-  readFileSync(new URL(`../prompts/${name}.md`, import.meta.url), "utf8").trim();
-
-/** core 的角色提示词原样用；opencode 和 App 不同的地方只在这两段里说，不改 core 的正文 */
-const HOST = loadHostPrompt("host");
-const HOST_LEAD = loadHostPrompt("host-lead");
-
 export function systemPromptOf(role: RoleId): string {
-  const def = ROLES[role];
-  return [def.systemPrompt, HOST, ...(def.canSpawn ? [HOST_LEAD] : [])].join("\n\n");
+  return rolePrompt(role, "opencode");
 }
 
 /**
@@ -108,7 +100,7 @@ export function registerAgents(editor: AgentEditor): void {
  */
 export function childRoster(): string {
   return [
-    "可派的写作角色（agent 填名字）：",
+    textValue("messages/opencode", "agents.message"),
     ...CHILD_ROLES.map((role) => `- ${agentIdOf(role)}：${ROLES[role].description}`),
   ].join("\n");
 }

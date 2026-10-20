@@ -1,0 +1,31 @@
+ask_user.label: 问作者
+ask_user.parameters.question.description: 一个清楚、容易回答的问题；一次只问一件事，两个问题分两次问，解释写在正文里，不塞进问题
+ask_user.parameters.kind.description: 提问方式：single 挑一个 / multi 挑若干个 / checklist 逐条表态 / compare 并排对比长稿 / open 自由回答。未填时根据 options 的格式判断
+ask_user.parameters.options.label.description: 候选的短名字，作者一眼能认出
+ask_user.parameters.options.text.description: 候选完整正文，支持 Markdown
+ask_user.parameters.options.description: 候选。single / multi / checklist 给短字串，compare 给 {label, text}；想得出候选就给，只有确实给不出时才留空走 open
+ask_user.parameters.allowFreeText.description: 默认 true
+conversation_history.label: 查对话历史
+conversation_history.description: 分批读取当前会话原始历史（含压缩前消息和工具结果）。需要此前讨论依据时使用；query 按关键词原文匹配，message_id 用来查看指定消息。不传筛选参数时，从最早的记录开始读。每次最多 20 条记录、8000 个正文字符，单条长消息也分页；使用 next_cursor 续读并保持筛选参数不变，是否还要继续读，由你判断。不能一次读取全部历史。
+load_capability.label: 进入能力
+load_capability.parameters.id.description: 能力 id，可选：{{v0}}
+web_search.label: 搜网络
+web_search.description: 联网搜索，查项目文档里没有的现实资料：历史背景、行业常识、地名物价、专业术语、同类作品套路等。返回若干条「标题 / URL / 摘要」。用途是给设定和情节找依据，搜到的东西不会自动保存：有价值的结论要连来源 URL 一起写进对应的卡片（write_doc / edit_doc），在回复里引用时也带上出处。一次查一个具体问题，中文英文都行；结果不满意换个说法再搜，不要连搜同一句。
+web_search.parameters.query.description: 具体的搜索词，带年代 / 地域 / 领域限定更准，例如「1999年 上海 快递员 月薪」
+web_search.parameters.numResults.description: 条数，默认 5
+web_search.parameters.deep.description: true 用深度搜索，慢但全；默认 false
+ask_user.description: |-
+  向作者提问并等待回答，用于澄清、讨论和创作选择。解释、铺垫写在调用前的正文里，作者会在问题卡上方看到；question 只放问题本身。按提问方式选 kind：
+  | kind | 作者的动作 | options |
+  |---|---|---|
+  | single | 挑一个，点即发 | 短名称字符串 |
+  | multi | 挑若干个 | 短名称字符串；没选的就是不要 |
+  | checklist | 一组意见逐条表态改 / 不改 | 条目字符串；未表态的条目仍算未定 |
+  | compare | 并排读长稿，选一版 | {label, text}，label 短名字，text 完整正文 |
+  | open | 自由回答（他的感受、只有他知道的事，你给不出候选的） | 空 |
+  默认摆候选：作者点一下比他组织一段话省力得多，能想出两三个有实质差异的方向就摆出来让他选，其中可以有一个作者没提过、但你认为值得考虑的方向，附上代价。open 只留给你确实给不出候选的问题——「不知道作者想要什么」不是用 open 的理由，那正是该摆候选的时候。
+  发出前把 question 念一遍：里面只要排出了「A、B 还是 C」「哪种」「哪个方向」，候选就已经在你手上了——把 A、B、C 挪进 options 走 single，别把选项连着问句一起塞进 question 再标 open，那样作者得自己打字把你刚说的话重述一遍。
+  候选之间要有实质差异，不为凑数量硬造；用可辨认的短名称，说明写在正文里，不塞进 label。需要并排读完各版内容再比较时，用 compare。界面按 kind 自动补充「先放一放」等选项，无需重复提供。
+load_capability.description: |-
+  读取一项能力的说明，了解要做到什么、最后交出什么结果，以及哪些事不在它的范围内。根据当前对话和已有授权安排工作。加载说明本身不会创作或写入文件。清单：
+  {{capabilities}}

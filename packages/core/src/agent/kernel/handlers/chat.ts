@@ -1,15 +1,15 @@
+import { text as textValue } from "../../../text/load.js";
 import { randomUUID } from "node:crypto";
 import { queueLabel, stubPrompt, systemStubLabel } from "../../../protocol.js";
-import { loadPrompt } from "../../prompt-text.js";
 import { agentBusy, LEAD_ID, type LiveAgent } from "../types.js";
 import type { HandlerMap, KernelApi } from "./shared.js";
 
-const PAUSE_PROMPT_LEAD = loadPrompt("kernel/pause-lead");
-const PAUSE_PROMPT_CHILD = loadPrompt("kernel/pause-child");
+const PAUSE_PROMPT_LEAD = textValue("messages/session", "pause-lead");
+const PAUSE_PROMPT_CHILD = textValue("messages/session", "pause-child");
 /** 继续只恢复对话循环，不替作者作答或指定下一步动作 */
-export const CONTINUE_PROMPT = loadPrompt("kernel/continue");
+export const CONTINUE_PROMPT = textValue("messages/session", "continue");
 /** 会话恢复从已有上下文接续，与继续采用相同的授权边界 */
-export const RESUME_PROMPT = loadPrompt("kernel/resume");
+export const RESUME_PROMPT = textValue("messages/session", "resume");
 
 /** 「接着上次」这一句的送法：按钮点的和切模型自动补的是同一条路 */
 export async function resumeLead(api: KernelApi) {
@@ -18,7 +18,7 @@ export async function resumeLead(api: KernelApi) {
   // 断在等作者答题：问题已经原样挂回门上，作者答了就接着走。这时再送「接着上次」，主编只会把同一个问题重问一遍
   if (api.gate.hasPendingQuestion(LEAD_ID)) return;
   api.authorActed(live);
-  api.sendTo(LEAD_ID, stubPrompt("接着上次", RESUME_PROMPT), "followUp");
+  api.sendTo(LEAD_ID, stubPrompt(textValue("messages/session", "chat.message"), RESUME_PROMPT), "followUp");
 }
 
 export function chatHandlers(
@@ -82,7 +82,7 @@ export function chatHandlers(
     "chat.pause": async ({ agentId }) => {
       const id = agentId ?? LEAD_ID;
       const live = api.agents.get(id);
-      if (!live) throw new Error("这个 agent 已经不在了");
+      if (!live) throw new Error(textValue("messages/session", "chat.chat.pause"));
       if (live.info.status !== "running") return null;
       // 暂停有两层意思：让它收尾这一步，以及这轮结束后别去取收件箱。作者再开口两者都解除
       live.hold = true;
@@ -117,11 +117,11 @@ export function chatHandlers(
           const parent = api.agents.get(a.info.parentId);
           if (parent) {
             const text = stubPrompt(
-              `${a.info.handle}被打断`,
-              `${a.info.handle}被作者停止，这一轮的报告不会来了。要接着做就重新 spawn_agents，或这条线的活你自己接过来。`,
+              textValue("messages/session", "chat.chat.abort", { v0: a.info.handle }),
+              textValue("messages/session", "chat.chat.abort_2", { v0: a.info.handle }),
             );
             if (agentBusy(parent) || parent.hold) {
-              parent.inbox.push({ id: randomUUID(), label: `${a.info.handle}被打断`, text });
+              parent.inbox.push({ id: randomUUID(), label: textValue("messages/session", "chat.chat.abort.label", { v0: a.info.handle }), text });
               api.emitQueue(parent);
             } else {
               api.sendTo(parent.info.agentId, text);

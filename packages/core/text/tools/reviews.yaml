@@ -1,0 +1,12 @@
+read_review.label: 读审稿记录
+read_review.description: 读一章的审稿记录：每一路评审最近一轮的结论与清单。写手返修前、主编汇总前先读这个，不要让别人复述。
+read_review.parameters.chapter.description: 章号，直接给数字
+save_review.description: 这条意见对应哪条标准，填「归你核对的标准」里的名字；其他检查不填
+save_review.label: 落审稿记录
+save_review.description_2: 把这一轮评审结论落进审稿记录。一路评审一份文件，各写各的；同一章审多轮就追加。must 是必须改（章纲承诺没做到、事实冲突、出戏），suggest 是建议看；最多 12 条，where 引原文前 10 字左右。正式清单写这里；向主编报告结论和条数，并可详细说明依据、影响和取舍。
+save_review.parameters.chapter.description: 章号，直接给数字
+save_review.parameters.verdict.description: 一句话结论
+save_review.parameters.items.level.description: must 必须改 / suggest 建议看
+save_review.parameters.items.where.description: 位置：引原文前 10 字左右
+save_review.parameters.items.issue.description: 问题是什么
+save_review.parameters.items.fix.description: 建议怎么改

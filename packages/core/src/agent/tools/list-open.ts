@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -12,8 +13,8 @@ export function makeListOpenTool(ctx: ToolContext): ToolDefinition {
   const { store } = ctx;
   return defineTool({
     name: "list_open",
-    label: "搁置清单",
-    description: "按文档汇总全书的搁置事项。事项来自 frontmatter 的 open 字段，回顾材料或安排后续工作时可参考。",
+    label: textValue("tools/materials", "list_open.label"),
+    description: textValue("tools/materials", "list_open.description"),
     parameters: Type.Object({}),
     execute: async () => {
       const all = await store.listAll();
@@ -23,8 +24,8 @@ export function makeListOpenTool(ctx: ToolContext): ToolDefinition {
         if (items.length === 0) continue;
         lines.push(`- ${zhPath(d.kind, d.id)}：${items.join("、")}`);
       }
-      if (lines.length === 0) return text("没有搁置的项，各卡的 open 都是空的。");
-      return text(`搁置清单（${lines.length} 篇文档欠着）：\n${lines.join("\n")}`);
+      if (lines.length === 0) return text(textValue("messages/materials", "list_open.execute"));
+      return text(textValue("messages/materials", "list_open.execute_2", { v0: lines.length, v1: lines.join("\n") }));
     },
   });
 }

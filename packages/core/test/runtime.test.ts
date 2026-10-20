@@ -1,3 +1,4 @@
+import { text as resourceText } from "../src/text/load.js";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -39,8 +40,7 @@ const statuses = () => events.filter((e) => e.type === "agent.status") as Array<
 
 describe("子任务报告标签", () => {
   test("promptChild 回传结论前带报告提示，内容保真", async () => {
-    const { loadPrompt } = await import("../src/agent/prompt-text.js");
-    const notice = loadPrompt("shared/child-report-notice");
+    const notice = resourceText("messages/session", "child-report-notice");
     const fake = {
       session: {
         prompt: async () => {},

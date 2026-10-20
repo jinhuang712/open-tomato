@@ -1,0 +1,31 @@
+kinds.world.description: 世界观、规则体系、势力、地点等设定，一张卡只讲其中一个。
+kinds.world.fields.comment: 按这本书的世界分，同类用同一个词。玄幻常见 宗门 / 功法 / 秘境 / 地点，都市常见 公司 / 圈子 / 地点，规则体系一律写 规则
+kinds.world.sections.hint: 故意不写死、留给后文的部分
+kinds.characters.description: 人物卡。语音签名用来保持人物说话方式一致，写对白时只取这一段。
+kinds.characters.fields.comment: 所属势力
+kinds.characters.sections.hint: 口头禅、句子长短、称呼习惯、忌讳说的词
+kinds.characters.sections.hint_2: 与其他人物的关系
+kinds.characters.sections.hint_3: 从哪到哪、因什么而变
+kinds.threads.description: 主线 / 支线 / 主题 / 小故事。记起点、终点、推进阶段和挂在上面的钩子。
+kinds.threads.fields.comment: 当前推进到哪一阶段
+kinds.threads.sections.hint: 按顺序列出关键节点
+kinds.threads.sections.hint_2: 挂在这条线上的悬念，一行一条，开头写埋在第几章（如「第 8 章：」）。收了的删掉这行，悬着的才留
+kinds.milestones.description: 全书的重要转折。只记关键节点，不复述事件经过，按 order 排序。
+kinds.milestones.fields.comment: 整数，越小越早
+kinds.milestones.sections.hint: 前置条件
+kinds.volumes.description: 一卷的装配图：覆盖哪些里程碑、人物落点、章数预算。
+kinds.volumes.fields.comment: 例如 1-30
+kinds.chapters.description: 一章的施工单。写手照着它写，不该还需要翻查材料库。
+kinds.chapters.fields.comment: 本章的情绪安排：压（主角受压、没有出口）/ 放（情绪得到释放、爽点兑现，先压后放也算）/ 平（过渡、铺垫）
+kinds.chapters.sections.hint: 每个场景：地点 / 在场人物 / 冲突 / 谁选了什么 / 结果。没有选择的场是过场，写出来自己会看见
+kinds.chapters.sections.hint_2: 分两个列表：揭示（本章让读者知道什么）、隐藏（读者还不能知道什么），一行一条
+kinds.manuscript.description: 章节正文。frontmatter 只记章节基本信息，正文不设段落标题。
+kinds.brief.description: 这本书是什么：一句话故事、题材与平台、读者画像、书名与文案等立项时定下的内容。全书一份，可改写。
+kinds.brief.templateOverrides.summary: 书名、一句话故事、题材、平台、读者画像等立项答案
+kinds.brief.sections.hint: 故事和读者清楚了再定
+kinds.brief.sections.hint_2: 给读者看的作品简介，书架上书名下面那几行；故事和读者清楚了再写
+kinds.rules.description: "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 用一句完整的话说清规则，「展开」段写适用范围与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。"
+kinds.rules.fields.comment: 文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局
+kinds.rules.fields.comment_2: 作者原话或来源
+kinds.rules.sections.hint: 规则管到哪、不管哪：边界、例外、容易误伤的情形。用两三段说明
+kinds.rules.sections.hint_2: 这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范要放在对应的规则下，才能看出该学哪一处

@@ -1,3 +1,4 @@
+import { hostText, text as textValue } from "@opentomato/core/headless";
 import type { Info as ToolInfo } from "@opencode/plugin/promise/tool";
 import {
   Gate,
@@ -27,7 +28,7 @@ export const TOOL_PERMISSION = "opentomato";
 type CoreTool = ReturnType<typeof makeReadDocTool>;
 
 /**
- * 只读工具直接用 core 的实现：名字、说明、参数、输出格式和 App 里一字不差，角色提示词里提到的工具名都对得上。
+ * 只读工具直接用 core 的实现：名字、参数和输出格式沿用 core，说明里的工具名称按宿主适配。
  * 落盘不走这里——写入用 opencode 自带的 write / edit，桌面端才画得出 diff、弹得出审批。
  */
 export function materialTools(project: () => Promise<ProjectStore>): ToolInfo[] {
@@ -40,14 +41,14 @@ export function materialTools(project: () => Promise<ProjectStore>): ToolInfo[] 
     return live.tools;
   };
   const [saveReview] = sample.reviews.values();
-  if (!saveReview) throw new Error("core 里没有评审角色");
+  if (!saveReview) throw new Error(textValue("messages/opencode", "tools.message"));
   return [
     ...[...sample.shared.values()].map((tool) =>
       adapt(tool, async () => (await current()).shared.get(tool.name) ?? tool),
     ),
     adapt(saveReview, async (agent) => {
       const tool = (await current()).reviews.get(agent);
-      if (!tool) throw new Error("只有评审（运营、读者、文编、校对）能落审稿记录");
+      if (!tool) throw new Error(textValue("messages/opencode", "tools.message_2"));
       return tool;
     }),
   ];
@@ -77,7 +78,7 @@ function coreTools(store: ProjectStore): CoreTools {
     makeDocTemplateTool(ctx),
     makeRunCheckTool(ctx),
     makeListOpenTool(ctx),
-    makeLoadCapabilityTool(ctx),
+    makeLoadCapabilityTool(ctx, "opencode"),
     makeReadReviewTool(ctx),
     makeVolumeRhythmTool(ctx),
   ];
@@ -96,9 +97,9 @@ function coreTools(store: ProjectStore): CoreTools {
 function adapt(tool: CoreTool, pick: (agent: string) => Promise<CoreTool>): ToolInfo {
   return {
     name: tool.name,
-    description: tool.description,
+    description: hostText(tool.description, "opencode"),
     // typebox 的 schema 就是 JSON Schema，转一道去掉它挂在对象上的 symbol 键
-    input: JSON.parse(JSON.stringify(tool.parameters)),
+    input: JSON.parse(JSON.stringify(tool.parameters), (key, value) => key === "description" && typeof value === "string" ? hostText(value, "opencode") : value),
     options: { codemode: false, permission: `${TOOL_PERMISSION}.${tool.name}` },
     execute: async (input, context) => {
       const result = await (
@@ -114,11 +115,11 @@ function adapt(tool: CoreTool, pick: (agent: string) => Promise<CoreTool>): Tool
 
 const noGate = {
   approvalRequested: () => {
-    throw new Error("插件里没有 App 的审批门：落盘走 opencode 的 write / edit");
+    throw new Error(textValue("messages/opencode", "tools.approvalRequested"));
   },
   approvalClosed: () => {},
   questionRequested: () => {
-    throw new Error("插件里没有 App 的提问门：问作者用 opencode 的 question");
+    throw new Error(textValue("messages/opencode", "tools.questionRequested"));
   },
   questionClosed: () => {},
 };

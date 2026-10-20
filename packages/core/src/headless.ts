@@ -14,12 +14,12 @@ export {
 } from "./project/kinds.js";
 export {
   frontmatterDiffKeys,
-  frontmatterProblem,
   parseFrontmatter,
 } from "./project/frontmatter.js";
+export { frontmatterProblem } from "./project/frontmatter-validation.js";
 export { runCheck } from "./project/check.js";
 export { SearchIndex } from "./project/search.js";
-export { ROLES, ROLE_IDS, type RoleDef } from "./agent/roles.js";
+export { ROLES, ROLE_IDS, rolePrompt, type RoleDef } from "./agent/roles.js";
 export {
   CAPABILITIES,
   CAPABILITY_IDS,
@@ -48,3 +48,7 @@ export { makeRunCheckTool } from "./agent/tools/run-check.js";
 export { makeSaveReviewTool } from "./agent/tools/save-review.js";
 export { makeSearchDocsTool } from "./agent/tools/search-docs.js";
 export { makeVolumeRhythmTool } from "./agent/tools/volume-rhythm.js";
+
+export { text, markdown } from "./text/load.js";
+
+export { hostText, renderHost, type HostId } from "./text/host.js";

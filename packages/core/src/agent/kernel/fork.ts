@@ -1,8 +1,8 @@
+import { text as textValue } from "../../text/load.js";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { systemStubLabel } from "../../protocol.js";
-import { loadPrompt } from "../prompt-text.js";
 
-const FORK_NOTICE = loadPrompt("kernel/fork-notice");
+const FORK_NOTICE = textValue("messages/session", "fork-notice");
 
 /**
  * fork 进场上限：分页管的是孩子事后「再查」，这里管的是进场那一下。
@@ -64,5 +64,5 @@ export function buildForkPrompt(entries: SessionEntry[], task: string): string {
   const kept = sections.slice(start);
   if (kept.length === 0) return task;
   const body = kept.map((s) => `【${s.who}】\n${s.text}`).join("\n\n");
-  return `${FORK_NOTICE}\n\n${start > 0 ? "（更早的讨论因过长省略）\n\n" : ""}${body}\n\n———\n\n本次任务：${task}`;
+  return textValue("messages/session", "fork.message_2", { v0: FORK_NOTICE, v1: start > 0 ? textValue("messages/session", "fork.message") : "", v2: body, v3: task });
 }

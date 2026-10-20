@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -11,16 +12,16 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
     .join("；");
   return defineTool({
     name: "spawn_agents",
-    label: "派子 agent",
-    description: `并行派一个或多个子 agent 干活。派出后立刻返回名册（每人一个名字，如 策划1），完成后报告作为新消息交回。可用角色：${roleList}。任务书三行：干什么（kind/id）、按哪个决定、允许写入哪些内容；背景已在文档里就不重讲，要落实刚讨论好的内容，就附上几行作者已定的结论。mode=propose 禁止落盘；mode=commit 允许经审批写入，仅用于具体内容与写入范围已获授权的任务。ephemeral=true 是一次性任务（不需要保留上下文的简短评审等任务）：会话只在内存、不落盘，报告交回后不保留会话，不能 continue_agent；同一项任务还需要继续修改或续派的别用。fork=true 会把主编与作者的讨论全文转交过去（落实刚讨论好的内容时用），任务书只写这次新增的要求，与讨论记录冲突时，以任务书为准；问策、评审通常不用。同一项任务需要继续修改时，用 continue_agent 续派原 agent，不另开同样的任务。派 plotter / writer 要求 简介 的「一句话故事」已填，否则会被拒。`,
+    label: textValue("tools/agents", "spawn_agents.label"),
+    description: textValue("tools/agents", "spawn_agents.description", { v0: roleList }),
     parameters: Type.Object({
       tasks: Type.Array(
         Type.Object({
           role: Type.Union(ROLE_IDS.filter((r) => r !== "director").map((r) => Type.Literal(r))),
-          task: Type.String({ description: "任务书" }),
-          mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "propose=只出候选不落盘；commit=可以落盘。默认 commit" })),
-          ephemeral: Type.Optional(Type.Boolean({ description: "一次性任务：会话只在内存、不落盘，报告交回后不保留会话，不能续派。适合不需要保留上下文的简短评审；还需要继续修改的别用。默认 false" })),
-          fork: Type.Optional(Type.Boolean({ description: "带上主编与作者的讨论全文转交，任务书只写这次新增的要求。落实刚讨论好的内容时用；问策、评审通常不用。默认 false" })),
+          task: Type.String({ description: textValue("tools/agents", "spawn_agents.parameters.tasks.task.description") }),
+          mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: textValue("tools/agents", "spawn_agents.parameters.tasks.mode.description") })),
+          ephemeral: Type.Optional(Type.Boolean({ description: textValue("tools/agents", "spawn_agents.parameters.tasks.ephemeral.description") })),
+          fork: Type.Optional(Type.Boolean({ description: textValue("tools/agents", "spawn_agents.parameters.tasks.fork.description") })),
         }),
         { minItems: 1, maxItems: 6 },
       ),
@@ -29,7 +30,7 @@ export function makeSpawnAgentsTool(ctx: ToolContext): ToolDefinition {
       const { store } = ctx;
       const tasks: SpawnTask[] = params.tasks.map((t) => {
         const role: unknown = t.role;
-        if (!isRoleId(role) || role === "director") throw new Error(`不能派这个角色：${String(role)}`);
+        if (!isRoleId(role) || role === "director") throw new Error(textValue("messages/agents", "spawn_agents.execute", { v0: String(role) }));
         return { role, task: t.task, ...(t.mode ? { mode: t.mode } : {}), ...(t.ephemeral === true ? { ephemeral: true } : {}), ...(t.fork === true ? { fork: true } : {}) };
       });
       const problem = await dispatchProblem(store, tasks.map((t) => t.role));

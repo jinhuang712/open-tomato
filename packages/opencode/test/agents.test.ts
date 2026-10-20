@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentEditor } from "@opencode/plugin/promise/agent";
-import { ROLES } from "@opentomato/core/headless";
+import { ROLES, rolePrompt } from "@opentomato/core/headless";
 import { childRoster, permissionsOf, registerAgents, systemPromptOf } from "../src/agents.ts";
 import { agentIdOf, roleOf } from "../src/roles.ts";
 
@@ -24,9 +24,13 @@ describe("角色 → agent", () => {
     expect(roleOf("build")).toBeUndefined();
   });
 
-  test("系统提示是 core 的角色正文加 opencode 对照；只有主编有派单那段", () => {
+  test("按 opencode 宿主直接组装系统提示；只有主编有派单规则", () => {
     const lead = systemPromptOf("director");
-    expect(lead.startsWith(ROLES.director.systemPrompt)).toBe(true);
+    expect(lead).toBe(rolePrompt("director", "opencode"));
+    expect(lead).not.toBe(ROLES.director.systemPrompt);
+    expect(lead).not.toMatch(/\b(?:ask_user|spawn_agents|continue_agent|write_doc|edit_doc|web_search|read_marks|list_agents|archive_agent)\b/);
+    expect(lead).not.toContain("mode=propose");
+    expect(lead).not.toContain("fork=true");
     expect(lead).toContain("## 在 opencode 里\n");
     expect(lead).toContain("## 在 opencode 里提问和派单");
     expect(systemPromptOf("writer")).not.toContain("提问和派单");

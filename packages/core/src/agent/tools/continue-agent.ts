@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { defineTool } from "./define.js";
 import { Type } from "typebox";
@@ -7,13 +8,13 @@ export function makeContinueAgentTool(ctx: ToolContext): ToolDefinition {
   const continueAgent = ctx.continueAgent!;
   return defineTool({
     name: "continue_agent",
-    label: "续派子 agent",
+    label: textValue("tools/agents", "continue_agent.label"),
     description:
-      "让已经完成一轮任务的子 agent 继续工作。它保留了之前的讨论，可以接着已有结果修改。用于：它给了候选、作者拍板后让它完善选中的候选并写入文件；或让它按作者意见修改。派出后立刻返回，报告做完后作为新消息送到你这里。agent 填派单名册或报告标题里的名字。不要用它重派一个全新的任务。",
+      textValue("tools/agents", "continue_agent.description"),
     parameters: Type.Object({
-      agent: Type.String({ description: "子 agent 的名字，如 策划1：派单名册和它报告的标题里都是这个" }),
-      message: Type.String({ description: "发给它的消息：作者拍板了什么、接下来做什么" }),
-      mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: "要切换它的落盘权限时给：拍板后让它落盘就传 commit；不传保持原样" })),
+      agent: Type.String({ description: textValue("tools/agents", "continue_agent.parameters.agent.description") }),
+      message: Type.String({ description: textValue("tools/agents", "continue_agent.parameters.message.description") }),
+      mode: Type.Optional(Type.Union([Type.Literal("propose"), Type.Literal("commit")], { description: textValue("tools/agents", "continue_agent.parameters.mode.description") })),
     }),
     execute: async (_id, params, _signal, onUpdate) => {
       const result = await continueAgent(params.agent, params.message, params.mode, (progress, details) => onUpdate?.({ ...text(progress), details }));

@@ -1,3 +1,4 @@
+import { text as textValue } from "@opentomato/core/headless";
 import { readFile } from "node:fs/promises";
 import type { PermissionEvaluation } from "@opencode/plugin/promise/permission";
 import {
@@ -70,15 +71,15 @@ export function createWriteGate(
     const role = roleOf(event.agent);
     if (!role) {
       if (toolNames.has(event.tool))
-        throw new Error(`${event.tool} 是 OpenTomato 写作角色的工具，切到主编再用`);
+        throw new Error(textValue("messages/opencode", "gate.message", { v0: event.tool }));
       const target = (event.input as { agent?: unknown } | null)?.agent;
       if (event.tool === "subagent" && typeof target === "string" && roleOf(target)) {
-        throw new Error(`${target} 是 OpenTomato 的写作角色，只有主编能派`);
+        throw new Error(textValue("messages/opencode", "gate.message_2", { v0: target }));
       }
       return;
     }
     if (event.tool === "shell" || event.tool === "patch") {
-      throw new Error(`写作角色不能用 ${event.tool}：写文档用 write，改文档用 edit`);
+      throw new Error(textValue("messages/opencode", "gate.message_3", { v0: event.tool }));
     }
     if (event.tool === "subagent") {
       // 和 App 的 spawn_agents 同一套门：没有一句话故事不派编剧写手，没章纲不派写手，没正文不派评审
@@ -107,7 +108,7 @@ export function createWriteGate(
       if (!def.bookkeepAnyKind) assertWritableKind(material.kind, def.writableKinds);
       if (!(fmOnly && bookkeepingOnly(material.kind, current, next))) {
         throw new Error(
-          `${zhDir(material.kind)} 的内容不归你写：要改就派${writersOf(material.kind)}。你自己对它只能改记账字段（status / open / keywords），比如把作废的标 status: retired。`,
+          textValue("messages/opencode", "gate.message_4", { v0: zhDir(material.kind), v1: writersOf(material.kind) }),
         );
       }
     }
@@ -135,7 +136,7 @@ export function createWriteGate(
     const notes: string[] = [];
     if (material.frontmatterKeys) {
       notes.push(
-        `只改了 ${material.rel} 的 frontmatter 字段 ${material.frontmatterKeys.join("、")}，正文没动，无需作者审批。`,
+        textValue("messages/opencode", "gate.message_5", { v0: material.rel, v1: material.frontmatterKeys.join("、") }),
       );
     }
     const issues = (await runCheck(await project())).filter(
@@ -143,7 +144,7 @@ export function createWriteGate(
     );
     if (issues.length > 0) {
       notes.push(
-        `机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`,
+        textValue("messages/opencode", "gate.message_6", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") }),
       );
     }
     if (notes.length === 0) return;
@@ -167,22 +168,22 @@ export function createWriteGate(
 const writersOf = (kind: DocKindId): string =>
   ROLE_IDS.filter((role) => !ROLES[role].canSpawn && ROLES[role].writableKinds.includes(kind))
     .map((role) => ROLES[role].label)
-    .join("或");
+    .join(textValue("messages/opencode", "gate.message_7"));
 
 /** 照 edit 的语义算出改完的全文：oldString 须逐字唯一匹配（replaceAll 时全部替换），对不上就让 agent 重读原文 */
 function applyEdit(before: string, input: EditInput, material: Material): string {
-  if (before === "") throw new Error(`${material.rel} 不存在，新建用 write`);
+  if (before === "") throw new Error(textValue("messages/opencode", "gate.message_8", { v0: material.rel }));
   const oldString = String(input.oldString ?? "");
   const newString = String(input.newString ?? "");
-  if (oldString === "") throw new Error("oldString 不能为空：要追加就带上文末最后一段一起替换");
+  if (oldString === "") throw new Error(textValue("messages/opencode", "gate.message_9"));
   const count = before.split(oldString).length - 1;
   if (count === 0) {
     throw new Error(
-      `${material.rel} 里找不到 oldString，要逐字照抄原文（含标点和换行）。先 read_doc 拿磁盘上的原文再改。`,
+      textValue("messages/opencode", "gate.message_10", { v0: material.rel }),
     );
   }
   if (input.replaceAll === true) return before.split(oldString).join(newString);
   if (count > 1)
-    throw new Error(`oldString 在 ${material.rel} 里出现了 ${count} 次，多带一两行上下文，确保只能匹配到一处`);
+    throw new Error(textValue("messages/opencode", "gate.message_11", { v0: material.rel, v1: count }));
   return before.replace(oldString, () => newString);
 }

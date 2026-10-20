@@ -1,3 +1,4 @@
+import { text as textValue } from "../../text/load.js";
 import { createTwoFilesPatch } from "diff";
 import { Type } from "typebox";
 import { ISSUE_LEVEL_LABEL, REJECT_WORDS } from "../../protocol.js";
@@ -25,10 +26,10 @@ export async function dispatchProblem(store: ProjectStore, roles: Iterable<RoleI
   const wanted = [...roles];
   if (wanted.some((r) => STORY_GATED_ROLES.has(r)) && !(await hasOneLineStory(store))) return ONE_LINE_STORY_GATE_MESSAGE;
   if (wanted.includes("writer") && (await store.list("chapters")).length === 0) {
-    return "还没有章纲，写手无从下笔；先走大纲编排把章纲排出来";
+    return textValue("messages/materials", "shared.message");
   }
   if (wanted.some((r) => REVIEW_ROLES.has(r)) && (await store.list("manuscript")).length === 0) {
-    return "还没有正文可审；先把章节写出来";
+    return textValue("messages/materials", "shared.message_2");
   }
   return null;
 }
@@ -98,15 +99,15 @@ export interface ToolPermissions {
 export const zhDir = (kind: DocKindId) => DOC_KINDS[kind].dir || DOC_KINDS[kind].label;
 
 export const KIND_SCHEMA = Type.String({
-  description: `文档类型，写英文 kind 或中文名都行：${DOC_KIND_IDS.map((k) => `${k}=${zhDir(k)}`).join("、")}`,
+  description: textValue("tools/materials", "shared.description", { v0: DOC_KIND_IDS.map((k) => `${k}=${zhDir(k)}`).join("、") }),
 });
 
 /** 写工具用：参数说明只列这个角色能写的类型；放开记账的再补一句其他类型能改什么 */
 export const writableKindSchema = (kinds: readonly DocKindId[], bookkeepAnyKind = false) =>
   Type.String({
     description:
-      `文档类型，写英文 kind 或中文名都行。你能写的只有：${kinds.map((k) => `${k}=${zhDir(k)}`).join("、")}` +
-      (bookkeepAnyKind ? "。其他类型只能改 frontmatter 里的记账字段（status / open / keywords），比如把作废的卡标 status: retired；正文一个字都不能动" : ""),
+      textValue("tools/materials", "shared.writable_kind_description", { v0: kinds.map((k) => `${k}=${zhDir(k)}`).join("、") }) +
+      (bookkeepAnyKind ? textValue("tools/materials", "shared.bookkeeping_description") : ""),
   });
 
 export const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
@@ -118,7 +119,7 @@ export const zhPath = (kind: DocKindId, id: string) => (DOC_KINDS[kind].singleto
 
 export function assertKind(kind: unknown): DocKindId {
   const k = resolveKind(kind);
-  if (!k) throw new Error(`未知的 kind：${String(kind)}，可选 ${DOC_KIND_IDS.map((x) => `${x}（${zhDir(x)}）`).join(" / ")}`);
+  if (!k) throw new Error(textValue("messages/materials", "shared.message_3", { v0: String(kind), v1: DOC_KIND_IDS.map((x) => `${x}（${zhDir(x)}）`).join(" / ") }));
   return k;
 }
 
@@ -126,7 +127,7 @@ export function assertKind(kind: unknown): DocKindId {
 export function assertWritableKind(kind: DocKindId, allowed: readonly DocKindId[]): void {
   if (allowed.includes(kind)) return;
   throw new Error(
-    `${zhDir(kind)} 不归你写，你能写的只有 ${allowed.map(zhDir).join(" / ")}。要改的内容写进你的报告，由主编派负责这类材料的角色去改。`,
+    textValue("messages/materials", "shared.message_4", { v0: zhDir(kind), v1: allowed.map(zhDir).join(" / ") }),
   );
 }
 
@@ -157,21 +158,21 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
     const blocked = ctx.writeBlocked?.();
     if (blocked) throw new Error(blocked);
     const preview = await store.previewWrite(kind, id, after);
-    if (preview.before === preview.after) return text(`${preview.path} 内容没有变化，跳过。`);
+    if (preview.before === preview.after) return text(textValue("messages/materials", "shared.message_5", { v0: preview.path }));
     // 正文一字未改、改动全在 frontmatter 里：不过审批门，直接落盘，改了哪些字段写在回话里让作者看见。
     // 越界写别人的材料是另一码事，那里仍只放行记账字段，跟审批门宽严无关。
     const frontmatterEdit = !preview.isNew && frontmatterOnly(preview.before, preview.after);
     if (!ownKind && !(frontmatterEdit && bookkeepingOnly(kind, preview.before, preview.after))) {
       throw new Error(
-        `${zhDir(kind)} 的内容不归你写，你对它只能改记账字段（status / open / keywords）。要改的内容写进你的报告，由主编派负责这类材料的角色去改。`,
+        textValue("messages/materials", "shared.message_6", { v0: zhDir(kind) }),
       );
     }
     if (frontmatterEdit) {
       const changed = frontmatterDiffKeys(parseFrontmatter(preview.before).frontmatter, parseFrontmatter(preview.after).frontmatter);
       const header = await store.write(kind, preview.id, preview.after, { expectBefore: preview.before });
       const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
-      const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
-      return text(`已更新 ${header.path}（${header.title}）的 frontmatter 字段 ${changed.join("、")}，正文没动，无需作者审批${tail}`);
+      const tail = issues.length === 0 ? "" : textValue("messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
+      return text(textValue("messages/materials", "shared.message_8", { v0: header.path, v1: header.title, v2: changed.join("、"), v3: tail }));
     }
     const outcome = await ctx.gate.requestApproval(
       {
@@ -216,24 +217,24 @@ export function makeApproveAndWrite(ctx: ToolContext, writableKinds: readonly Do
       agentId: ctx.agentId,
     });
     if (outcome.decision === "reject") {
-      const state = preview.isNew ? "文件没有创建" : "文件保持原样、被拒的稿子没有落盘";
+      const state = preview.isNew ? textValue("messages/materials", "shared.message_9") : textValue("messages/materials", "shared.message_10");
       const redo = preview.isNew
-        ? "用 write_doc 重新提交全文"
-        : "整篇重写就 write_doc 给全文，局部改就先 read_doc 拿磁盘上的原文再 edit_doc，不要对被拒的稿子做 edit_doc";
+        ? textValue("messages/materials", "shared.message_11")
+        : textValue("messages/materials", "shared.message_12");
       return text(
-        `用户拒绝写入 ${preview.path}${outcome.reason ? `，原因：${outcome.reason}` : ""}。${state}。\n` +
-          `理由是作者对你说的话，先判断它是什么：能照着改的，改好后${redo}，不要原样重试；` +
-          `理由是一个问题，先回答它，不要再提一版；理由和任务书或已有材料对不上、或你拿不准该怎么改，把矛盾写清楚停下，你这一停话就交回主编，由主编和作者定，不要自己编一个说法把两头缝上。`,
+        textValue("messages/materials", "shared.message_13", { v0: preview.path, v1: outcome.reason ? `，原因：${outcome.reason}` : "", v2: state }) +
+          textValue("messages/materials", "shared.message_14", { v0: redo }) +
+          textValue("messages/materials", "shared.message_15"),
       );
     }
     const header = await store.write(kind, preview.id, final, { expectBefore: preview.before });
     const issues = (await ctx.docsChanged()).filter((i) => i.kind === kind && i.id === header.id);
-    const tail = issues.length === 0 ? "" : `\n机检对这篇有话说：\n${issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n")}`;
+    const tail = issues.length === 0 ? "" : textValue("messages/materials", "shared.message_7", { v0: issues.map((i) => `- ${ISSUE_LEVEL_LABEL[i.level]}：${i.message}`).join("\n") });
     // 落的不是你提的那版，必须说出来：不然 agent 会拿自己那份当磁盘上的现状，接着 edit_doc 就把作者的改动盖回去
     if (edited) {
-      return text(`已写入 ${header.path}（${header.title}），但落盘的是作者亲手改过的版本，不是你提的那版。要再动这篇先 read_doc 拿磁盘上的正文，别在你自己那版上接着改。${tail}`);
+      return text(textValue("messages/materials", "shared.message_16", { v0: header.path, v1: header.title, v2: tail }));
     }
-    return text(`已写入 ${header.path}（${header.title}）${tail}`);
+    return text(textValue("messages/materials", "shared.message_17", { v0: header.path, v1: header.title, v2: tail }));
   };
 }
 

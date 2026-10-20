@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { text as textValue } from "@opentomato/core/headless";
 import type { CommandDefinition } from "@opencode/plugin/promise/command";
 import type { Plugin } from "@opencode/plugin";
 import type { ProjectStore } from "@opentomato/core/headless";
@@ -7,7 +7,7 @@ import { agentIdOf } from "./roles.ts";
 /** 唯一入口：输入 /open-tomato 才进入写作，其余时候插件不出声 */
 export const ENTRY = "open-tomato";
 
-const OPENING = readFileSync(new URL("../prompts/open.md", import.meta.url), "utf8").trim();
+const OPENING = textValue("messages/session", "open");
 
 /**
  * 打开（不是项目就新建）这本书，把会话交给主编，再把作者跟在命令后面的话转过去。
@@ -19,7 +19,7 @@ export function entryCommand(
 ): CommandDefinition {
   return {
     name: ENTRY,
-    description: "进入 OpenTomato：把这个目录当成一本书，和主编一起写",
+    description: textValue("messages/opencode", "entry.description"),
     execute: async ({ sessionID, prompt, delivery }) => {
       await open();
       await session.switchAgent({ sessionID, agent: agentIdOf("director") });

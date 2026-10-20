@@ -1,3 +1,4 @@
+import { text as textValue } from "../text/load.js";
 import { THREAD_TYPES } from "../protocol.js";
 import type { DocFieldInfo, DocKindId, DocKindInfo } from "../protocol.js";
 
@@ -121,68 +122,68 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "world",
     label: "世界设定",
     dir: "世界",
-    description: "世界观、规则体系、势力、地点等设定，一张卡只讲其中一个。",
+    description: textValue("materials", "kinds.world.description"),
     normalizeId: slug,
     group: { field: "category" },
-    fields: [{ name: "category", required: true, comment: "按这本书的世界分，同类用同一个词。玄幻常见 宗门 / 功法 / 秘境 / 地点，都市常见 公司 / 圈子 / 地点，规则体系一律写 规则" }],
+    fields: [{ name: "category", required: true, comment: textValue("materials", "kinds.world.fields.comment") }],
     sections: [
       { name: "定义", required: true },
       { name: "规则与边界", required: true },
       { name: "与故事的关系", required: true },
-      { name: "留白", required: false, hint: "故意不写死、留给后文的部分" },
+      { name: "留白", required: false, hint: textValue("materials", "kinds.world.sections.hint") },
     ],
   }),
   characters: defineKind({
     id: "characters",
     label: "人物",
     dir: "人物",
-    description: "人物卡。语音签名用来保持人物说话方式一致，写对白时只取这一段。",
+    description: textValue("materials", "kinds.characters.description"),
     normalizeId: slug,
     group: { field: "tier", order: CHARACTER_TIERS },
     fields: [
       { name: "tier", required: true, comment: CHARACTER_TIERS.join(" / ") },
-      { name: "faction", comment: "所属势力" },
+      { name: "faction", comment: textValue("materials", "kinds.characters.fields.comment") },
     ],
     sections: [
       { name: "一句话", required: true },
       { name: "外在", required: true },
       { name: "内在与欲望", required: true },
-      { name: "语音签名", required: speaksMuch, hint: "口头禅、句子长短、称呼习惯、忌讳说的词" },
-      { name: "关系", required: false, hint: "与其他人物的关系" },
-      { name: "弧光", required: false, hint: "从哪到哪、因什么而变" },
+      { name: "语音签名", required: speaksMuch, hint: textValue("materials", "kinds.characters.sections.hint") },
+      { name: "关系", required: false, hint: textValue("materials", "kinds.characters.sections.hint_2") },
+      { name: "弧光", required: false, hint: textValue("materials", "kinds.characters.sections.hint_3") },
     ],
   }),
   threads: defineKind({
     id: "threads",
     label: "线索",
     dir: "线索",
-    description: "主线 / 支线 / 主题 / 小故事。记起点、终点、推进阶段和挂在上面的钩子。",
+    description: textValue("materials", "kinds.threads.description"),
     normalizeId: slug,
     group: { field: "type", order: THREAD_TYPES },
     fields: [
       { name: "type", required: true, options: THREAD_TYPES },
-      { name: "stage", comment: "当前推进到哪一阶段" },
+      { name: "stage", comment: textValue("materials", "kinds.threads.fields.comment") },
     ],
     sections: [
       { name: "起点", required: true },
       { name: "终点", required: true },
-      { name: "推进阶段", required: false, hint: "按顺序列出关键节点" },
-      { name: "钩子", required: false, hint: "挂在这条线上的悬念，一行一条，开头写埋在第几章（如「第 8 章：」）。收了的删掉这行，悬着的才留" },
+      { name: "推进阶段", required: false, hint: textValue("materials", "kinds.threads.sections.hint") },
+      { name: "钩子", required: false, hint: textValue("materials", "kinds.threads.sections.hint_2") },
     ],
   }),
   milestones: defineKind({
     id: "milestones",
     label: "里程碑",
     dir: "里程碑",
-    description: "全书的重要转折。只记关键节点，不复述事件经过，按 order 排序。",
+    description: textValue("materials", "kinds.milestones.description"),
     normalizeId: slug,
     fields: [
-      { name: "order", required: true, comment: "整数，越小越早" },
+      { name: "order", required: true, comment: textValue("materials", "kinds.milestones.fields.comment") },
       { name: "threads", value: "[]" },
     ],
     sections: [
       { name: "发生什么", required: true },
-      { name: "之前必须成立的事", required: false, hint: "前置条件" },
+      { name: "之前必须成立的事", required: false, hint: textValue("materials", "kinds.milestones.sections.hint") },
       { name: "之后不可逆的变化", required: true },
     ],
   }),
@@ -190,11 +191,11 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "volumes",
     label: "卷纲",
     dir: "卷纲",
-    description: "一卷的装配图：覆盖哪些里程碑、人物落点、章数预算。",
+    description: textValue("materials", "kinds.volumes.description"),
     normalizeId: padded(2),
     fields: [
       { name: "milestones", value: "[]" },
-      { name: "chapters", required: true, comment: "例如 1-30" },
+      { name: "chapters", required: true, comment: textValue("materials", "kinds.volumes.fields.comment") },
     ],
     sections: [
       { name: "本卷目标", required: true },
@@ -207,7 +208,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "chapters",
     label: "章纲",
     dir: "章纲",
-    description: "一章的施工单。写手照着它写，不该还需要翻查材料库。",
+    description: textValue("materials", "kinds.chapters.description"),
     normalizeId: padded(4),
     fields: [
       { name: "volume", required: true },
@@ -217,13 +218,13 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       {
         name: "beat",
         options: CHAPTER_BEATS,
-        comment: "本章的情绪安排：压（主角受压、没有出口）/ 放（情绪得到释放、爽点兑现，先压后放也算）/ 平（过渡、铺垫）",
+        comment: textValue("materials", "kinds.chapters.fields.comment"),
       },
     ],
     sections: [
       { name: "本章目标", required: true },
-      { name: "场景序列", required: true, hint: "每个场景：地点 / 在场人物 / 冲突 / 谁选了什么 / 结果。没有选择的场是过场，写出来自己会看见" },
-      { name: "信息控制", required: true, hint: "分两个列表：揭示（本章让读者知道什么）、隐藏（读者还不能知道什么），一行一条" },
+      { name: "场景序列", required: true, hint: textValue("materials", "kinds.chapters.sections.hint") },
+      { name: "信息控制", required: true, hint: textValue("materials", "kinds.chapters.sections.hint_2") },
       { name: "章末钩子", required: true },
     ],
   }),
@@ -231,7 +232,7 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     id: "manuscript",
     label: "正文",
     dir: "正文",
-    description: "章节正文。frontmatter 只记章节基本信息，正文不设段落标题。",
+    description: textValue("materials", "kinds.manuscript.description"),
     normalizeId: padded(4),
     fields: [
       { name: "words", value: "0", bookkeeping: true },
@@ -245,9 +246,9 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     dir: "",
     singleton: true,
     description:
-      "这本书是什么：一句话故事、题材与平台、读者画像、书名与文案等立项时定下的内容。全书一份，可改写。",
+      textValue("materials", "kinds.brief.description"),
     normalizeId: () => "简介",
-    templateOverrides: { title: "简介", summary: "书名、一句话故事、题材、平台、读者画像等立项答案", keywords: "[立项]" },
+    templateOverrides: { title: "简介", summary: textValue("materials", "kinds.brief.templateOverrides.summary"), keywords: "[立项]" },
     sections: [
       { name: "一句话故事", required: true },
       { name: "题材与平台", required: true },
@@ -255,11 +256,11 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "主角优势", required: true },
       { name: "总规模", required: true },
       { name: "人称与视角", required: true },
-      { name: "书名", required: false, hint: "故事和读者清楚了再定" },
+      { name: "书名", required: false, hint: textValue("materials", "kinds.brief.sections.hint") },
       {
         name: "文案",
         required: false,
-        hint: "给读者看的作品简介，书架上书名下面那几行；故事和读者清楚了再写",
+        hint: textValue("materials", "kinds.brief.sections.hint_2"),
       },
     ],
   }),
@@ -268,18 +269,18 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
     label: "守则",
     dir: "守则",
     description:
-      "怎么写这本书：一条一卡。title 是规则的短句（不超过 10 字，侧栏里一眼认出是哪条），summary 用一句完整的话说清规则，「展开」段写适用范围与例外。level 分 必须（作者说绝不 / 不能）和 尽量（作者说尽量 / 更喜欢），scope 说明管哪一块（文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局）。只追加不删改，作废的标 status: retired。",
+      textValue("materials", "kinds.rules.description"),
     normalizeId: padded(3),
     autoId: true,
     group: { field: "level", order: RULE_LEVELS },
     fields: [
       { name: "level", required: true, comment: RULE_LEVELS.join(" / ") },
-      { name: "scope", required: true, comment: "文字 / 对白 / 叙述 / 情节 / 人物 / 世界 / 全局" },
-      { name: "source", required: true, comment: "作者原话或来源" },
+      { name: "scope", required: true, comment: textValue("materials", "kinds.rules.fields.comment") },
+      { name: "source", required: true, comment: textValue("materials", "kinds.rules.fields.comment_2") },
     ],
     sections: [
-      { name: "展开", required: true, hint: "规则管到哪、不管哪：边界、例外、容易误伤的情形。用两三段说明" },
-      { name: "例子", required: false, hint: "这条规则写出来长什么样：一两段正文，作者亲手改过的段落最好。示范要放在对应的规则下，才能看出该学哪一处" },
+      { name: "展开", required: true, hint: textValue("materials", "kinds.rules.sections.hint") },
+      { name: "例子", required: false, hint: textValue("materials", "kinds.rules.sections.hint_2") },
     ],
   }),
 };
@@ -322,18 +323,18 @@ export function templateNotes(kind: DocKindId): string {
   const fm = templateFrontmatter(def.fields);
   const lines: string[] = [];
   const requiredFields = def.fields.filter((f) => isRequired(f.required, fm) && f.value === undefined);
-  if (requiredFields.length > 0) lines.push(`必填字段（写进 frontmatter，缺了机检报）：${requiredFields.map(fieldNote).join("、")}`);
+  if (requiredFields.length > 0) lines.push(textValue("messages/materials", "kinds.message", { v0: requiredFields.map(fieldNote).join("、") }));
   const optionalFields = def.fields.filter((f) => !isCommonField(f.name) && !isRequired(f.required, {}) && f.value === undefined);
-  if (optionalFields.length > 0) lines.push(`可选字段（有值再加）：${optionalFields.map(fieldNote).join("、")}`);
+  if (optionalFields.length > 0) lines.push(textValue("messages/materials", "kinds.message_2", { v0: optionalFields.map(fieldNote).join("、") }));
   const required = def.sections.filter((s) => isRequired(s.required, fm));
-  if (required.length > 0) lines.push(`必填段（写到了再新增 ## 段，不要预置占位，缺了机检报）：${required.map(sectionNote).join("、")}`);
+  if (required.length > 0) lines.push(textValue("messages/materials", "kinds.message_3", { v0: required.map(sectionNote).join("、") }));
   const optional = def.sections.filter((s) => !isRequired(s.required, {}));
   if (optional.length > 0) {
-    lines.push(`可选段（写到了再新增 ## 段，不要预置占位）：${optional.map(sectionNote).join("、")}`);
+    lines.push(textValue("messages/materials", "kinds.message_4", { v0: optional.map(sectionNote).join("、") }));
   }
   const conditional = def.sections.filter((s) => typeof s.required === "function").map((s) => s.name);
-  if (kind === "characters" && conditional.length > 0) lines.push(`tier 为 主角 / 关键对手 时必填：${conditional.join("、")}`);
-  lines.push("作者明确说先放一放的项记进 frontmatter open: [项名]，拍板后去掉。");
+  if (kind === "characters" && conditional.length > 0) lines.push(textValue("messages/materials", "kinds.message_5", { v0: conditional.join("、") }));
+  lines.push(textValue("messages/materials", "kinds.message_6"));
   return lines.map((l) => `<!-- ${l} -->`).join("\n");
 }
 

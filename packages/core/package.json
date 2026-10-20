@@ -27,10 +27,11 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json -w --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p test/tsconfig.json --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "preview": "bun scripts/preview.ts"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "1.2.0",
@@ -45,5 +46,9 @@
     "@types/bun": "1.4.0",
     "@types/diff": "8.0.0",
     "@types/node": "24.13.3"
-  }
+  },
+  "files": [
+    "dist",
+    "text"
+  ]
 }
