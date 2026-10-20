@@ -111,6 +111,8 @@ function defineKind(def: KindDef): DocKind {
 }
 
 const CHARACTER_TIERS = ["主角", "关键对手", "重要配角", "一般配角"] as const;
+/** 章纲的情绪落点：连着几章只压不放，卷节奏表上一眼看得见 */
+export const CHAPTER_BEATS = ["压", "放", "平"] as const;
 const RULE_LEVELS = ["必须", "尽量"] as const;
 const speaksMuch = (fm: Frontmatter) => fm.tier === "主角" || fm.tier === "关键对手";
 
@@ -212,6 +214,11 @@ export const DOC_KINDS: Record<DocKindId, DocKind> = {
       { name: "characters", required: true, value: "[]" },
       { name: "threads", value: "[]" },
       { name: "words", value: "3000" },
+      {
+        name: "beat",
+        options: CHAPTER_BEATS,
+        comment: "本章情绪落点：压（主角受压、没有出口）/ 放（有释放、爽点落地，先压后放也算）/ 平（过渡、铺垫）",
+      },
     ],
     sections: [
       { name: "本章目标", required: true },

@@ -105,7 +105,20 @@ describe("volume_rhythm", () => {
     const any = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     const out = textOf(await any("volume_rhythm")({ volume: "1" }));
     expect(out).toContain("| 1 | 11 | 复仇 | 有 |");
-    expect(out).toContain("| 2 | 未写 | 无 | 空 |");
+    expect(out).toContain("| 2 | 未写 | 无 | 空 | 未标 |");
     expect(out).not.toContain("| 3 |");
+    expect(out).not.toContain("连续只压不放");
+  });
+
+  test("压放一列照章纲 beat 填，指出连续只压不放最长的一段", async () => {
+    await store.write("volumes", "1", fm({ milestones: "[]", chapters: "1-6" }, "## 卷目标\n\n x\n"));
+    const beats = ["压", "放", "压", "压", "压", "平"];
+    for (const [i, beat] of beats.entries()) {
+      await store.write("chapters", String(i + 1), fm({ volume: "01", characters: "[]", beat }, "## 章末钩子\n\n门外有人\n"));
+    }
+    const any = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
+    const out = textOf(await any("volume_rhythm")({ volume: "1" }));
+    expect(out).toContain("| 2 | 未写 | 无 | 有 | 放 |");
+    expect(out).toContain("连续只压不放最长的一段：第 3–5 章，共 3 章。");
   });
 });
