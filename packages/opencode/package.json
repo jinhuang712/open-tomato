@@ -1,0 +1,22 @@
+{
+  "name": "@opentomato/opencode",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenTomato 的 opencode v2 插件：主编与各角色 agent、材料工具、审批门与机检",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./server.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.1.0",
+    "@opentomato/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.0",
+    "typescript": "5.9.3"
+  }
+}
