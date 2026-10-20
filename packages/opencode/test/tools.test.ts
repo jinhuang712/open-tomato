@@ -55,7 +55,7 @@ describe("materialTools", () => {
     );
     for (const tool of tools.values()) {
       expect(Object.getOwnPropertySymbols(tool.input)).toEqual([]);
-      expect(tool.options).toEqual({ codemode: false, permission: "opentomato" });
+      expect(tool.options).toEqual({ codemode: false, permission: `opentomato.${tool.name}` });
     }
   });
 

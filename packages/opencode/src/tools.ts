@@ -15,7 +15,7 @@ import {
   type ToolContext,
 } from "@opentomato/core/headless";
 
-/** 插件工具的权限动作名：哪个 agent 该看不见这些工具，就在它的规则里 deny 这个动作 */
+/** 插件工具的权限动作前缀：每个工具的动作是 opentomato.<工具名>，deny「opentomato.*」就整组看不见 */
 export const TOOL_PERMISSION = "opentomato";
 
 type CoreTool = ReturnType<typeof makeReadDocTool>;
@@ -52,7 +52,7 @@ function adapt(tool: CoreTool): ToolInfo {
     description: tool.description,
     // typebox 的 schema 就是 JSON Schema，转一道去掉它挂在对象上的 symbol 键
     input: JSON.parse(JSON.stringify(tool.parameters)),
-    options: { codemode: false, permission: TOOL_PERMISSION },
+    options: { codemode: false, permission: `${TOOL_PERMISSION}.${tool.name}` },
     execute: async (input, context) => {
       const result = await tool.execute(
         context.id,

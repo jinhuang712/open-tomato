@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin";
 import { ProjectStore } from "@opentomato/core/headless";
+import { registerAgents } from "./agents.ts";
 import { materialTools } from "./tools.ts";
 
 /**
@@ -19,5 +20,6 @@ export default Plugin.define({
     await ctx.tool.transform((editor) => {
       for (const tool of tools) editor.add(tool);
     });
+    await ctx.agent.transform(registerAgents);
   },
 });
