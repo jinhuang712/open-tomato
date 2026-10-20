@@ -25,7 +25,12 @@ export function makeReadReviewTool(ctx: ToolContext): ToolDefinition {
         const stale = current && r.version !== current ? "（审的是上一版正文）" : "";
         lines.push(`## ${ROLES[r.role].label}${stale}：${r.verdict}`);
         if (r.items.length === 0) lines.push("- 没有问题");
-        for (const it of r.items) lines.push(`- ${it.level === "must" ? "必须改" : "建议看"}｜${it.where} → ${it.issue}${it.fix ? ` → ${it.fix}` : ""}`);
+        for (const it of r.items) {
+          const tag = it.standard ? `${it.standard}｜` : "";
+          lines.push(
+            `- ${it.level === "must" ? "必须改" : "建议看"}｜${tag}${it.where} → ${it.issue}${it.fix ? ` → ${it.fix}` : ""}`,
+          );
+        }
       }
       return text(lines.join("\n"));
     },

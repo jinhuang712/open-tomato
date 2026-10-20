@@ -94,6 +94,37 @@ describe("审稿记录工具", () => {
     expect(read).toContain("- 没有问题");
   });
 
+  test("审稿意见可以带上标准名，读回时跟在级别后面；只能填归这一路核对的标准", async () => {
+    await store.write("manuscript", "3", DRAFT);
+    const ops = toolsFor({ writableKinds: [], canSpawn: false, canAsk: false, reviewAs: "ops" });
+    await ops("save_review")({
+      chapter: "3",
+      verdict: "憋得太久",
+      items: [
+        { level: "suggest", where: "他推门进来", issue: "连着三章挨打没还手", standard: "压放" },
+        { level: "suggest", where: "他推门进来", issue: "开头交代太长" },
+      ],
+    });
+    const read = textOf(await ops("read_review")({ chapter: "3" }));
+    expect(read).toContain("建议看｜压放｜他推门进来 → 连着三章挨打没还手");
+    expect(read).toContain("建议看｜他推门进来 → 开头交代太长");
+
+    const def = createTools(
+      {
+        store,
+        gate: gateAnswering("approve"),
+        agentId: "x",
+        runCheck: async () => [],
+        docsChanged: async () => [],
+        search: async () => [],
+      },
+      { writableKinds: [], canSpawn: false, canAsk: false, reviewAs: "ops" },
+    ).find((t) => t.name === "save_review");
+    const schema = JSON.stringify(def?.parameters);
+    expect(schema).toContain("压放");
+    expect(schema).not.toContain("线索推进");
+  });
+
   test("没审过的章 read_review 说没有记录", async () => {
     const writer = toolsFor({ writableKinds: DOC_KIND_IDS, canSpawn: false, canAsk: false });
     expect(textOf(await writer("read_review")({ chapter: "9" }))).toContain("还没有审稿记录");

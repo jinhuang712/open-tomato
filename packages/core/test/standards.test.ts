@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ROLES, ROLE_IDS, reviewGuide } from "../src/agent/roles.js";
 import type { RoleId } from "../src/protocol.js";
+import { CAPABILITIES, capabilityIdsOf } from "../src/agent/capabilities.js";
 import { checkedBy, producedBy, STANDARD_IDS, STANDARDS, type Standard } from "../src/agent/standards.js";
 
 const all = (): [string, Standard][] => STANDARD_IDS.map((id) => [id, STANDARDS[id]]);
@@ -45,6 +46,17 @@ describe("产出句只进产出它的角色", () => {
   test("压放这条，编剧排章纲时就要标，写手不管", () => {
     expect(producedBy("plotter")).toContain("beat");
     expect(producedBy("writer")).not.toContain("beat");
+  });
+});
+
+describe("技法挂在标准上", () => {
+  test("每条技法都写了修哪条标准，主编的能力清单里看得见", () => {
+    for (const id of capabilityIdsOf("technique")) {
+      const standard = CAPABILITIES[id].standard;
+      expect(standard).toBeDefined();
+      if (standard)
+        expect(ROLES.director.systemPrompt).toContain(`修的标准：${STANDARDS[standard].label}`);
+    }
   });
 });
 

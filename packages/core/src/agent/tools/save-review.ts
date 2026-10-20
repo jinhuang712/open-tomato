@@ -5,10 +5,18 @@ import type { RoleId } from "../../protocol.js";
 import { DOC_KINDS } from "../../project/kinds.js";
 import { contentHash } from "../../project/records.js";
 import { ROLES } from "../roles.js";
+import { checkedBy, STANDARDS } from "../standards.js";
 import { text, type ToolContext } from "./shared.js";
 
 export function makeSaveReviewTool(ctx: ToolContext, role: RoleId): ToolDefinition {
   const { store } = ctx;
+  const labels = checkedBy(role).map((id) => STANDARDS[id].label);
+  const standard = Type.Optional(
+    Type.Union(
+      labels.map((l) => Type.Literal(l)),
+      { description: "这条归哪条标准，填「归你核对的标准」里的名字；工艺检查不填" },
+    ),
+  );
   return defineTool({
     name: "save_review",
     label: "落审稿记录",
@@ -22,6 +30,7 @@ export function makeSaveReviewTool(ctx: ToolContext, role: RoleId): ToolDefiniti
           where: Type.String({ description: "位置：引原文前 10 字左右" }),
           issue: Type.String({ description: "问题是什么" }),
           fix: Type.Optional(Type.String({ description: "建议怎么改" })),
+          standard,
         }),
         { maxItems: 12 },
       ),

@@ -1,5 +1,6 @@
 import type { CapabilityId, CapabilityInfo, CapabilityKind } from "../protocol.js";
 import { loadPrompt } from "./prompt-text.js";
+import { STANDARDS, type StandardId } from "./standards.js";
 
 /**
  * 能力是主编的一份打包工作流：目标、交付物、边界，不写步骤。
@@ -10,6 +11,8 @@ export interface CapabilityDef extends CapabilityInfo {
   when: string;
   /** 加载正文：进主编的上下文 */
   load: () => string;
+  /** 技法修的是哪条标准：审稿意见标了这条标准，就想到这条技法 */
+  standard?: StandardId;
 }
 
 export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
@@ -84,6 +87,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "把他想要的和缺的分开，人物扁、行为全靠剧情推着走时用。",
     when: "人物扁、行为全靠剧情推着走；人物卡内在与欲望段空着或立不住",
     load: () => loadPrompt("capabilities/deeper-needs"),
+    standard: "motive",
   },
   show: {
     id: "show",
@@ -92,6 +96,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "把一句判断改成动作和细节，改一处教会一次，不包整章。",
     when: "审稿报太满 / 说教旁白、改一句就能活时；作者觉得干却说不出怎么改时",
     load: () => loadPrompt("capabilities/show"),
+    standard: "show",
   },
   fivewhy: {
     id: "fivewhy",
@@ -100,6 +105,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "动机模糊时连追为什么，挖到能落卡的因果。",
     when: "人物要什么说不清、有结果没原因；设定有个结论没来由",
     load: () => loadPrompt("capabilities/fivewhy"),
+    standard: "motive",
   },
   logline: {
     id: "logline",
@@ -108,6 +114,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "一句话定住谁要什么、什么挡着他，设定多但没事发生时用。",
     when: "设定写了很多但没一件事发生；访谈转设卡之前",
     load: () => loadPrompt("capabilities/logline"),
+    standard: "story",
   },
   "but-therefore": {
     id: "but-therefore",
@@ -116,6 +123,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "相邻两件事必须用但是 / 因此连上，章纲是流水账时用。",
     when: "章纲是流水账、被报没有事发生时",
     load: () => loadPrompt("capabilities/but-therefore"),
+    standard: "scene",
   },
   hook: {
     id: "hook",
@@ -124,6 +132,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "章首建期待、章末落在问题或危机上，一次只弄一章。",
     when: "开篇留不住、章末只是停了；黄金开头要磨时",
     load: () => loadPrompt("capabilities/hook"),
+    standard: "hook",
   },
   cool: {
     id: "cool",
@@ -132,6 +141,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityDef> = {
     description: "捋清压制多久、何处释放，连续憋屈没出口时用。",
     when: "连续几章憋屈没释放；爽了但读者没感觉时",
     load: () => loadPrompt("capabilities/cool"),
+    standard: "beat",
   },
 };
 
@@ -157,7 +167,8 @@ export function isCapabilityId(v: unknown): v is CapabilityId {
 export function capabilityRoster(): string {
   const line = (id: CapabilityId) => {
     const c = CAPABILITIES[id];
-    return `- ${id}（${c.label}）：${c.description} 时机：${c.when}`;
+    const fixes = c.standard ? ` 修的标准：${STANDARDS[c.standard].label}` : "";
+    return `- ${id}（${c.label}）：${c.description} 时机：${c.when}${fixes}`;
   };
   const group = (kind: CapabilityKind) => capabilityIdsOf(kind).map(line).join("\n");
   return `工作流：\n${group("workflow")}\n技法：\n${group("technique")}`;

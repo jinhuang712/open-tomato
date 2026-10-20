@@ -75,6 +75,8 @@ export interface ReviewItem {
   where: string;
   issue: string;
   fix?: string;
+  /** 归哪条标准（标准表里的中文名）；标准表之外的工艺检查不填 */
+  standard?: string;
 }
 
 export interface ReviewRound {

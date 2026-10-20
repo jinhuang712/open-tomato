@@ -175,5 +175,5 @@ export function checkBlock(role: RoleId): string {
     const s = standard(id);
     return `${i + 1}. **${s.label}**：${s.check?.text ?? ""}（计划在 ${s.planned}）`;
   });
-  return `## 归你核对的标准\n\n${lines.join("\n")}`;
+  return `## 归你核对的标准\n\nsave_review 时，属于下面哪条的意见，standard 就填它的名字；工艺检查不填。\n\n${lines.join("\n")}`;
 }
