@@ -9,7 +9,8 @@
     ".": "./server.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@opencode/plugin": "2.1.0",

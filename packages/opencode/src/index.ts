@@ -1,5 +1,6 @@
 import { Plugin } from "@opencode/plugin";
 import { ProjectStore } from "@opentomato/core/headless";
+import { materialTools } from "./tools.ts";
 
 /**
  * OpenTomato 的 opencode v2 插件。装在一本书的目录上（项目 opencode.json 的 plugins），
@@ -13,5 +14,10 @@ export default Plugin.define({
       ? await ProjectStore.open(root)
       : await ProjectStore.create(root, "");
     console.log(`[opentomato] 项目：${store.info.name}（${root}）`);
+
+    const tools = materialTools(store);
+    await ctx.tool.transform((editor) => {
+      for (const tool of tools) editor.add(tool);
+    });
   },
 });
